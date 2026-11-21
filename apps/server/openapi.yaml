@@ -412,10 +412,12 @@ components:
     Settlement:
       type: object
       description: A loot settlement of a raid plan (GET /plans/{id}/settlement)
+      required: [plan, can_edit, me, draft, checks, overrides, corrected, finalized, state, result, done, delivered, auto_done]
       properties:
         plan:
           type: object
           description: The plan's target and time
+          required: [id, mission, g, s, p, planet_type, target_time, status]
           properties:
             id: { type: integer }
             mission: { type: string, enum: [attack, hold] }
@@ -429,6 +431,7 @@ components:
         me: { type: string }
         draft:
           type: object
+          required: [state, sources]
           properties:
             state: { $ref: '#/components/schemas/LootState' }
             sources: { $ref: '#/components/schemas/SettlementSources' }
@@ -439,16 +442,23 @@ components:
             only the battle message, none), `returns` per member fleet of an attack with one battle (loot from the fleet
             return message, the overview, or missing), `recycling` (`gap`: an emptied debris field the recycling rows do
             not cover), `missing` the count of missing items.
+          required: [battle, returns, recycling, missing]
           properties:
             battle: { type: string, enum: [report, plan, missing] }
             returns: { type: object, additionalProperties: { type: string, enum: [message, overview, missing] } }
             recycling: { type: string, enum: [ok, none, gap, n/a] }
             missing: { type: integer }
-        overrides: { type: [object, 'null'], description: 'Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot)' }
+        overrides:
+          type: [object, 'null']
+          description: >-
+            Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot: changed settings, fields per
+            person, battle and recycling key, rows added by hand, transfers), null if none
+          additionalProperties: true
         corrected:
           oneOf:
             - { type: 'null' }
             - type: object
+              required: [updated_at, updated_by]
               properties:
                 updated_at: { type: integer }
                 updated_by: { type: [string, 'null'] }
@@ -456,6 +466,7 @@ components:
           oneOf:
             - { type: 'null' }
             - type: object
+              required: [at, by, live, changes]
               properties:
                 at: { type: integer }
                 by: { type: [string, 'null'] }
@@ -463,18 +474,19 @@ components:
                 changes:
                   type: object
                   description: Differences between the frozen state and `live`, per kind
+                  required: [people, battles, recycling, settings]
                   properties:
                     people: { type: integer }
                     battles: { type: integer }
                     recycling: { type: integer }
                     settings: { type: integer }
         state: { $ref: '#/components/schemas/LootState' }
-        result: { type: object, description: 'Settlement of `state` computed by @pr0hub/loot' }
+        result: { type: object, description: 'Settlement of `state` computed by @pr0hub/loot (`SettlementResult`)', additionalProperties: true }
         done: { type: array, items: { type: string }, description: 'Deliveries marked done ("<from id>><to id>")' }
         delivered:
           type: object
           description: 'Finalized: resources the transport messages show delivered per delivery ("<from id>><to id>")'
-          additionalProperties: { type: object, properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } } }
+          additionalProperties: { $ref: '#/components/schemas/LootRes' }
         auto_done: { type: array, items: { type: string }, description: Deliveries the transport messages show delivered in full }
     SettlementSources:
       type: object
@@ -525,24 +537,40 @@ components:
             properties:
               by: { type: string }
               time: { type: [integer, 'null'] }
+    LootRes:
+      type: object
+      description: Metal, crystal and deuterium
+      required: [m, k, d]
+      properties: { m: { type: number }, k: { type: number }, d: { type: number } }
+    LootDebris:
+      type: object
+      description: Metal and crystal of a debris field
+      required: [m, k]
+      properties: { m: { type: number }, k: { type: number } }
+    LootShips:
+      type: object
+      description: Ship element id -> amount
+      additionalProperties: { type: number }
     LootState:
       type: object
       description: >-
         Input of an ACS loot settlement (`@pr0hub/loot`, the same as the loot calculator's share links). Resources are
         `{ m, k, d }` (metal, crystal, deuterium), ships element id -> amount. `transfers` null: the suggested deliveries.
+      required: [participants, helpers, battles, recycling, settings, transfers]
       properties:
         participants:
           type: array
           maxItems: 5
           items:
             type: object
+            required: [id, name]
             properties:
               id: { type: string }
               name: { type: string }
-              flightDeut: { type: integer }
-              recDeut: { type: integer }
-              missiles: { type: integer }
-              extra: { type: object }
+              flightDeut: { type: number }
+              recDeut: { type: number }
+              missiles: { type: number }
+              extra: { type: object, description: Any other costs, properties: { m: { type: number }, k: { type: number }, d: { type: number } } }
               sharePct:
                 type: number
                 minimum: 0
@@ -552,49 +580,67 @@ components:
           type: array
           items:
             type: object
+            required: [id, name, keepPct]
             properties:
               id: { type: string }
               name: { type: string }
               keepPct: { type: number, minimum: 0, maximum: 20, description: Share of what they recycled the helper keeps (game rule at most 20 %) }
-              recDeut: { type: integer, description: Recycler deuterium, refunded only with `settings.helperDeut` }
+              recDeut: { type: number, description: Recycler deuterium, refunded only with `settings.helperDeut` }
         battles:
           type: array
           items:
             type: object
+            required: [loot, fleets]
             properties:
+              key: { type: string, description: 'Stable id of a battle the hub took from its data (report id, else the time)' }
               time: { type: [integer, 'null'] }
-              loot: { type: object }
+              loot: { $ref: '#/components/schemas/LootRes' }
               fleets:
                 type: array
                 items:
                   type: object
+                  required: [participant, start, end]
                   properties:
                     participant: { type: string }
-                    start: { type: object }
-                    end: { type: object }
-                    carried: { type: object }
-                    loot: { type: object, description: Loot this fleet brought home (wins over the share by cargo space) }
-              debris: { type: object, description: 'Debris field at the target after the battle (`{ m, k }`, battle report), when known' }
+                    start: { $ref: '#/components/schemas/LootShips' }
+                    end: { $ref: '#/components/schemas/LootShips' }
+                    carried: { type: object, description: Resources the fleet carried already, properties: { m: { type: number }, k: { type: number }, d: { type: number } } }
+                    loot: { $ref: '#/components/schemas/LootRes', description: Loot this fleet brought home (wins over the share by cargo space) }
+              debris: { $ref: '#/components/schemas/LootDebris', description: 'Debris field at the target after the battle (battle report), when known' }
         recycling:
           type: array
           items:
             type: object
+            required: [by, m, k]
             properties:
+              key: { type: string, description: Stable id of a recycling report the hub took from its data }
               by: { type: string }
-              m: { type: integer }
-              k: { type: integer }
-              field: { type: object, description: 'Debris field before this collection (`{ m, k }`, recycling report), when known' }
+              m: { type: number }
+              k: { type: number }
+              field: { $ref: '#/components/schemas/LootDebris', description: 'Debris field before this collection (recycling report), when known' }
               time: { type: [integer, 'null'], description: Time of the recycling report, when known }
         settings:
           type: object
+          required: [mode, rates, deficitMetalShare, cargoShip]
           properties:
             mode: { type: string, enum: [equal, investment], description: 'equal: by percent (`sharePct`, equal shares by default); investment: by the value of the ships sent' }
-            rates: { type: object, description: Metal and crystal per deuterium }
-            refRates: { type: [object, 'null'] }
+            rates: { $ref: '#/components/schemas/LootRes', description: Metal and crystal per deuterium }
+            refRates:
+              oneOf:
+                - { type: 'null' }
+                - { $ref: '#/components/schemas/LootRes' }
             deficitMetalShare: { type: number }
             cargoShip: { type: integer }
             helperDeut: { type: boolean, description: Refund the helpers' recycler deuterium on top of their share (default false) }
-        transfers: { type: [array, 'null'], items: { type: object } }
+        transfers:
+          type: [array, 'null']
+          items:
+            type: object
+            required: [from, to, res]
+            properties:
+              from: { type: string }
+              to: { type: string }
+              res: { $ref: '#/components/schemas/LootRes' }
     PushSettings:
       type: object
       properties:
@@ -6830,6 +6876,7 @@ paths:
                 type: array
                 items:
                   type: object
+                  required: [id, mission, g, s, p, planet_type, target_time, status, creator, player_id, player_name, members, battle, saved, stage, missing, deadline, mine]
                   properties:
                     id: { type: integer }
                     mission: { type: string, enum: [attack, hold] }
@@ -6848,6 +6895,7 @@ paths:
                       oneOf:
                         - { type: 'null' }
                         - type: object
+                          required: [updated_at, updated_by, finalized_at, deliveries, done]
                           properties:
                             updated_at: { type: integer }
                             updated_by: { type: [string, 'null'] }
@@ -6861,11 +6909,12 @@ paths:
                       type: array
                       items:
                         type: object
+                        required: [from, to, sends, res]
                         properties:
                           from: { type: string }
                           to: { type: string }
                           sends: { type: boolean, description: 'The caller sends (else receives)' }
-                          res: { type: object, properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } } }
+                          res: { $ref: '#/components/schemas/LootRes' }
   /api/{uni}/settlements/from-report:
     post:
       tags: [Combat]
@@ -6897,6 +6946,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [id, existing, mission]
                 properties:
                   id: { type: integer }
                   existing: { type: boolean }
@@ -7081,7 +7131,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object, properties: { done: { type: array, items: { type: string } } } }
+              schema: { type: object, required: [done], properties: { done: { type: array, items: { type: string } } } }
         '404':
           description: No finalized settlement (`settlement_not_found`) or plan (`plan_not_found`)
           content:
