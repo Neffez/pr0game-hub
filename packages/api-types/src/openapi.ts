@@ -742,7 +742,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead. The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
+        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin (`awardMemberBadge`). The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
         get: operations["getAchievements"];
         put?: never;
         post?: never;
@@ -2446,6 +2446,30 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/groups/{id}/members/{userId}/awards/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Awards a badge that is only given by hand (`livingLegend`: "Living legend") to a member of the alliance; global admins. It counts in the achievements from now on; awarding it again keeps the first date. */
+        put: operations["awardMemberBadge"];
+        post?: never;
+        /** @description Takes back a badge awarded by hand; global admins. */
+        delete: operations["revokeMemberBadge"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/groups/{id}/members/{userId}/invite": {
         parameters: {
             query?: never;
@@ -3894,7 +3918,7 @@ export type components = {
                 userId: number;
                 name: string;
                 /** @enum {string} */
-                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner" | "livingLegend";
                 level: number;
             }[];
             /** @description Every member, most points first */
@@ -7516,6 +7540,8 @@ export interface operations {
                         account?: boolean;
                         /** @description Onboarding steps the member has done (first sync of each kind of page) */
                         onboarding?: ("empire" | "stats" | "overview" | "research" | "galaxy" | "messages" | "buildings")[];
+                        /** @description Badges awarded to the member by hand (`awardMemberBadge`) */
+                        awards?: "livingLegend"[];
                         /** @description Expiry of the member's open claim or recovery link, null without one (recovery links only for global admins). Links are stored as their hash: the link itself is only returned when created (`addGroupMember`, `createMemberInvite`). */
                         invite_expires_at?: number | null;
                     }[];
@@ -8753,7 +8779,7 @@ export interface operations {
                             };
                             badges: {
                                 /** @enum {string} */
-                                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner" | "livingLegend";
                                 count: number;
                                 /** @description Reached level, 0: not yet */
                                 level: number;
@@ -13537,6 +13563,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Ok"];
+                };
+            };
+        };
+    };
+    awardMemberBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Not a badge awarded by hand (`badge_invalid`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a global admin (`admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a member of the alliance (`member_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeMemberBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Not a global admin (`admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a member of the alliance (`member_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

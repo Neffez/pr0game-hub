@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { checkDisplayName, checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
 import { loginUsernameBase } from '../displayName.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
@@ -11,6 +11,7 @@ import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { listSamples, sampleContent } from '../repo/samples.js';
 import { ONBOARDING_STEPS, onboardingOf } from '../repo/onboarding.js';
+import { isManualBadge } from '../repo/achievements.js';
 import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
 import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
@@ -365,6 +366,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const user = requireGroupAdmin(req, groupId);
     const t = now();
     const onboarding = onboardingOf(db, groupId);
+    const awards = new Map<number, string[]>();
+    for (const a of db.prepare('SELECT user_id, key FROM member_awards WHERE group_id = ? ORDER BY key').all(groupId) as { user_id: number; key: string }[]) {
+      awards.set(a.user_id, [...(awards.get(a.user_id) ?? []), a.key]);
+    }
     return db
       .prepare(
         `SELECT u.id, u.username, u.display_name, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
@@ -379,6 +384,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       .map((m: any) => ({
         ...m,
         onboarding: ONBOARDING_STEPS.filter((k) => onboarding.get(m.id)?.[k] != null),
+        awards: awards.get(m.id) ?? [],
         account: !!m.account,
         global_admin: !!m.global_admin,
         owner: m.id === owner(),
@@ -520,6 +526,30 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       revokeAccessIfOrphaned(db, target);
     }
     events.publish(groupId, { type: 'data', tables: ['group_members'] });
+    return { ok: true };
+  });
+
+  /** Badges awarded by hand (repo/achievements.ts `MANUAL_BADGES`): only global admins award and revoke them. */
+  const awardTarget = (req: FastifyRequest<{ Params: { id: string; userId: string; key: string } }>) => {
+    const user = requireAdmin(req);
+    const groupId = Number(req.params.id);
+    const target = Number(req.params.userId);
+    if (!isManualBadge(req.params.key)) throw new HttpError(400, 'badge_invalid', 'Not a badge awarded by hand');
+    if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
+      throw new HttpError(404, 'member_not_found', 'Member not found');
+    }
+    return { user, groupId, target, key: req.params.key };
+  };
+  app.put<{ Params: { id: string; userId: string; key: string } }>('/api/admin/groups/:id/members/:userId/awards/:key', async (req) => {
+    const { user, groupId, target, key } = awardTarget(req);
+    db.prepare('INSERT OR IGNORE INTO member_awards (group_id, user_id, key, awarded_by, awarded_at) VALUES (?, ?, ?, ?, ?)').run(groupId, target, key, user.id, now());
+    events.publish(groupId, { type: 'data', tables: ['member_awards'] });
+    return { ok: true };
+  });
+  app.delete<{ Params: { id: string; userId: string; key: string } }>('/api/admin/groups/:id/members/:userId/awards/:key', async (req) => {
+    const { groupId, target, key } = awardTarget(req);
+    db.prepare('DELETE FROM member_awards WHERE group_id = ? AND user_id = ? AND key = ?').run(groupId, target, key);
+    events.publish(groupId, { type: 'data', tables: ['member_awards'] });
     return { ok: true };
   });
 

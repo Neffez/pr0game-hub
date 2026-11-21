@@ -1047,7 +1047,7 @@ components:
             properties:
               userId: { type: integer }
               name: { type: string }
-              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner, livingLegend] }
               level: { type: integer }
         rows:
           type: array
@@ -4419,6 +4419,10 @@ paths:
                       type: array
                       items: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
                       description: Onboarding steps the member has done (first sync of each kind of page)
+                    awards:
+                      type: array
+                      items: { type: string, enum: [livingLegend] }
+                      description: Badges awarded to the member by hand (`awardMemberBadge`)
                     invite_expires_at:
                       type: [integer, 'null']
                       description: >-
@@ -5248,7 +5252,8 @@ paths:
         `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer`
         player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more,
         `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments
-        on players, `miner` a build order planning 5 days ahead. The streak counts days in the universe's time zone
+        on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin
+        (`awardMemberBadge`). The streak counts days in the universe's time zone
         with a sync only the member can make (own empire, overview, buildings or research page, own reports and
         messages); a day in vacation mode pauses it.
       parameters:
@@ -5285,7 +5290,7 @@ paths:
                             type: object
                             required: [key, count, level, levels, next, steps]
                             properties:
-                              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+                              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner, livingLegend] }
                               count: { type: integer }
                               level: { type: integer, description: 'Reached level, 0: not yet' }
                               levels: { type: integer }
@@ -8742,6 +8747,58 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
+  /api/admin/groups/{id}/members/{userId}/awards/{key}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+      - { name: userId, in: path, required: true, schema: { type: integer } }
+      - { name: key, in: path, required: true, schema: { type: string, enum: [livingLegend] }, description: Badge awarded by hand }
+    put:
+      tags: [Admin]
+      operationId: awardMemberBadge
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Awards a badge that is only given by hand (`livingLegend`: "Living legend") to a member of the alliance; global
+        admins. It counts in the achievements from now on; awarding it again keeps the first date.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400':
+          description: Not a badge awarded by hand (`badge_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not a member of the alliance (`member_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Admin]
+      operationId: revokeMemberBadge
+      security: [{ sessionCookie: [] }]
+      description: Takes back a badge awarded by hand; global admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not a member of the alliance (`member_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/admin/groups/{id}/members/{userId}/invite:
     post:
       tags: [Admin]

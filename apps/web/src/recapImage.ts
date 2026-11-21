@@ -1,5 +1,5 @@
 import type { Recap } from './apiTypes';
-import { BADGE_ICONS, levelColor } from './achievements';
+import { BADGE_ICONS, badgeColor } from './achievements';
 import { ICONS } from './components/Icon.vue';
 
 /**
@@ -111,7 +111,7 @@ export function recapSvg(x: RecapImageTexts): { svg: string; width: number; heig
     x.badges.forEach((b, i) => {
       const cx = PAD + 20 + (i % perRow) * (chipW + 12);
       const cy = y + 52 + Math.floor(i / perRow) * 52;
-      const color = levelColor(b.level) ?? C.faint;
+      const color = badgeColor(b) ?? C.faint;
       out.push(`<rect x="${cx}" y="${cy}" width="${chipW}" height="42" rx="21" fill="${C.surface2}" stroke="${color}" stroke-opacity="0.5"/>`);
       out.push(icon(BADGE_ICONS[b.key], cx + 12, cy + 10, 22, color));
       out.push(text(cx + 44, cy + 18, cut(b.name, 24), 14, C.text, 'font-weight="600"'));
