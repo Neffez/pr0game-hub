@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Beuteabrechnung: Wer laut Kampfbericht mitgekämpft hat, aber keine Flotte im Plan hatte, ist jetzt auch dabei – Mitglieder mit Namen, andere Spieler als Gäste.',
+        en: 'Loot settlement: whoever fought in the battle report without a fleet in the plan now takes part too – members by name, other players as guests.',
+      },
+      {
+        kind: 'fix',
+        de: 'Beuteabrechnung: Das Deuterium für die Angriffsflüge wird jetzt auch aus dem Kampfbericht berechnet, wenn der Plan schon vorher bestand oder ein Gast mitgeflogen ist. Bei Kampfberichten von vorher den Bericht einmal neu einfügen.',
+        en: 'Loot settlement: the deuterium of the attack flights is now also computed from the battle report when the plan existed before or a guest flew along. For battle reports from before, paste the report once more.',
+      },
+      {
+        kind: 'fix',
         de: 'Loot-Abrechnung auf dem Handy: Die Teilnehmer sind übersichtlicher, die Eingabefelder stehen sauber untereinander, und die Erklärung zum Anteil steckt im Info-Symbol statt als langer Text im Feld.',
         en: 'Loot settlement on phones: the participants are easier to read, the inputs line up, and the explanation of the share sits behind the info icon instead of a long text in the field.',
       },

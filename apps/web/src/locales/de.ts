@@ -3289,6 +3289,7 @@ const de = {
     flightDeut: 'Deut Flüge',
     recDeut: 'Deut Recycler',
     missiles: 'IRaks',
+    fromReportFlight: 'aus Startplanet und Schiffen im Kampfbericht mit 100 % Geschwindigkeit berechnet (Schätzung)',
     fromPlan: 'aus der Planflotte mit geplanter Geschwindigkeit berechnet (Schätzung, bis der Rückflug in der Übersicht zu sehen ist)',
     helpers: 'Recycling-Helfer',
     keepPct: 'Behält % (max. 20)',

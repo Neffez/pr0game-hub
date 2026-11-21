@@ -11,6 +11,7 @@ import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 import { DISPLAY, displayOf } from './sql.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
+import { memberOfFleet } from './reportPlan.js';
 
 /** Battles count for a plan from an hour before its time until an hour after its (day/hour) window. */
 const BATTLE_SLACK = 3600;
@@ -35,9 +36,11 @@ export interface DraftSources {
   flightDeut: Record<string, number>;
   /**
    * participant id -> how the flight deuterium was computed: `fleet` with the flight time of the fleets' return flights
-   * in the overview (exact), `plan` with the planned speed (estimate)
+   * in the overview (exact, needs the drive levels), `plan` with the planned speed (estimate), `report` from the start
+   * planets and ships in the battle report at 100 % speed (estimate; participants without a plan fleet with a start
+   * planet, guests too)
    */
-  flightDeutFrom: Record<string, 'fleet' | 'plan'>;
+  flightDeutFrom: Record<string, 'fleet' | 'plan' | 'report'>;
   /** person id -> deuterium of their recycler flights, estimated from the recycler return messages */
   recDeut: Record<string, number>;
   /** participant id -> interplanetary missiles fired on the target (missile impact messages) */
@@ -46,6 +49,8 @@ export interface DraftSources {
   recycling: { by: string; time: number | null }[];
 }
 
+/** A fleet's start planet in an archived combat report (`CombatFrom` of the store). */
+type ReportFrom = [g: number, s: number, p: number, moon: 0 | 1];
 type PlanFleet = LaunchFleet & { member: string; ingame_name: string | null; speed: number; manual: string | null; drives_time: number | null };
 /** `name`: a guest taken from a battle report whose player is not in the galaxy data */
 type Guest = { player: { id: number; name: string } | null; name?: string; ships: Record<number, number> };
@@ -54,7 +59,8 @@ const guestName = (g: Guest) => g.player?.name ?? g.name ?? null;
 const lower = (s: string) => s.trim().toLowerCase();
 
 /**
- * Settlement prefilled from the hub's data: participants from the plan's fleets (members first, then guest fleets),
+ * Settlement prefilled from the hub's data: participants from the plan's fleets (members first, then guest fleets, then
+ * the battle reports' fleets the plan does not know),
  * battles at the target around the plan's time (fleets and losses from the archived battle report, else the planned
  * ships), loot by cargo space like the game unless the members' fleet return messages tell what each fleet brought home, recycling
  * reports at the target within 24 hours (members outside the plan as helpers) and the deuterium of the attack flights.
@@ -138,26 +144,40 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
   const u = ctx.universe.settings;
   const cat = catalogOf(ctx.universe);
   const drivesOf = planDrives(db, ctx);
-  /** per plan fleet: what its flight costs, with the planned speed until its real flight time is known */
-  const flights: { f: PlanFleet; ships: Ships; drives: ReturnType<typeof drivesFromResearch>; dist: number; deut: number; exact: boolean }[] = [];
+  /**
+   * per attack flight (a plan fleet, or a fleet of the battle report): what it costs, with the planned speed (100 % for
+   * a report fleet) until its real flight time is known; `known`: the owner's drive levels are known (without them the
+   * levels count as 0 and only the estimate at a given speed holds, a flight time needs the ships' real speeds)
+   */
+  type Flight = {
+    pid: string; userId: number | null; from: { g: number; s: number; p: number; type: string }; ships: Ships;
+    drives: ReturnType<typeof drivesFromResearch>; known: boolean; dist: number; deut: number; exact: boolean; source: 'plan' | 'report';
+  };
+  const flights: Flight[] = [];
   const sumFlights = () => {
     for (const p of state.participants) {
-      const mine = flights.filter((x) => memberKey(x.f.user_id) === p.id);
+      const mine = flights.filter((x) => x.pid === p.id);
       if (!mine.length) continue;
       p.flightDeut = mine.reduce((a, x) => a + x.deut, 0);
       sources.flightDeut[p.id] = p.flightDeut;
-      sources.flightDeutFrom[p.id] = mine.every((x) => x.exact) ? 'fleet' : 'plan';
+      sources.flightDeutFrom[p.id] = mine.every((x) => x.exact) ? 'fleet' : mine.some((x) => x.source === 'report') ? 'report' : 'plan';
     }
+  };
+  const addFlight = (
+    pid: string, userId: number | null, from: Flight['from'], ships: Ships, research: Record<number, number> | undefined, speed: number, source: Flight['source'],
+  ) => {
+    const drives = drivesFromResearch(research ?? {});
+    const slowest = slowestShip(ships, drives, cat.drives);
+    if (!slowest || plan.g == null) return;
+    const dist = distance(u, [from.g, from.s, from.p], [plan.g, plan.s!, plan.p!]);
+    const deut = fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, speed), dist, drives, 1, cat.drives);
+    flights.push({ pid, userId, from, ships, drives, known: !!research, dist, deut, exact: false, source });
   };
   if (plan.g != null) {
     for (const f of fleets) {
       if (f.g == null) continue;
-      const ships = shipsOf(f);
-      const drives = drivesFromResearch(drivesOf({ user_id: f.user_id, manual: f.manual, drives_time: f.drives_time })?.research ?? {});
-      const slowest = slowestShip(ships, drives, cat.drives);
-      if (!slowest) continue;
-      const dist = distance(u, [f.g, f.s!, f.p!], [plan.g, plan.s!, plan.p!]);
-      flights.push({ f, ships, drives, dist, deut: fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives, 1, cat.drives), exact: false });
+      const research = drivesOf({ user_id: f.user_id, manual: f.manual, drives_time: f.drives_time })?.research;
+      addFlight(memberKey(f.user_id), f.user_id, { g: f.g, s: f.s!, p: f.p!, type: f.planet_type ?? 'planet' }, shipsOf(f), research, f.speed, 'plan');
     }
     sumFlights();
   }
@@ -195,10 +215,43 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
       )
       .all(ctx.groupId, plan.g, plan.s, plan.p, plan.planet_type, since, until) as BattleRow[]),
   ].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
+  // fleets of the battle reports on the settling side the plan does not know (e.g. the plan existed before the report
+  // was pasted, or a member joined the ACS without a plan fleet): members by name or start planet, others as guests
+  {
+    const memberOf = memberOfFleet(db, ctx);
+    const member = db.prepare(
+      `SELECT ${DISPLAY} AS name, u.username, gm.ingame_name FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`,
+    );
+    let guestNo = guests.length;
+    for (const b of battleRows) {
+      if (!b.fleets) continue;
+      for (const [side, name, , from] of JSON.parse(b.fleets) as [number, string, unknown, ReportFrom?][]) {
+        if (side !== (hold ? 1 : 0) || names.has(lower(name)) || state.participants.length >= MAX_PARTICIPANTS) continue;
+        const userId = memberOf({ name, from: from ? { coords: { g: from[0], s: from[1], p: from[2] } } : null });
+        if (userId != null && state.participants.some((p) => p.id === memberKey(userId))) {
+          names.set(lower(name), memberKey(userId));
+          continue;
+        }
+        if (userId != null) {
+          const m = member.get(ctx.groupId, userId) as { name: string; username: string; ingame_name: string | null } | undefined;
+          if (!m) continue;
+          const id = memberKey(userId);
+          state.participants.push({ id, name: m.name, flightDeut: 0, recDeut: 0, missiles: 0 });
+          for (const n of [name, m.name, m.username, m.ingame_name]) if (n) names.set(lower(n), id);
+        } else {
+          const id = `g${++guestNo}`;
+          state.participants.push({ id, name, flightDeut: 0, recDeut: 0, missiles: 0 });
+          names.set(lower(name), id);
+        }
+      }
+    }
+  }
   // one battle synced by several members: same report id, or the same time and loot
   const keys = new Set<string>();
   // per battle and participant: the ships each of their fleets in the report has left (each one flies home)
   const survivors: Map<string, string[]>[] = [];
+  // the fleets of the report with their start planet and ships before the battle (each battle is a flight of its own)
+  const reportFleets: { pid: string; from: ReportFrom; ships: Ships }[] = [];
   for (const b of battleRows) {
     const key = b.report_id ?? b.c_report_id ?? `${b.time}:${b.loot_metal}:${b.loot_crystal}:${b.loot_deuterium}`;
     if (keys.has(key) || state.battles.length >= 20) continue;
@@ -215,10 +268,15 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
     const left = new Map<string, string[]>();
     if (b.fleets) {
       // attackers, or the defenders of a hold (ships only: defence is rebuilt)
-      for (const [side, name, all] of JSON.parse(b.fleets) as [number, string, [number, number, number][]][]) {
+      for (const [side, name, all, from] of JSON.parse(b.fleets) as [number, string, [number, number, number][], ReportFrom?][]) {
         const participant = side === (hold ? 1 : 0) ? names.get(lower(name)) : undefined;
         const ships = hold ? all.filter(([id]) => id >= 200 && id < 300) : all;
         if (!participant) continue;
+        // a flight to the target (not the attacked planet of a hold, which stands there)
+        const flying = Object.fromEntries(all.filter(([id, before]) => id >= 200 && id < 300 && before > 0).map(([id, before]) => [id, before]));
+        if (from && Object.keys(flying).length && !(from[0] === plan.g && from[1] === plan.s && from[2] === plan.p && from[3] === (plan.planet_type === 'moon' ? 1 : 0))) {
+          reportFleets.push({ pid: participant, from, ships: flying });
+        }
         add(participant, Object.fromEntries(ships.map(([id, before]) => [id, before])), Object.fromEntries(ships.map(([id, , after]) => [id, after])));
         left.set(participant, [...(left.get(participant) ?? []), shipsKey(Object.fromEntries(ships.map(([id, , after]) => [id, after])))]);
       }
@@ -238,6 +296,19 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
     sources.battles.push({ key: battle.key!, reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
   }
 
+  // participants without a plan fleet with a start planet (e.g. the plan existed before the report was pasted, or a
+  // guest): their flights from the battle report's start planets at 100 % speed
+  if (plan.g != null && reportFleets.length) {
+    const planned = new Set(flights.map((x) => x.pid));
+    for (const r of reportFleets) {
+      if (planned.has(r.pid)) continue;
+      const userId = r.pid.startsWith('u') ? Number(r.pid.slice(1)) : null;
+      const research = userId != null ? drivesOf({ user_id: userId, manual: null, drives_time: null })?.research : undefined;
+      addFlight(r.pid, userId, { g: r.from[0], s: r.from[1], p: r.from[2], type: r.from[3] ? 'moon' : 'planet' }, r.ships, research, 100, 'report');
+    }
+    sumFlights();
+  }
+
   // the real flight time of an attack fleet: its return flight from the target in the overview takes as long as the
   // way out (arrival home minus the battle), so its deuterium is exact whatever speed it flew at; only with one battle
   // (with several waves it is not known which battle a fleet fought in, the planned speed stays)
@@ -245,9 +316,10 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
     const at = state.battles[0].time;
     const used = new Set<StoredFleet>();
     for (const x of flights) {
-      const back = returnFlights(x.f.user_id, at).find(
-        (m) => !used.has(m) && m.to != null && m.to.coords.g === x.f.g && m.to.coords.s === x.f.s && m.to.coords.p === x.f.p &&
-          m.to.type === (x.f.planet_type ?? 'planet'),
+      if (x.userId == null || !x.known) continue;
+      const back = returnFlights(x.userId, at).find(
+        (m) => !used.has(m) && m.to != null && m.to.coords.g === x.from.g && m.to.coords.s === x.from.s && m.to.coords.p === x.from.p &&
+          m.to.type === x.from.type,
       );
       const duration = back ? back.arrival - at : 0;
       if (!back || duration <= 0 || duration > 7 * 86400) continue;

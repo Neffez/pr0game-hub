@@ -431,7 +431,7 @@ components:
           type: object
           properties:
             state: { $ref: '#/components/schemas/LootState' }
-            sources: { type: object }
+            sources: { $ref: '#/components/schemas/SettlementSources' }
         checks:
           type: object
           description: >-
@@ -476,6 +476,55 @@ components:
           description: 'Finalized: resources the transport messages show delivered per delivery ("<from id>><to id>")'
           additionalProperties: { type: object, properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } } }
         auto_done: { type: array, items: { type: string }, description: Deliveries the transport messages show delivered in full }
+    SettlementSources:
+      type: object
+      description: Where the hub took the values of a settlement draft from (participant and person ids as in `LootState`)
+      required: [battles, returnLoot, returnSource, flightDeut, flightDeutFrom, recDeut, missiles, recycling]
+      properties:
+        battles:
+          type: array
+          description: 'Per battle (its key): report id (null: battle message without report), whether the fleets come from the report'
+          items:
+            type: object
+            required: [key, reportId, time, fleets]
+            properties:
+              key: { type: string }
+              reportId: { type: [string, 'null'] }
+              time: { type: [integer, 'null'] }
+              fleets: { type: string, enum: [report, plan] }
+        returnLoot:
+          type: object
+          description: Participant id -> battle index -> loot of their fleets on the way home
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: object
+              required: [m, k, d]
+              properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } }
+        returnSource:
+          type: object
+          description: 'Participant id -> where that loot comes from: fleet return messages, else the fleet lists (overview)'
+          additionalProperties: { type: string, enum: [message, overview] }
+        flightDeut: { type: object, description: Participant id -> deuterium of the attack flights, additionalProperties: { type: integer } }
+        flightDeutFrom:
+          type: object
+          description: >-
+            Participant id -> how the flight deuterium was computed: `fleet` with the flight time of the return flights
+            in the overview (exact, needs the drive levels), `plan` with the plan fleets' planned speed, `report` from
+            the start planets and ships in the battle report at 100 % speed (participants without a plan fleet with a
+            start planet, guests too); both estimates
+          additionalProperties: { type: string, enum: [fleet, plan, report] }
+        recDeut: { type: object, description: Person id -> deuterium of their recycler flights (estimate), additionalProperties: { type: integer } }
+        missiles: { type: object, description: Participant id -> interplanetary missiles fired on the target, additionalProperties: { type: integer } }
+        recycling:
+          type: array
+          description: Recycling reports taken (id of the person, time)
+          items:
+            type: object
+            required: [by, time]
+            properties:
+              by: { type: string }
+              time: { type: [integer, 'null'] }
     LootState:
       type: object
       description: >-
@@ -6867,14 +6916,16 @@ paths:
       operationId: getSettlement
       description: >-
         ACS loot settlement of an attack or hold plan. `draft` is prefilled from the hub's data: participants from the
-        plan's fleets (members as `u<user id>`, then guest fleets), battles at the target around the plan's time (fleets
+        plan's fleets (members as `u<user id>`, then guest fleets, then the fleets of the battle reports the plan does not
+        know: members by name or start planet, others as guests), battles at the target around the plan's time (fleets
         and losses from the archived battle report, else the planned ships; `key` the report id, else `t<time>`), loot
         by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle)
         or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet
         brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's loot), recycling
         reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %), the
-        deuterium of the attack flights (with the flight time of their return flight in the overview when seen, else
-        the planned speed: `sources.flightDeutFrom`), the deuterium of the recycler flights estimated from the
+        deuterium of the attack flights (with the flight time of their return flight in the overview when seen and the
+        drive levels are known, else the planned speed; participants without a plan fleet with a start planet, guests
+        too, from the start planets in the battle report at 100 % speed: `sources.flightDeutFrom`), the deuterium of the recycler flights estimated from the
         recyclers' return messages (`sources.recDeut`) and the interplanetary missiles of the members' missile impact
         messages on the target (`sources.missiles`). `sources` tells where the draft's values come from. `overrides` are the
         corrections made by hand on top of the draft (`Overrides` of `@pr0hub/loot`, null if none), `corrected` when

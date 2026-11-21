@@ -28,7 +28,7 @@ import {
   type TransportRecord,
 } from '@pr0hub/core';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
-import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
+import { keepOriginalNames, mergeCombatFleets, type CombatFrom } from './battleParticipants.js';
 import { now, type DB } from './db.js';
 import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
@@ -993,11 +993,13 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
       renamed = true;
     }
   }
-  const parsed: [number, string, unknown][] = r.fleets.map((f) => [
-    f.side === 'attacker' ? 0 : 1,
-    f.name,
-    Object.entries(f.start).map(([id, n]) => [Number(id), n, f.end[Number(id)] ?? 0]),
-  ]);
+  // start planets too (the draft of a settlement computes the flight deuterium from them)
+  const parsed: [number, string, unknown, CombatFrom?][] = r.fleets.map((f) => {
+    const ships = Object.entries(f.start).map(([id, n]) => [Number(id), n, f.end[Number(id)] ?? 0]);
+    const row: [number, string, unknown, CombatFrom?] = [f.side === 'attacker' ? 0 : 1, f.name, ships];
+    if (f.from) row.push([f.from.coords.g, f.from.coords.s, f.from.coords.p, f.from.type === 'moon' ? 1 : 0]);
+    return row;
+  });
   const stored = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND report_id = ?').get(groupId, r.reportId) as
     | { fleets: string }
     | undefined;

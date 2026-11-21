@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Raid settlements: members and other players who fought in the battle report without a fleet in the plan (e.g. the
+  plan existed before the report was pasted) now join the settlement: members by their name or start planet, others
+  as guests. Before, they were left out with their share and their losses.
+- Raid settlements: the flight deuterium now also comes from the battle report. Participants without a plan fleet with
+  a start planet (e.g. the plan existed before the report was pasted, so `settlements/from-report` took it as it was)
+  and guests got none; their flights are now computed from the start planets and ships in the report at 100 % speed
+  (`sources.flightDeutFrom` `report`). Archived battle reports keep each fleet's start planet (`combat_reports.fleets`
+  gained an optional fourth element; a report synced again from the public page keeps the stored ones), so a report
+  archived before needs to be pasted again. The flight time of a return flight in the overview makes the deuterium
+  exact only with known drive levels now (with levels 0 it was far too high). `sources` of the settlement is described
+  in the OpenAPI spec (`SettlementSources`).
 - Loot settlement, mobile: the participants list shows one line per field with the inputs in one column (the share
   field now keeps a slot for the source mark like the others), and the share explanation is a tooltip at the
   heading. Stacked tables no longer copy a header's tooltip text into the cell labels (also the position bonus in

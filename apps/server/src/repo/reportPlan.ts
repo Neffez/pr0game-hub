@@ -35,8 +35,11 @@ export function memberByName(db: DB, ctx: GroupContext): (name: string) => numbe
   return (name) => byName.get(lower(name)) ?? null;
 }
 
+/** A battle report fleet as far as `memberOfFleet` needs it (a `CombatFleet`, or an archived one). */
+type NamedFleet = { name: string; from: { coords: { g: number; s: number; p: number } } | null };
+
 /** Member of a battle report fleet: by the name (`memberByName`), else by the owner of the planet it comes from. */
-function memberOfFleet(db: DB, ctx: GroupContext): (f: CombatFleet) => number | null {
+export function memberOfFleet(db: DB, ctx: GroupContext): (f: NamedFleet) => number | null {
   const byName = memberByName(db, ctx);
   const players = memberPlayers(db, ctx);
   const byPlayer = new Map([...players].filter(([, player]) => player != null).map(([userId, player]) => [player!, userId]));

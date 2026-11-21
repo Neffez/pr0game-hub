@@ -3287,6 +3287,7 @@ const en: typeof de = {
     flightDeut: 'Deut flights',
     recDeut: 'Deut recyclers',
     missiles: 'IPMs',
+    fromReportFlight: 'computed from the start planet and ships in the battle report at 100 % speed (estimate)',
     fromPlan: 'computed from the plan fleet at its planned speed (estimate until the return flight shows in the overview)',
     helpers: 'Recycling helpers',
     keepPct: 'Keeps % (max. 20)',

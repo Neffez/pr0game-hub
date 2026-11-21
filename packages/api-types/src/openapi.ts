@@ -1911,7 +1911,7 @@ export type paths = {
             };
             cookie?: never;
         };
-        /** @description ACS loot settlement of an attack or hold plan. `draft` is prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets), battles at the target around the plan's time (fleets and losses from the archived battle report, else the planned ships; `key` the report id, else `t<time>`), loot by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle) or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's loot), recycling reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %), the deuterium of the attack flights (with the flight time of their return flight in the overview when seen, else the planned speed: `sources.flightDeutFrom`), the deuterium of the recycler flights estimated from the recyclers' return messages (`sources.recDeut`) and the interplanetary missiles of the members' missile impact messages on the target (`sources.missiles`). `sources` tells where the draft's values come from. `overrides` are the corrections made by hand on top of the draft (`Overrides` of `@pr0hub/loot`, null if none), `corrected` when they were last saved. `state` is the settlement everyone sees: the draft with the corrections (so data synced later flows in), or, once `finalized`, the state frozen then; `finalized.live` is what it would be now and `finalized.changes` counts the differences per kind. `result` is computed from `state` by `@pr0hub/loot`, `done` lists the deliveries marked done, `delivered` what the members' transport messages show delivered per delivery of a finalized settlement and `auto_done` the deliveries delivered in full by them (a transport counts from the finalizing on for three days and for one settlement only, the one finalized first), `me` is the caller's id in a settlement. A hold is settled like an ACS: participants are the hold fleets and the attacked member, the battle report's defenders (ships only) and no loot, so the debris covers their losses. */
+        /** @description ACS loot settlement of an attack or hold plan. `draft` is prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets, then the fleets of the battle reports the plan does not know: members by name or start planet, others as guests), battles at the target around the plan's time (fleets and losses from the archived battle report, else the planned ships; `key` the report id, else `t<time>`), loot by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle) or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's loot), recycling reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %), the deuterium of the attack flights (with the flight time of their return flight in the overview when seen and the drive levels are known, else the planned speed; participants without a plan fleet with a start planet, guests too, from the start planets in the battle report at 100 % speed: `sources.flightDeutFrom`), the deuterium of the recycler flights estimated from the recyclers' return messages (`sources.recDeut`) and the interplanetary missiles of the members' missile impact messages on the target (`sources.missiles`). `sources` tells where the draft's values come from. `overrides` are the corrections made by hand on top of the draft (`Overrides` of `@pr0hub/loot`, null if none), `corrected` when they were last saved. `state` is the settlement everyone sees: the draft with the corrections (so data synced later flows in), or, once `finalized`, the state frozen then; `finalized.live` is what it would be now and `finalized.changes` counts the differences per kind. `result` is computed from `state` by `@pr0hub/loot`, `done` lists the deliveries marked done, `delivered` what the members' transport messages show delivered per delivery of a finalized settlement and `auto_done` the deliveries delivered in full by them (a transport counts from the finalizing on for three days and for one settlement only, the one finalized first), `me` is the caller's id in a settlement. A hold is settled like an ACS: participants are the hold fleets and the attacked member, the battle report's defenders (ships only) and no loot, so the debris covers their losses. */
         get: operations["getSettlement"];
         /** @description Saves the corrections of the settlement for the group (participants of the plan, for a hold also the attacked member, its creator or a group admin): `state` is the edited settlement, cleaned like a share link (known fields only, numbers clamped, at most 5 participants); only what differs from the current draft is stored. Not while the settlement is finalized. */
         put: operations["saveSettlement"];
@@ -3229,7 +3229,7 @@ export type components = {
             me?: string;
             draft?: {
                 state?: components["schemas"]["LootState"];
-                sources?: Record<string, never>;
+                sources?: components["schemas"]["SettlementSources"];
             };
             /** @description What the hub's data covers, so members see what is still to sync: `battle` (archived report with fleets, only the battle message, none), `returns` per member fleet of an attack with one battle (loot from the fleet return message, the overview, or missing), `recycling` (`gap`: an emptied debris field the recycling rows do not cover), `missing` the count of missing items. */
             checks?: {
@@ -3275,6 +3275,52 @@ export type components = {
             };
             /** @description Deliveries the transport messages show delivered in full */
             auto_done?: string[];
+        };
+        /** @description Where the hub took the values of a settlement draft from (participant and person ids as in `LootState`) */
+        SettlementSources: {
+            /** @description Per battle (its key): report id (null: battle message without report), whether the fleets come from the report */
+            battles: {
+                key: string;
+                reportId: string | null;
+                time: number | null;
+                /** @enum {string} */
+                fleets: "report" | "plan";
+            }[];
+            /** @description Participant id -> battle index -> loot of their fleets on the way home */
+            returnLoot: {
+                [key: string]: {
+                    [key: string]: {
+                        m: number;
+                        k: number;
+                        d: number;
+                    };
+                };
+            };
+            /** @description Participant id -> where that loot comes from: fleet return messages, else the fleet lists (overview) */
+            returnSource: {
+                [key: string]: "message" | "overview";
+            };
+            /** @description Participant id -> deuterium of the attack flights */
+            flightDeut: {
+                [key: string]: number;
+            };
+            /** @description Participant id -> how the flight deuterium was computed: `fleet` with the flight time of the return flights in the overview (exact, needs the drive levels), `plan` with the plan fleets' planned speed, `report` from the start planets and ships in the battle report at 100 % speed (participants without a plan fleet with a start planet, guests too); both estimates */
+            flightDeutFrom: {
+                [key: string]: "fleet" | "plan" | "report";
+            };
+            /** @description Person id -> deuterium of their recycler flights (estimate) */
+            recDeut: {
+                [key: string]: number;
+            };
+            /** @description Participant id -> interplanetary missiles fired on the target */
+            missiles: {
+                [key: string]: number;
+            };
+            /** @description Recycling reports taken (id of the person, time) */
+            recycling: {
+                by: string;
+                time: number | null;
+            }[];
         };
         /** @description Input of an ACS loot settlement (`@pr0hub/loot`, the same as the loot calculator's share links). Resources are `{ m, k, d }` (metal, crystal, deuterium), ships element id -> amount. `transfers` null: the suggested deliveries. */
         LootState: {
