@@ -326,6 +326,21 @@ describe('detectDone', () => {
     expect(detectDone(order, hub, [fleet({ mission: 1 })], 0)).toEqual([]);
   });
 
+  it('checks off a transport added later only by a fleet after it, not by one an earlier transport used', () => {
+    const hub = hubOf([planet(HOME), planet(COLONY)]);
+    // t1 was checked off by the fleet arriving at 5000; t2 is added at 4000 while that fleet is still flying
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [{ ...transport('t1'), done: true }, { ...transport('t2'), added: 4000 }] } };
+    expect(detectDone(order, hub, [fleet()], 0)).toEqual([]);
+    // a fleet before the step was added does not count either
+    expect(detectDone({ ...order, planets: { [HOME]: [order.planets[HOME][1]] } }, hub, [fleet({ arrival: 3000 })], 0)).toEqual([]);
+    // the next fleet does
+    expect(detectDone(order, hub, [fleet(), fleet({ arrival: 7000 })], 0)).toEqual(['t2']);
+    // a transport loading everything matches any fleet, but still only one after it was added
+    const all: Step = { id: 't3', kind: 'transport', added: 6000, transport: { target: COLONY, resources: {}, flight: 3600, all: true } };
+    expect(detectDone({ ...order, planets: { [HOME]: [all] } }, hub, [fleet()], 0)).toEqual([]);
+    expect(detectDone({ ...order, planets: { [HOME]: [all] } }, hub, [fleet({ arrival: 6500 })], 0)).toEqual(['t3']);
+  });
+
   it('plans with the production setting of the empire page', () => {
     const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [{ id: 'b', kind: 'building', element: 22 }] } };
     const poor = (factors: Record<string, number> | null) => ({ ...planet(HOME, { 1: 5, 4: 5 }, { resources: { 901: 0, 902: 0, 903: 0 }, perHour: { 901: 1800 } }), factors });

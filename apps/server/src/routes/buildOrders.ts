@@ -5,7 +5,7 @@ import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { buildOrderOf, buildOrderTimeline, syncBuildOrder, type StoredBuildOrder } from '../repo/buildOrders.js';
+import { buildOrderOf, buildOrderTimeline, stampAdded, syncBuildOrder, type StoredBuildOrder } from '../repo/buildOrders.js';
 import { buildingsState } from '../repo/buildings.js';
 import { addCredits, dayOf, MINER_AHEAD } from '../repo/achievements.js';
 import { contextOf } from './util.js';
@@ -155,7 +155,8 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     const metaJson = JSON.stringify(meta);
     if (typeof meta !== 'object' || Array.isArray(meta) || metaJson.length > META_MAX) throw new HttpError(400, 'build_order_invalid', 'Invalid meta');
     const t = now();
-    const data = JSON.stringify(res.order);
+    // an import starts over: its transports count from its time (created_at)
+    const data = JSON.stringify(stampAdded(res.order, null, t));
     // a new build order starts at revision 1, a replaced one counts on (a copy of the old one stays stale)
     guarded(req, ctx, (stored) =>
       stored
@@ -182,9 +183,10 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     const planned = req.body?.planned ?? Object.fromEntries(kept);
     const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base, planets: lists, planned }));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
+    const t = now();
     guarded(req, ctx, () =>
       db.prepare('UPDATE build_orders SET data = ?, updated_at = ?, revision = revision + 1 WHERE group_id = ? AND user_id = ? AND revision = ?')
-        .run(JSON.stringify(res.order), now(), ctx.groupId, ctx.user.id, stored.revision).changes,
+        .run(JSON.stringify(stampAdded(res.order, stored.order, t)), t, ctx.groupId, ctx.user.id, stored.revision).changes,
     );
     changed(ctx);
     return result(ctx, reply);

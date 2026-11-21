@@ -95,6 +95,10 @@ function validateStep(raw: unknown): Step | null {
   const step: Step = { id: raw.id, kind };
   if (raw.deactivated === true) step.deactivated = true;
   if (raw.done === true) step.done = true;
+  if (kind === 'transport' && raw.added != null) {
+    if (!count(raw.added, 1e11)) return null;
+    step.added = Math.floor(raw.added as number);
+  }
   const element = raw.element;
   switch (kind) {
     case 'building':

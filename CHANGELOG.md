@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Build order: a transport step was checked off as soon as it was added when an earlier own fleet to the same target
+  existed (any fleet since the import counted, also one that had already checked off an earlier transport). Transport
+  steps now record when the server first stored them (`added`, set on PATCH, a sent value is ignored; described in the
+  OpenAPI spec) and only fleets arriving after that count; transports already checked off keep the earliest fleet
+  that fits them, so it cannot check off a second step.
 - Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
   buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
   check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;
