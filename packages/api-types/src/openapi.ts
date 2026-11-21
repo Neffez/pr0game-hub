@@ -3212,69 +3212,69 @@ export type components = {
         /** @description A loot settlement of a raid plan (GET /plans/{id}/settlement) */
         Settlement: {
             /** @description The plan's target and time */
-            plan?: {
-                id?: number;
+            plan: {
+                id: number;
                 /** @enum {string} */
-                mission?: "attack" | "hold";
-                g?: number | null;
-                s?: number | null;
-                p?: number | null;
+                mission: "attack" | "hold";
+                g: number | null;
+                s: number | null;
+                p: number | null;
                 /** @enum {string} */
-                planet_type?: "planet" | "moon";
-                target_time?: number;
-                status?: string;
+                planet_type: "planet" | "moon";
+                target_time: number;
+                status: string;
             };
             /** @description The caller may correct, finalize and reopen it (participant, creator or admin) */
-            can_edit?: boolean;
-            me?: string;
-            draft?: {
-                state?: components["schemas"]["LootState"];
-                sources?: components["schemas"]["SettlementSources"];
+            can_edit: boolean;
+            me: string;
+            draft: {
+                state: components["schemas"]["LootState"];
+                sources: components["schemas"]["SettlementSources"];
             };
             /** @description What the hub's data covers, so members see what is still to sync: `battle` (archived report with fleets, only the battle message, none), `returns` per member fleet of an attack with one battle (loot from the fleet return message, the overview, or missing), `recycling` (`gap`: an emptied debris field the recycling rows do not cover), `missing` the count of missing items. */
-            checks?: {
+            checks: {
                 /** @enum {string} */
-                battle?: "report" | "plan" | "missing";
-                returns?: {
+                battle: "report" | "plan" | "missing";
+                returns: {
                     [key: string]: "message" | "overview" | "missing";
                 };
                 /** @enum {string} */
-                recycling?: "ok" | "none" | "gap" | "n/a";
-                missing?: number;
+                recycling: "ok" | "none" | "gap" | "n/a";
+                missing: number;
             };
-            /** @description Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot) */
-            overrides?: Record<string, never> | null;
-            corrected?: null | {
-                updated_at?: number;
-                updated_by?: string | null;
+            /** @description Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot: changed settings, fields per person, battle and recycling key, rows added by hand, transfers), null if none */
+            overrides: {
+                [key: string]: unknown;
+            } | null;
+            corrected: null | {
+                updated_at: number;
+                updated_by: string | null;
             };
-            finalized?: null | {
-                at?: number;
-                by?: string | null;
-                live?: components["schemas"]["LootState"];
+            finalized: null | {
+                at: number;
+                by: string | null;
+                live: components["schemas"]["LootState"];
                 /** @description Differences between the frozen state and `live`, per kind */
-                changes?: {
-                    people?: number;
-                    battles?: number;
-                    recycling?: number;
-                    settings?: number;
+                changes: {
+                    people: number;
+                    battles: number;
+                    recycling: number;
+                    settings: number;
                 };
             };
-            state?: components["schemas"]["LootState"];
-            /** @description Settlement of `state` computed by @pr0hub/loot */
-            result?: Record<string, never>;
+            state: components["schemas"]["LootState"];
+            /** @description Settlement of `state` computed by @pr0hub/loot (`SettlementResult`) */
+            result: {
+                [key: string]: unknown;
+            };
             /** @description Deliveries marked done ("<from id>><to id>") */
-            done?: string[];
+            done: string[];
             /** @description Finalized: resources the transport messages show delivered per delivery ("<from id>><to id>") */
-            delivered?: {
-                [key: string]: {
-                    m?: number;
-                    k?: number;
-                    d?: number;
-                };
+            delivered: {
+                [key: string]: components["schemas"]["LootRes"];
             };
             /** @description Deliveries the transport messages show delivered in full */
-            auto_done?: string[];
+            auto_done: string[];
         };
         /** @description Where the hub took the values of a settlement draft from (participant and person ids as in `LootState`) */
         SettlementSources: {
@@ -3322,64 +3322,97 @@ export type components = {
                 time: number | null;
             }[];
         };
+        /** @description Metal, crystal and deuterium */
+        LootRes: {
+            m: number;
+            k: number;
+            d: number;
+        };
+        /** @description Metal and crystal of a debris field */
+        LootDebris: {
+            m: number;
+            k: number;
+        };
+        /** @description Ship element id -> amount */
+        LootShips: {
+            [key: string]: number;
+        };
         /** @description Input of an ACS loot settlement (`@pr0hub/loot`, the same as the loot calculator's share links). Resources are `{ m, k, d }` (metal, crystal, deuterium), ships element id -> amount. `transfers` null: the suggested deliveries. */
         LootState: {
-            participants?: {
-                id?: string;
-                name?: string;
+            participants: {
+                id: string;
+                name: string;
                 flightDeut?: number;
                 recDeut?: number;
                 missiles?: number;
-                extra?: Record<string, never>;
+                /** @description Any other costs */
+                extra?: {
+                    m?: number;
+                    k?: number;
+                    d?: number;
+                };
                 /** @description Share of the profit in percent with `settings.mode` equal; participants without one split what the others leave equally */
                 sharePct?: number;
             }[];
-            helpers?: {
-                id?: string;
-                name?: string;
+            helpers: {
+                id: string;
+                name: string;
                 /** @description Share of what they recycled the helper keeps (game rule at most 20 %) */
-                keepPct?: number;
+                keepPct: number;
                 /** @description Recycler deuterium */
                 recDeut?: number;
             }[];
-            battles?: {
+            battles: {
+                /** @description Stable id of a battle the hub took from its data (report id, else the time) */
+                key?: string;
                 time?: number | null;
-                loot?: Record<string, never>;
-                fleets?: {
-                    participant?: string;
-                    start?: Record<string, never>;
-                    end?: Record<string, never>;
-                    carried?: Record<string, never>;
+                loot: components["schemas"]["LootRes"];
+                fleets: {
+                    participant: string;
+                    start: components["schemas"]["LootShips"];
+                    end: components["schemas"]["LootShips"];
+                    /** @description Resources the fleet carried already */
+                    carried?: {
+                        m?: number;
+                        k?: number;
+                        d?: number;
+                    };
                     /** @description Loot this fleet brought home (wins over the share by cargo space) */
-                    loot?: Record<string, never>;
+                    loot?: components["schemas"]["LootRes"];
                 }[];
-                /** @description Debris field at the target after the battle (`{ m, k }`, battle report), when known */
-                debris?: Record<string, never>;
+                /** @description Debris field at the target after the battle (battle report), when known */
+                debris?: components["schemas"]["LootDebris"];
             }[];
-            recycling?: {
-                by?: string;
-                m?: number;
-                k?: number;
-                /** @description Debris field before this collection (`{ m, k }`, recycling report), when known */
-                field?: Record<string, never>;
+            recycling: {
+                /** @description Stable id of a recycling report the hub took from its data */
+                key?: string;
+                by: string;
+                m: number;
+                k: number;
+                /** @description Debris field before this collection (recycling report), when known */
+                field?: components["schemas"]["LootDebris"];
                 /** @description Time of the recycling report */
                 time?: number | null;
             }[];
-            settings?: {
+            settings: {
                 /**
                  * @description equal: by percent (`sharePct`, equal shares by default); investment: by the value of the ships sent
                  * @enum {string}
                  */
-                mode?: "equal" | "investment";
+                mode: "equal" | "investment";
                 /** @description Metal and crystal per deuterium */
-                rates?: Record<string, never>;
-                refRates?: Record<string, never> | null;
-                deficitMetalShare?: number;
-                cargoShip?: number;
+                rates: components["schemas"]["LootRes"];
+                refRates?: null | components["schemas"]["LootRes"];
+                deficitMetalShare: number;
+                cargoShip: number;
                 /** @description Refund the helpers' recycler deuterium on top of their share (default false) */
                 helperDeut?: boolean;
             };
-            transfers?: Record<string, never>[] | null;
+            transfers: {
+                from: string;
+                to: string;
+                res: components["schemas"]["LootRes"];
+            }[] | null;
         };
         PushSettings: {
             /** @description Hostile fleets heading for the caller */
@@ -11256,44 +11289,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        id?: number;
+                        id: number;
                         /** @enum {string} */
-                        mission?: "attack" | "hold";
-                        g?: number;
-                        s?: number;
-                        p?: number;
+                        mission: "attack" | "hold";
+                        g: number;
+                        s: number;
+                        p: number;
                         /** @enum {string} */
-                        planet_type?: "planet" | "moon";
-                        target_time?: number;
-                        status?: string;
-                        creator?: string;
-                        player_id?: number | null;
-                        player_name?: string | null;
-                        members?: string[];
-                        battle?: boolean;
-                        saved?: null | {
-                            updated_at?: number;
-                            updated_by?: string | null;
-                            finalized_at?: number | null;
+                        planet_type: "planet" | "moon";
+                        target_time: number;
+                        status: string;
+                        creator: string;
+                        player_id: number | null;
+                        player_name: string | null;
+                        members: string[];
+                        battle: boolean;
+                        saved: null | {
+                            updated_at: number;
+                            updated_by: string | null;
+                            finalized_at: number | null;
                             /** @description Deliveries of the finalized settlement (0 while open) */
-                            deliveries?: number;
-                            done?: number;
+                            deliveries: number;
+                            done: number;
                         };
                         /** @enum {string} */
-                        stage?: "open" | "waiting" | "ready" | "delivering" | "settled";
+                        stage: "open" | "waiting" | "ready" | "delivering" | "settled";
                         /** @description Items the hub data still lacks (checked open settlements only) */
-                        missing?: number | null;
-                        deadline?: number | null;
-                        mine?: {
-                            from?: string;
-                            to?: string;
+                        missing: number | null;
+                        deadline: number | null;
+                        mine: {
+                            from: string;
+                            to: string;
                             /** @description The caller sends (else receives) */
-                            sends?: boolean;
-                            res?: {
-                                m?: number;
-                                k?: number;
-                                d?: number;
-                            };
+                            sends: boolean;
+                            res: components["schemas"]["LootRes"];
                         }[];
                     }[];
                 };
@@ -11336,10 +11365,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        id?: number;
-                        existing?: boolean;
+                        id: number;
+                        existing: boolean;
                         /** @enum {string} */
-                        mission?: "attack" | "hold";
+                        mission: "attack" | "hold";
                     };
                 };
             };
@@ -11625,7 +11654,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        done?: string[];
+                        done: string[];
                     };
                 };
             };

@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-21
+
+- API types: the settlement answers are described in full in the OpenAPI spec (`Settlement`, `LootState` with
+  `LootRes`, `LootDebris` and `LootShips`, the list of settlements, `from-report` and `done`, all with `required`
+  fields), and the loot settlement page and the settlement list take their types from `@pr0hub/api-types`
+  (`Settlement`, `SettlementEntry`, `SettlementFromReport`, `SettlementDone` in `apiTypes.ts`; the corrections stay
+  typed by `@pr0hub/loot`) instead of hand-written ones. `MAX_HAND_WRITTEN` goes from 82 to 76.
+
 ## 2026-11-20
 
 - Raid settlements: members and other players who fought in the battle report without a fleet in the plan (e.g. the

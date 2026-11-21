@@ -4,6 +4,7 @@
  * the shape by hand; `ApiResponse<'/api/{uni}/…'>` gives the answer of any operation.
  */
 import type { ApiResponse, Schema } from '@pr0hub/api-types';
+import type { Overrides } from '@pr0hub/loot';
 import type { BuildOrder } from '@pr0hub/planner';
 
 export type { ApiResponse, Schema } from '@pr0hub/api-types';
@@ -69,3 +70,13 @@ export type FarmSimulation = Schema<'FarmSimulation'>;
 
 /** Where the hub took the values of a settlement draft from (`GET /plans/{id}/settlement` → `draft.sources`). */
 export type SettlementSources = Schema<'SettlementSources'>;
+
+/**
+ * `GET /plans/{id}/settlement` (also the answer of saving, finalizing and reopening it). The corrections are typed by
+ * `@pr0hub/loot`, which computes them on the server (the spec describes them as an open object).
+ */
+export type Settlement = Omit<Schema<'Settlement'>, 'overrides'> & { overrides: Overrides | null };
+/** An attack or hold to settle (`GET /settlements`). */
+export type SettlementEntry = ApiResponse<'/api/{uni}/settlements'>[number];
+export type SettlementFromReport = ApiResponse<'/api/{uni}/settlements/from-report', 'post'>;
+export type SettlementDone = ApiResponse<'/api/{uni}/plans/{id}/settlement/done', 'put'>;
