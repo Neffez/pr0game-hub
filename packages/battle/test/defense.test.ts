@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defenseAdvice, heavyShips, raidRisk, valueIn, type DefenseSearch } from '../src/index.js';
+import { defenseAdvice, heavyShips, raidRisk, researchComparison, valueIn, type DefenseSearch } from '../src/index.js';
 import { fight, hasEngine } from './wasm.js';
 
 const research = { 109: 8, 110: 8, 111: 8 };
@@ -22,6 +22,25 @@ const search = (over: Partial<DefenseSearch> = {}): DefenseSearch => ({
 describe.skipIf(!hasEngine)('defense advisor', () => {
   it('values resources in deuterium by the rate', () => {
     expect(valueIn({ metal: 300, crystal: 200, deuterium: 100 }, rate)).toBe(300);
+  });
+
+  it('compares research steps plus defense with defense only', () => {
+    const shields = { id: 110, level: 9, cost: { metal: 51_200, crystal: 153_600, deuterium: 0 }, time: 3600 };
+    const c = researchComparison(fight, { ...search(), steps: [shields], share: 0.5 });
+    expect(c.share).toBe(0.5);
+    expect(c.options).toHaveLength(2);
+    const [only, withShields] = c.options;
+    expect(only!.step).toBeNull();
+    expect(only!.total).toBeCloseTo(only!.advice.costValue);
+    expect(withShields!.step).toEqual(shields);
+    expect(withShields!.researchValue).toBeCloseTo(valueIn(shields.cost, rate));
+    expect(withShields!.counted).toBeCloseTo(withShields!.researchValue / 2);
+    expect(withShields!.total).toBeCloseTo(withShields!.counted + withShields!.advice.costValue);
+    // the stronger shields need no more defense than defense alone
+    expect(withShields!.advice.before[0]!.profit).toBeLessThanOrEqual(only!.advice.before[0]!.profit + 1);
+    expect(c.best).not.toBeNull();
+    const best = c.options[c.best!]!;
+    expect(c.options.filter((o) => o.advice.status === 'found' || o.advice.status === 'safe').every((o) => o.total >= best.total)).toBe(true);
   });
 
   it('says safe when no attacker profits', () => {

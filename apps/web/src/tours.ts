@@ -76,6 +76,7 @@ export const TOURS = {
       { key: 'advisorList', el: 'build-advisor', side: 'top', tabs: ['advisor'] },
       { key: 'defenseRisk', el: 'build-defense-risk', side: 'bottom', tabs: ['defense'] },
       { key: 'defenseList', el: 'build-defense-threats', side: 'top', tabs: ['defense'] },
+      { key: 'defenseResearch', el: 'build-defense-research', side: 'bottom', tabs: ['defense'] },
       { key: 'filter', el: 'build-filter', side: 'bottom', tabs: ['buildings', 'research', 'ships'] },
       { key: 'bell', el: 'build-bell', side: 'left', tabs: ['buildings', 'research'] },
       { key: 'hide', el: 'build-hide', side: 'left', tabs: ['buildings', 'research', 'ships'] },

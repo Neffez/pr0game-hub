@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { defenseIds, encodeShare, shipIds, type BattleSetup, type DefenseAdvice, type DefenseSearch, type RiskInput, type RiskResult, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { defenseIds, encodeShare, shipIds, type BattleSetup, type DefenseAdvice, type DefenseSearch, type ResearchComparison, type ResearchSearch, type RiskInput, type RiskResult, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { DEFAULT_UNITS, type UnitCatalog, type UnitOverrides } from '@pr0hub/core/units';
 import { encodeUnitOverrides, toolsHash } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
@@ -242,6 +242,14 @@ export function runInWorker(
 /** The defense advisor's search in the battle worker (one slot of `concurrent`, longer time limit). */
 export function runDefenseInWorker(search: DefenseSearch, settings: SimSettings, units: UnitOverrides = {}, workerUrl: URL | string = WORKER): Promise<DefenseAdvice> {
   return inWorker<DefenseAdvice>({ job: 'defense', search, settings, units }, DEFENSE_TIMEOUT_MS, workerUrl);
+}
+
+/** Time limit of a research comparison (the defense search once per research step, see `researchComparison`). */
+export const RESEARCH_TIMEOUT_MS = 45_000;
+
+/** The defense advisor's comparison of research steps against defense in the battle worker (one slot of `concurrent`). */
+export function runResearchInWorker(search: ResearchSearch, settings: SimSettings, units: UnitOverrides = {}, workerUrl: URL | string = WORKER): Promise<ResearchComparison> {
+  return inWorker<ResearchComparison>({ job: 'research', search, settings, units }, RESEARCH_TIMEOUT_MS, workerUrl);
 }
 
 function inWorker<T>(workerData: Record<string, unknown>, timeoutMs: number, workerUrl: URL | string): Promise<T> {

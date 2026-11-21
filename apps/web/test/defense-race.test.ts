@@ -18,7 +18,8 @@ const ctx = {
 } as unknown as UniContext;
 const answer = (key: string, attacker: string, advice: unknown = null) => ({
   planet: { key, name: key === A ? 'Home' : 'Colony', coords: { g: 1, s: 100, p: 8 }, type: 'planet', time: now, units: {}, research: {}, resources: { metal: 0, crystal: 0, deuterium: 0 }, defenseValue: 0 },
-  rate: { m: 3, k: 2, source: 'default' }, candidates: [], simulated: [], advice,
+  rate: { m: 3, k: 2, source: 'default' }, candidates: [], simulated: [], advice, researchAdvice: null,
+  research: { levels: {}, steps: [], planets: 1 },
   threats: [{
     key: 'p1', player: { id: 1, name: attacker, status: [], allyTag: null }, reasons: [{ kind: 'incoming', count: 1, last: now + 2 * 3600 + 30 }],
     fleet: { units: { 207: 10 }, points: 600, source: 'incoming', time: now - 60, from: null }, fleetPoints: null, research: { values: {}, known: true, time: now }, flight: null, heavy: null,

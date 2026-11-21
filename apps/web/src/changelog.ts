@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-21',
+    items: [
+      {
+        kind: 'new',
+        de: 'Verteidigungsberater: „Mit Forschung vergleichen“ zeigt, ob es günstiger ist, einen Teil der Rohstoffe in Waffen-, Schild- oder Raumschiffpanzerungstechnik statt in Verteidigung zu stecken – mit Forschungskosten, Forschungszeit, der dann noch nötigen Verteidigung und den Gesamtkosten.',
+        en: 'Defense advisor: "Compare with research" shows whether it is cheaper to put part of the resources into weapons, shielding or armour technology instead of defense – with research costs, research time, the defense still needed and the total costs.',
+      },
+    ],
+  },
+  {
     date: '2026-11-20',
     items: [
       {

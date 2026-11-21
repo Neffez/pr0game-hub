@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Defense advisor: "Compare with research" weighs combat research against defense. The search runs once with the
+  combat research after the research queue and once per next and second-next level of weapons, shielding and armour
+  technology (requirements met, costs and research time on the planet with the fastest lab), and shows per option
+  the research costs, the defense still needed and the total; the cheapest option that stops every chosen attacker
+  is marked and can be taken into the result (build order, battle simulator link with the raised research). The
+  research costs can be split over the member's planets (on by default), since research strengthens every body.
+  - API: `GET /api/{uni}/defense-advice` takes `research=1` and `share` and answers `research` (levels after the
+    queue, steps, planets) and `researchAdvice` (new schemas `DefenseSearchResult`, `ResearchStep`,
+    `ResearchOption`; the search result of `advice` is `DefenseSearchResult` now).
+  - `@pr0hub/battle`: `researchComparison` (the defense search per research step within one engine budget), run in
+    the battle worker as job `research` with a 45 s limit.
 - Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
   buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
   check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;
