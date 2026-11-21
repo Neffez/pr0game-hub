@@ -12,6 +12,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError, selectGroup, selectedGroup, session, uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { applyUnits } from '../units';
 import { clearClaims, loadClaims } from '../claims';
@@ -117,7 +118,7 @@ const minuteTimer = setInterval(() => (minute.value = nowSec()), 60_000);
 onBeforeUnmount(() => clearInterval(minuteTimer));
 async function loadPlans() {
   try {
-    plans.value = await uniApi<AttackPlan[]>(uni.value, '/plans');
+    plans.value = await uniApi<ApiResponse<'/api/{uni}/plans'>>(uni.value, '/plans');
   } catch {
     /* kept until the next reload */
   }

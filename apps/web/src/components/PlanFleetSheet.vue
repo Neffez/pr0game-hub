@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { Imperium, Schema } from '../apiTypes';
 import { useUni } from '../composables';
 import { abbr, coords, fmt, name, numDate } from '../format';
 import { fleetShips } from '../units';
@@ -24,12 +25,7 @@ const me = computed(() => ctx.value?.me.id);
 
 /** Drive research of a fleet, also by hand: combustion, impulse, hyperspace. */
 const DRIVE_IDS = [115, 117, 118];
-interface OwnPlanet {
-  name: string;
-  coords: { g: number; s: number; p: number };
-  type: 'planet' | 'moon';
-  values: Record<string, number>;
-}
+type OwnPlanet = Pick<Schema<'EmpirePage'>['planets'][number], 'name' | 'coords' | 'type' | 'values'>;
 interface OwnEmpire {
   planets: OwnPlanet[];
   /** ships on fleets in flight */
@@ -45,7 +41,7 @@ const ownPlanets = computed(() => ownEmpire.value?.planets ?? null);
 async function loadEmpire(userId: number) {
   if (empires[userId]) return;
   try {
-    const r = await uniApi<{ empire: { time: number; data: OwnEmpire } | null; spy: (OwnEmpire & { time: number }) | null }>(uni.value, `/imperium?user=${userId}`);
+    const r = await uniApi<Imperium>(uni.value, `/imperium?user=${userId}`);
     empires[userId] = r.empire
       ? { ...r.empire.data, source: 'empire', time: r.empire.time }
       : r.spy

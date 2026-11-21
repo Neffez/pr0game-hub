@@ -47,6 +47,16 @@ beforeAll(async () => {
   db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(otherGroup, stranger);
 });
 
+describe('alliance list', () => {
+  it('lists every alliance for hub admins and their own for alliance admins', async () => {
+    const all = (await call('GET', '/admin/groups', admin)).json() as { id: number; universe: string; members: number }[];
+    expect(all.map((g) => g.id).sort()).toEqual([oldGroup, newGroup, otherGroup].sort());
+    expect(all.find((g) => g.id === oldGroup)).toMatchObject({ name: 'A', tag: null, universe: 'u7' });
+    const own = (await call('GET', '/admin/groups', lead)).json() as { id: number }[];
+    expect(own.map((g) => g.id).sort()).toEqual([oldGroup, newGroup].sort());
+  });
+});
+
 describe('assigning existing accounts', () => {
   it('lists the accounts an admin may add, without the members', async () => {
     const all = (await call('GET', `/admin/groups/${newGroup}/candidates`, admin)).json() as { id: number; ingameName: string | null; groups: string[] }[];

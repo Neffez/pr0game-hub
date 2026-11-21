@@ -2940,23 +2940,23 @@ export type components = {
         };
         FalseAlarmSummary: {
             /** @description Days sampled */
-            days?: number;
+            days: number;
             /** @description Scores of at least likely (player-days) */
-            positives?: number;
-            players?: number;
-            horizons?: {
+            positives: number;
+            players: number;
+            horizons: {
                 /** @enum {integer} */
-                hours?: 12 | 24 | 72;
-                contradicted?: number;
-                players?: number;
-                rate?: number | null;
+                hours: 12 | 24 | 72;
+                contradicted: number;
+                players: number;
+                rate: number | null;
             }[];
-            bands?: {
+            bands: {
                 /** @enum {string} */
-                band?: "50-69" | "70-84" | "85+";
-                positives?: number;
+                band: "50-69" | "70-84" | "85+";
+                positives: number;
                 /** @description Disproved within that many hours */
-                within?: {
+                within: {
                     [key: string]: number;
                 };
             }[];
@@ -3083,7 +3083,7 @@ export type components = {
                     [key: string]: number;
                 };
             } | null;
-            /** @description Expected resources now (production since the report */
+            /** @description Expected resources now (production since the report, capped by the storages) */
             projected: {
                 [key: string]: number;
             };
@@ -3192,22 +3192,22 @@ export type components = {
         FarmSection: {
             time: number;
             points: number | null;
-            /** @description Units that fight (solar satellites */
+            /** @description Units that fight (solar satellites, spy probes and missiles left out) */
             units: number;
         } | null;
         /** @description Market rate as metal (`m`) and crystal (`k`) per 1 deuterium */
         MarketRate: {
-            m?: number;
-            k?: number;
+            m: number;
+            k: number;
             /**
              * @description Exact from the page's HTML (copied page or page source), estimated from plain text, or set by hand
              * @enum {string}
              */
-            source?: "source" | "text" | "manual";
-            /** @description Epoch seconds (game time of the page */
-            time?: number;
+            source: "source" | "text" | "manual";
+            /** @description Epoch seconds (game time of the page, or when it was set) */
+            time: number;
             /** @description Member who synced or set it */
-            by?: string | null;
+            by: string | null;
         };
         /** @description A loot settlement of a raid plan (GET /plans/{id}/settlement) */
         Settlement: {
@@ -3359,7 +3359,7 @@ export type components = {
                 name: string;
                 /** @description Share of what they recycled the helper keeps (game rule at most 20 %) */
                 keepPct: number;
-                /** @description Recycler deuterium */
+                /** @description Recycler deuterium, refunded only with `settings.helperDeut` */
                 recDeut?: number;
             }[];
             battles: {
@@ -3391,7 +3391,7 @@ export type components = {
                 k: number;
                 /** @description Debris field before this collection (recycling report), when known */
                 field?: components["schemas"]["LootDebris"];
-                /** @description Time of the recycling report */
+                /** @description Time of the recycling report, when known */
                 time?: number | null;
             }[];
             settings: {
@@ -3414,10 +3414,13 @@ export type components = {
                 res: components["schemas"]["LootRes"];
             }[] | null;
         };
-        PushSettings: {
-            /** @description Hostile fleets heading for the caller */
+        /** @description Notification settings of the caller (all fields) */
+        PushSettings: WithRequired<components["schemas"]["PushSettingsChange"], "attackSelf" | "attackOthers" | "invites" | "comments" | "launch" | "buildings" | "accessRequests" | "parserSamples" | "fleets" | "storage" | "settlements" | "buildOrder" | "phalanx" | "expeditions" | "leadMinutes" | "mentionsOnly" | "quiet">;
+        /** @description Notification settings; in a request only the fields to change */
+        PushSettingsChange: {
+            /** @description Hostile fleets heading for the caller, hostile espionage (mission 6) left out (default on) */
             attackSelf?: boolean;
-            /** @description Hostile fleets heading for other members */
+            /** @description Hostile fleets heading for other members, hostile espionage left out (default off) */
             attackOthers?: boolean;
             /** @description Invitations to raid planner plans (default on) */
             invites?: boolean;
@@ -3431,7 +3434,7 @@ export type components = {
             accessRequests?: boolean;
             /** @description A member sent a page the hub could not read as a parser sample (`/api/{uni}/ingest/sample`); only global admins get them (default on) */
             parserSamples?: boolean;
-            /** @description An own fleet the caller set an alert for arrives (or is about to */
+            /** @description An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) */
             fleets?: boolean;
             /** @description A storage (metal, crystal, deuterium) on one of the caller's planets is full (default on) */
             storage?: boolean;
@@ -3441,7 +3444,7 @@ export type components = {
             buildOrder?: boolean;
             /** @description A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) */
             phalanx?: boolean;
-            /** @description An expedition of the caller is back home or was lost to a black hole */
+            /** @description An expedition of the caller is back home or was lost to a black hole, its expedition slot is free (default off) */
             expeditions?: boolean;
             /**
              * @description Launch reminder this many minutes ahead (default 5)
@@ -3470,9 +3473,9 @@ export type components = {
             id: string;
             /** @enum {string} */
             kind: "building" | "research" | "ship" | "defense" | "prod" | "transport";
-            /** @description Game element id (building */
+            /** @description Game element id (building, research, ship, defense) */
             element?: number;
-            /** @description Units (ship */
+            /** @description Units (ship, defense) */
             count?: number;
             /** @description `factors` producer id (1, 2, 3) -> 0 … 1; wait for the build slot, research or shipyard first; `wait` seconds afterwards */
             prod?: {
@@ -3804,7 +3807,7 @@ export type components = {
         DiscordSettings: {
             /** @description Start of the caller's webhook URL (the URL itself is never returned), null when none is set */
             webhook: string | null;
-            /** @description Caller's Discord user id */
+            /** @description Caller's Discord user id, mentioned in their alliance's Discord channel */
             userId: string | null;
             prefs: components["schemas"]["PushSettings"];
         };
@@ -3815,7 +3818,7 @@ export type components = {
             prefs: WithRequired<components["schemas"]["DiscordChannelPrefs"], "attacks" | "plans" | "launch" | "leadMinutes" | "lang" | "recap">;
         };
         DiscordChannelPrefs: {
-            /** @description Hostile fleets heading for members */
+            /** @description Hostile fleets heading for members, hostile espionage (mission 6) left out (default on) */
             attacks?: boolean;
             /** @description New raid planner plans (default on) */
             plans?: boolean;
@@ -4035,7 +4038,7 @@ export type components = {
         };
         FleetAlert: {
             id: number;
-            /** @description Unix seconds */
+            /** @description Unix seconds, from the caller's newest fleet list */
             arrival: number;
             /** @description Minutes before the arrival to notify (0 at the arrival) */
             lead: number;
@@ -4048,11 +4051,7 @@ export type components = {
                 /** @description `g:s:p:type` */
                 key: string;
                 name: string;
-                coords: {
-                    g?: number;
-                    s?: number;
-                    p?: number;
-                };
+                coords: components["schemas"]["PageCoords"];
                 /** @enum {string} */
                 type: "planet" | "moon";
                 /**
@@ -4065,33 +4064,41 @@ export type components = {
                     fleet: number | null;
                     defense: number | null;
                 };
-                /** @description levels (`values`, with the counts of ships, defense and missiles from the empire page or a newer shipyard page), `shipyard` (units in the shipyard queue, element id -> count; units that left it count as built), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when unknown) or null when free */
-                planet: Record<string, never>;
-                /** @description building id -> `{ next, cost, time }` as the buildings page showed them */
-                shown: Record<string, never> | null;
-                /** @description research id -> `{ next, cost, time }` as the research page of this planet showed them */
-                shownResearch?: Record<string, never> | null;
+                planet: components["schemas"]["BuildPlanet"];
+                /** @description Next levels as the buildings page showed them */
+                shown: components["schemas"]["ShownLevels"] | null;
+                /** @description Next research levels as the research page of this planet showed them */
+                shownResearch: components["schemas"]["ShownLevels"] | null;
                 /** @description Max temperature of the planet (empire page) */
                 temp: number | null;
+                /** @description Production setting of the mines (resource id -> 0 … 1) from the empire page source; null when unknown */
+                factors: {
+                    [key: string]: number;
+                } | null;
+                /** @description Fleets landing on the planet with resources */
                 arrivals: {
                     /** @description Unix seconds */
-                    at?: number;
+                    at: number;
                     /** @description 901-903 */
-                    resources?: Record<string, never>;
-                    mission?: number | null;
-                    missionName?: string;
+                    resources: {
+                        [key: string]: number;
+                    };
+                    mission: number | null;
+                    missionName: string;
                     /** @description Return flight */
-                    back?: boolean;
-                    from?: Record<string, never>;
+                    back: boolean;
+                    from: components["schemas"]["PageCoords"];
                 }[];
             }[];
             /** @description Research levels of the account (research id -> level), finished queue entries included */
-            research: Record<string, never>;
+            research: {
+                [key: string]: number;
+            };
             /** @description Account wide research queue, first in progress (from the newest research page, overview or empire page) */
             researchQueue: {
-                id?: number;
-                level?: number;
-                end?: number | null;
+                id: number;
+                level: number;
+                end: number | null;
             }[];
             /** @description Derived from a research page, else the universe setting `researchSpeed`; null when unknown */
             researchSpeed: number | null;
@@ -4104,9 +4111,9 @@ export type components = {
                  * @description page: a buildings page, research: a research page
                  * @enum {string}
                  */
-                source?: "page" | "research" | "overview" | "stats";
+                source: "page" | "research" | "overview" | "stats";
                 /** @description Unix seconds of that page or statistics update */
-                time?: number;
+                time: number;
             } | null;
             buildingSpeed: number | null;
             /** @description Universe setting `shipyardSpeed` (2500 = 1x), else the building speed; null when unknown */
@@ -4120,32 +4127,25 @@ export type components = {
             /** @description Building ids the caller hid on the buildings page */
             hidden: number[];
         };
-        PlanBody: {
-            g?: number;
-            s?: number;
-            p?: number;
-            /** @enum {string} */
-            type?: "planet" | "moon";
-        };
         OwnAttack: {
             /** @description Stable while the attack lasts: route and the lead fleet's ships */
-            key?: string;
+            key: string;
             /** @description Page time of the newest overview showing it */
-            seen?: number;
-            arrival?: number;
-            to?: components["schemas"]["PlanBody"];
-            /** @description Owner of the target (galaxy data): id, name */
-            player?: Record<string, never> | null;
+            seen: number;
+            arrival: number;
+            to: components["schemas"]["Coords"];
+            /** @description Owner of the target (galaxy data) */
+            player: components["schemas"]["PlayerRef"];
             /** @description The lead first */
-            fleets?: {
+            fleets: {
                 /** @description null for a non-member's ACS fleet */
-                memberId?: number | null;
-                member?: string | null;
-                /** @description Owner of the start (galaxy data): id, name */
-                player?: Record<string, never> | null;
-                from?: components["schemas"]["PlanBody"];
-                mission?: number | null;
-                ships?: {
+                memberId: number | null;
+                member: string | null;
+                /** @description Owner of the start (galaxy data) */
+                player: components["schemas"]["PlayerRef"];
+                from: components["schemas"]["Coords"];
+                mission: number | null;
+                ships: {
                     [key: string]: number;
                 };
             }[];
@@ -4161,7 +4161,7 @@ export type components = {
                 file?: string;
                 /** @description Size of the database file */
                 bytes?: number;
-                /** @description Free pages inside the file (reused by new data */
+                /** @description Free pages inside the file (reused by new data, given back by vacuum) */
                 freeBytes?: number;
                 /** @description Size of the write-ahead log */
                 walBytes?: number;
@@ -4295,17 +4295,17 @@ export type components = {
             /** @description Attackers and holding fleets (not the planet), for flight time and deuterium. "g:s:p" or [g, s, p] */
             from?: string | number[];
             /**
-             * @description Attackers and holding fleets
+             * @description Attackers and holding fleets, speed in percent
              * @default 100
              * @enum {integer}
              */
             speed: 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100;
             /**
-             * @description Attackers only
+             * @description Attackers only, resources already on board (less cargo space for loot)
              * @default 0
              */
             carried: number;
-            /** @description Player or fleet name */
+            /** @description Player or fleet name, shown in the battle simulator page of `link` */
             name?: string;
         };
         BattleRequest: {
@@ -4336,7 +4336,7 @@ export type components = {
             settings?: {
                 /** @description Share of destroyed ships in the debris field */
                 fleetDebrisPercent?: number;
-                /** @description Share of the destroyed */
+                /** @description Share of the destroyed, not rebuilt defense in the debris field */
                 defenseDebrisPercent?: number;
                 /** @description Moon chance: 1 % per 100,000 debris times this factor */
                 moonFactor?: number;
@@ -4352,9 +4352,9 @@ export type components = {
         };
         /** @description Average, minimum and maximum over the runs */
         BattleRange: {
-            avg?: number;
-            min?: number;
-            max?: number;
+            avg: number;
+            min: number;
+            max: number;
         };
         /** @description Per element id of one fleet (same order as in the request) */
         BattleFleetSummary: {
@@ -4366,7 +4366,7 @@ export type components = {
             repaired?: {
                 [key: string]: components["schemas"]["BattleRange"];
             };
-            /** @description Pieces after the battle (the average shows the risk */
+            /** @description Pieces after the battle (the average shows the risk, e.g. 1.8 of 2) */
             remaining?: {
                 [key: string]: components["schemas"]["BattleRange"];
             };
@@ -4432,7 +4432,7 @@ export type components = {
                 id?: number;
                 time?: number;
                 reporter?: string | null;
-                /** @description Spied player */
+                /** @description Spied player, the planet's name in `link` */
                 player?: string | null;
             } | null;
             /** @description Attackers and holding fleets with a start */
@@ -4442,7 +4442,7 @@ export type components = {
                 /** @description Index in `attackers` or `defenders` */
                 slot?: number;
                 distance?: number;
-                /** @description One way */
+                /** @description One way, seconds */
                 duration?: number;
                 deuterium?: number;
             }[];
@@ -4451,42 +4451,787 @@ export type components = {
                 /** @enum {string} */
                 winner?: "attacker" | "defender" | "draw";
                 rounds?: number;
-                /** @description The engine's output (with `report`) */
+                /** @description The engine's output (with `report`), rounds with Roundstats and Statistics per side */
                 engine?: Record<string, never>;
             };
             /** @description The same battle in the battle simulator page (pr0game-tools) */
             link?: string;
         };
         StoredFleetBody: {
-            g?: number;
-            s?: number;
-            p?: number;
+            g: number;
+            s: number;
+            p: number;
             /** @enum {string} */
-            type?: "planet" | "moon";
+            type: "planet" | "moon";
         };
         StoredFleetAttack: {
-            userId?: number;
-            /** @description Hub display name */
-            member?: string;
-            key?: string;
+            userId: number;
+            /** @description Hub display name, or the username when none is set */
+            member: string;
+            key: string;
             /**
              * @description Fleet owner as seen by the member
              * @enum {string}
              */
-            owner?: "own" | "hostile" | "foreign";
+            owner: "own" | "hostile" | "foreign";
             /** @description Epoch seconds */
-            arrival?: number;
-            from?: components["schemas"]["StoredFleetBody"];
-            to?: components["schemas"]["StoredFleetBody"];
-            mission?: number | null;
+            arrival: number;
+            from: components["schemas"]["StoredFleetBody"];
+            to: components["schemas"]["StoredFleetBody"];
+            mission: number | null;
             /** @description Fleets in the attack (ACS > 1) */
-            fleets?: number;
+            fleets: number;
         };
         Error: {
             /** @description English message */
             error: string;
             /** @description Stable key for clients */
             code: string;
+        };
+        /** @description The change was stored */
+        Ok: {
+            /** @constant */
+            ok: true;
+        };
+        /** @description A new plan and who holds the claim of its target (null without coordinates) */
+        ClaimedPlan: {
+            id: number;
+            /** @description Hub name of the member holding the claim of the target */
+            claimedBy: string | null;
+        };
+        UniverseJsonName: {
+            name: string;
+            /** @description Epoch milliseconds of the newest galaxy view showing it */
+            timepoint: number;
+        };
+        /** @description One notification of the bell, by `kind` (see `getNotifications`) */
+        Notification: components["schemas"]["AttackNotification"] | components["schemas"]["InviteNotification"] | components["schemas"]["CommentNotification"] | components["schemas"]["LaunchNotification"] | components["schemas"]["BuildingNotification"] | components["schemas"]["FleetNotification"] | components["schemas"]["StorageNotification"] | components["schemas"]["SettlementNotification"] | components["schemas"]["BuildOrderNotification"] | components["schemas"]["PhalanxNotification"] | components["schemas"]["ExpeditionNotification"];
+        NotificationBase: {
+            /** @description Stable while the event lasts */
+            id: string;
+            /** @description attack: the attacked member; invite: who invited; comment: the newest author; settlement: who finalized it; else the caller */
+            userId: number;
+            member: string;
+            /** @description Unix seconds; what it is depends on `kind` (arrival, target time, newest comment, launch, since when …) */
+            time: number;
+        };
+        NotificationCoords: {
+            g: number;
+            s: number;
+            p: number;
+            /** @enum {string} */
+            type: "planet" | "moon";
+        };
+        /** @description A planet or moon of the caller with its name */
+        NotificationPlanet: {
+            name: string;
+        } & components["schemas"]["NotificationCoords"];
+        NotificationResources: {
+            m: number;
+            k: number;
+            d: number;
+        };
+        /** @description Hostile fleets heading for a member (`time` the arrival) */
+        AttackNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "attack";
+            /** @description The fleet; for an ACS the lead fleet with the ships of all its fleets */
+            fleet: components["schemas"]["FleetMovement"];
+            /** @description Number of fleets of an ACS, 1 for a single fleet */
+            fleets: number;
+            /** @description Newest fleet points of the origin's owner in the statistics, null when unknown */
+            attackerFleetPoints: number | null;
+        };
+        /** @description An open invitation of the caller to a plan in planning (`member` who invited, `time` its target time) */
+        InviteNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "invite";
+            plan: {
+                id: number;
+                g: number | null;
+                s: number | null;
+                p: number | null;
+                /** @enum {string} */
+                planet_type: "planet" | "moon";
+                /** @enum {string} */
+                mission: "attack" | "hold";
+                /**
+                 * @description day and hour: the invitation lasts until the end of that day or hour
+                 * @enum {string}
+                 */
+                time_precision: "day" | "hour" | "exact";
+            };
+        };
+        /** @description New comments of others in a thread the caller wrote in or that mention them (`member` the newest author, `time` the newest comment) */
+        CommentNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "comment";
+            /** @description A player, the loot settlement of a raid plan (with the plan target), or a planet/moon with its owner */
+            thread: {
+                player: number;
+                name: string;
+            } | ({
+                plan: number;
+            } & components["schemas"]["NotificationCoords"]) | ({
+                owner: string | null;
+            } & components["schemas"]["NotificationCoords"]);
+            /** @description The newest comment, shortened */
+            excerpt: string;
+            /** @description New comments in the thread */
+            count: number;
+            /** @description One of the comments mentions the caller (`@name`) */
+            mention?: boolean;
+        };
+        /** @description A fleet of the caller in a plan with an exact target time launches within the next hour (`time` the launch) */
+        LaunchNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "launch";
+            plan: {
+                id: number;
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                planet_type: "planet" | "moon";
+                /** @enum {string} */
+                mission: "attack" | "hold";
+                target_time: number;
+            };
+            /** @description Start planet or moon of the fleet */
+            from: components["schemas"]["NotificationCoords"];
+        };
+        /** @description The resources for the level of a building or research alert are there (`time` since when) */
+        BuildingNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "building";
+            /** @description Id of the building alert */
+            alert: number;
+            planet: components["schemas"]["NotificationPlanet"];
+            /** @description Building or research id */
+            element: number;
+            /** @description The affordable level */
+            level: number;
+        };
+        /** @description An own fleet with a fleet alert arrives (`time` the arrival; due `lead` minutes before it) */
+        FleetNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "fleet";
+            /** @description Id of the fleet alert */
+            alert: number;
+            fleet: components["schemas"]["FleetMovement"];
+            /** @description Minutes before the arrival the alert reminds */
+            lead: number;
+        };
+        /** @description A storage on one of the caller's planets is full (`time` since when; moons have no production) */
+        StorageNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "storage";
+            planet: {
+                g: number;
+                s: number;
+                p: number;
+                name: string;
+            };
+            /**
+             * @description The full storage's resource (metal, crystal, deuterium)
+             * @enum {integer}
+             */
+            resource: 901 | 902 | 903;
+        };
+        /** @description A loot settlement the caller takes part in was finalized while their deliveries are open (`member` who finalized it, `time` when) */
+        SettlementNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "settlement";
+            plan: {
+                id: number;
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                planet_type: "planet" | "moon";
+                /** @enum {string} */
+                mission: "attack" | "hold";
+            };
+            /** @description The caller's open deliveries to send (by name) */
+            sends: {
+                to: string;
+                res: components["schemas"]["NotificationResources"];
+            }[];
+            /** @description The caller's open deliveries to get (by name) */
+            gets: {
+                from: string;
+                res: components["schemas"]["NotificationResources"];
+            }[];
+        };
+        /** @description The next open step of the caller's build order on a planet can start (`time` now; one per planet) */
+        BuildOrderNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "buildorder";
+            planet: components["schemas"]["NotificationPlanet"];
+            step: {
+                id: string;
+                /** @enum {string} */
+                kind: "building" | "research" | "ship" | "defense" | "prod" | "transport";
+                element: number | null;
+                count: number | null;
+                /** @description Target level or count */
+                target: number | null;
+            };
+        };
+        /** @description A sensor phalanx of a moon outside the own alliance reaches planets of the caller (`time` when the spy report showing it reached the hub) */
+        PhalanxNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "phalanx";
+            moon: {
+                g: number;
+                s: number;
+                p: number;
+            };
+            /** @description Sensor phalanx level */
+            level: number;
+            /** @description Range in systems */
+            range: number;
+            /** @description Game time of the oldest spy report of the newest run that shows the phalanx reaching the planets */
+            since: number;
+            player: components["schemas"]["PhalanxOwner"];
+            /** @description The caller's planets in reach */
+            planets: components["schemas"]["MemberPlanet"][];
+        };
+        /** @description An expedition of the caller is back home or was lost to a black hole, its slot is free (`time` then) */
+        ExpeditionNotification: components["schemas"]["NotificationBase"] & {
+            /** @constant */
+            kind: "expedition";
+            /** @description The last line of the flight (the return, for a lost one the stay) */
+            fleet: components["schemas"]["FleetMovement"];
+            /** @description Swallowed by a black hole at the end of its stay */
+            lost: boolean;
+            /** @description Expedition slots taken after it was back, and their number by astrophysics (null when unknown) */
+            slots: {
+                used: number;
+                max: number | null;
+            };
+        };
+        /** @description A player of the hub's data (null when unknown) */
+        PlayerRef: {
+            id: number;
+            name: string;
+        } | null;
+        Window: {
+            from: number;
+            to: number;
+        };
+        /** @description An ACS fleet of a non-member taken over from an overview, with their player's research for the simulators */
+        PlanGuest: {
+            /** @description Owner of the start (galaxy data) */
+            player: components["schemas"]["PlayerRef"];
+            /** @description Name from a battle report when the player is not in the galaxy data */
+            name?: string;
+            from: components["schemas"]["Coords"];
+            mission: number | null;
+            ships: {
+                [key: string]: number;
+            };
+            /** @description Levels by research id from the newest spy report showing them */
+            research: {
+                [key: string]: number;
+            } | null;
+            research_time: number | null;
+            /**
+             * @description The combat research comes from a taken-over simulation (newer than the spy reports)
+             * @enum {string}
+             */
+            research_source?: "sim";
+        };
+        /** @description The hostile fleet of a retime or hold plan and the inputs on it, shared by all participants */
+        PlanEnemy: {
+            /** @description The attacked member */
+            member_id: number | null;
+            member: string | null;
+            from: components["schemas"]["Coords"];
+            to: components["schemas"]["Coords"];
+            /** @description The lead first */
+            fleets: {
+                mission: number | null;
+                ships: {
+                    [key: string]: number;
+                };
+            }[];
+            /** @description Index of the followed fleet */
+            follow: number;
+            arrival: number;
+            first_seen: number;
+            /** @description Drive levels of the attacker by research id */
+            drives: {
+                [key: string]: number;
+            };
+            /** @enum {string|null} */
+            drives_source: "spy" | "manual" | null;
+            drives_time: number | null;
+            /** @description Window of the departure */
+            departure: components["schemas"]["Window"] | null;
+            /** @description Window of a recall */
+            recall: components["schemas"]["Window"] | null;
+            /** @description The ACS lead was recalled (all fleets return with it) */
+            recall_lead: boolean;
+            /** @description The attack vanished from the member's overview between these pastes, before it arrived: likely recalled */
+            recall_seen: components["schemas"]["Window"] | null;
+            /** @description Hold plans: seconds from the impact the hold fleets land */
+            hold_offset: number;
+            /** @description Hold plans: ships on the attacked planet changed by hand; null: from the empire page or spy report */
+            planet_ships: {
+                [key: string]: number;
+            } | null;
+            /** @description Landing back home as a pasted phalanx showed it */
+            phalanx: {
+                home: number;
+                time: number | null;
+            } | null;
+            /** @description Chosen speed candidate in percent */
+            percent: number | null;
+            /** @description Seconds the retime lands after the return */
+            buffer: number;
+            updated_at: number;
+            updated_by: string | null;
+            /** @description Hold plans only: research of the attacking player from the newest spy report showing it */
+            research?: {
+                [key: string]: number;
+            } | null;
+            /** @description Hold plans only */
+            research_time?: number | null;
+        };
+        /** @description Pieces (or levels) by element id */
+        UnitCounts: {
+            [key: string]: number;
+        };
+        /** @description The incoming attack assistant for one hostile attack (see `getAttackAssist`) */
+        AttackAssist: {
+            attack: components["schemas"]["IncomingAttack"];
+            /** @description The attacked member */
+            member: {
+                id: number;
+                name: string | null;
+            } | null;
+            /** @description The attacked body from the member's newest empire page (null without one) */
+            target: {
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                type: "planet" | "moon";
+                name: string;
+                /** @description Levels and units of the empire page */
+                values: components["schemas"]["UnitCounts"];
+                /** @description `values` without the ships of `away`: what defends and can still be saved */
+                present: components["schemas"]["UnitCounts"];
+                /** @description Resources projected to the impact (null when the page had none) */
+                resources: components["schemas"]["RiskResources"] | null;
+                /** @description Time of the empire page */
+                empireTime: number;
+                /** @description Deuterium on the empire page */
+                deuterium: number | null;
+                /** @description Production per hour by resource id */
+                perHour: {
+                    [key: string]: number;
+                } | null;
+            } | null;
+            /** @description The member's planets and moons (fleet save targets) */
+            bodies: {
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                type: "planet" | "moon";
+                name: string;
+            }[];
+            /** @description The member's research levels */
+            research: components["schemas"]["UnitCounts"];
+            attacker: {
+                player: components["schemas"]["PlayerRef"];
+                /** @description The newest spy report showing the attacker's research */
+                research: {
+                    values: components["schemas"]["UnitCounts"];
+                    time: number;
+                } | null;
+                /** @description Ships of all fleets of the attack */
+                ships: components["schemas"]["UnitCounts"];
+                /** @description When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead */
+                estimated: {
+                    time: number;
+                } | null;
+            };
+            /** @description Resources the surviving attackers could take */
+            loot: components["schemas"]["RiskResources"] | null;
+            /** @description Ships of the member that left the attacked body after their newest empire page (newer fleet list, not in a fleet list from up to the empire page) and are not back by the impact; taken off the planet in the simulation. `unknown` when no fleet list from before the empire page exists. */
+            away: {
+                ships: components["schemas"]["UnitCounts"];
+                fleets: number;
+                unknown: boolean;
+            } | null;
+            /** @description Members' bodies with ships that can still land a hold 1 s before the impact, strongest first */
+            helpers: {
+                userId: number;
+                member: string;
+                from: {
+                    g: number;
+                    s: number;
+                    p: number;
+                    /** @enum {string} */
+                    type: "planet" | "moon";
+                    name: string;
+                };
+                ships: components["schemas"]["UnitCounts"];
+                points: number;
+                /** @description One-way seconds at full speed */
+                duration: number;
+                /** @description Latest launch (Unix seconds) */
+                launch: number;
+            }[];
+            /** @description Hold fleets at the planet at the impact (they defend in the simulation) */
+            holds: {
+                /** @description Member it belongs to (by fleet list or start planet) */
+                member: string | null;
+                player: string | null;
+                from: {
+                    g: number;
+                    s: number;
+                    p: number;
+                    type: string | null;
+                };
+                ships: components["schemas"]["UnitCounts"];
+                /** @description The member's research (empty for others) */
+                research: components["schemas"]["UnitCounts"];
+                /** @description Landing at the planet; null when holding there already */
+                arrival: number | null;
+            }[];
+            /** @description Id of an open hold plan for the attack */
+            holdPlan: number | null;
+            /** @description Hostile phalanxes reaching the planet */
+            phalanx: components["schemas"]["PhalanxThreat"][];
+            /** @description Ships and planet are known (a simulation is possible) */
+            simulated: boolean;
+            /** @description Simulation summary of 20 runs, `{ error }` when the simulator is busy or missing, null when skipped */
+            sim: null | {
+                error: string;
+            } | {
+                error: null;
+                runs: number;
+                /** @description Share of the runs (0-1) */
+                wins: {
+                    attacker: number;
+                    defender: number;
+                    draw: number;
+                };
+                /** @description Rounds of the typical run */
+                rounds: number;
+                /** @description Average loot over all runs */
+                loot: components["schemas"]["RiskResources"];
+                debris: {
+                    metal: components["schemas"]["BattleRange"];
+                    crystal: components["schemas"]["BattleRange"];
+                };
+                /** @description Average costs of what each side lost for good */
+                lostResources: {
+                    attacker: components["schemas"]["RiskResources"];
+                    defender: components["schemas"]["RiskResources"];
+                };
+            };
+            now: number;
+        };
+        PageCoords: {
+            g: number;
+            s: number;
+            p: number;
+        };
+        /** @description A synced empire page (all planets and moons of the account) */
+        EmpirePage: {
+            /** @constant */
+            kind: "empire";
+            planets: {
+                name: string;
+                coords: components["schemas"]["PageCoords"];
+                /** @enum {string} */
+                type: "planet" | "moon";
+                /** @description Element id -> level or amount */
+                values: {
+                    [key: string]: number;
+                };
+                /** @description Max temperature (°C) */
+                temp?: number;
+                fields?: {
+                    used: number;
+                    max: number;
+                };
+                /** @description Resources 901-903 and net energy 911 at page time */
+                resources?: {
+                    [key: string]: number;
+                };
+                /** @description Production per hour (when the page showed it) */
+                perHour?: {
+                    [key: string]: number;
+                };
+                /** @description Production setting of the mines in percent per resource */
+                production?: {
+                    [key: string]: number;
+                };
+                /** @description Building in the queue and its target level */
+                building?: {
+                    id: number;
+                    level: number;
+                } | null;
+                /** @description Ships and defense in the shipyard queue */
+                shipyard?: {
+                    [key: string]: number;
+                };
+            }[];
+            research: {
+                [key: string]: number;
+            };
+            /** @description Research in progress */
+            researchQueue?: {
+                id: number;
+                level: number;
+                coords: components["schemas"]["PageCoords"] | null;
+            } | null;
+            /** @description Resources on fleets in flight, 901-903 */
+            flying?: {
+                [key: string]: number;
+            };
+            /** @description Ships on fleets in flight (missing on pages parsed before it was read) */
+            flyingShips?: {
+                [key: string]: number;
+            };
+            /** @description Server time of the page (local game time) */
+            pageTime?: string | null;
+            /** @description Planet selected in the game header with its storage capacity */
+            active?: {
+                coords: components["schemas"]["PageCoords"];
+                /** @enum {string} */
+                type: "planet" | "moon";
+                storage: {
+                    [key: string]: number;
+                };
+            } | null;
+        };
+        /** @description A synced game overview page (what is built where and for how long) */
+        OverviewPage: {
+            /** @constant */
+            kind: "overview";
+            pageTime: string | null;
+            current: {
+                coords: components["schemas"]["PageCoords"];
+                /** @enum {string} */
+                type: "planet" | "moon";
+            } | null;
+            queues: {
+                /** @enum {string} */
+                kind: "building" | "research" | "shipyard";
+                coords: components["schemas"]["PageCoords"];
+                /** @enum {string} */
+                type: "planet" | "moon";
+                id: number;
+                /** @description Target level, for the shipyard the amount of the current batch */
+                level: number;
+                destroy: boolean;
+                /** @description Remaining seconds at page time */
+                seconds: number;
+            }[];
+            /** @description Catch-up bonus in percent, null if the universe has none */
+            catchUp: number | null;
+        };
+        /** @description A planet or moon of the buildings page: levels (`values`, with the counts of ships, defense and missiles from the empire page or a newer shipyard page), `shipyard` (units in the shipyard queue; units that left it count as built), `resources` at `time`, `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when unknown) or null when free */
+        BuildPlanet: {
+            /** @enum {string} */
+            type: "planet" | "moon";
+            values: {
+                [key: string]: number;
+            };
+            shipyard?: {
+                [key: string]: number;
+            };
+            /** @description 901-903 at `time` */
+            resources: {
+                [key: string]: number;
+            };
+            perHour: {
+                [key: string]: number;
+            };
+            storage?: {
+                [key: string]: number;
+            };
+            time: number;
+            fields?: {
+                used: number;
+                max: number;
+            };
+            queue: {
+                id: number;
+                level: number;
+                destroy: boolean;
+                end?: number | null;
+            }[];
+            busy?: {
+                research?: components["schemas"]["BusyUntil"] | null;
+                shipyard?: components["schemas"]["BusyUntil"] | null;
+                lab?: components["schemas"]["BusyUntil"] | null;
+            };
+        };
+        BusyUntil: {
+            until: number | null;
+        };
+        /** @description Element id -> the next level with its cost and build time as a game page showed them */
+        ShownLevels: {
+            [key: string]: {
+                next: number;
+                cost: {
+                    [key: string]: number;
+                };
+                time: number | null;
+            };
+        };
+        /** @description Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense), element id -> amount or level */
+        SpySections: {
+            [key: string]: {
+                [key: string]: number;
+            };
+        };
+        /** @description A spy report of one position */
+        SpyHistoryReport: {
+            id: number;
+            planet_name: string | null;
+            player_name: string | null;
+            player_id: number | null;
+            report_time: number;
+            sections: components["schemas"]["SpySections"];
+            /** @description Chance the probes were destroyed (percent) */
+            destroy_chance: number | null;
+            /** @description Hub name of the member who synced it */
+            reporter: string | null;
+        };
+        /** @description One way at full speed from where the fleet was seen, else the owner's nearest planet */
+        DefenseFlight: {
+            from: components["schemas"]["PageCoords"];
+            distance: number;
+            /** @description Seconds */
+            duration: number;
+            /** @description Deuterium */
+            fuel: number;
+        };
+        /** @description An attacker the hub knows for a planet, with the strongest fleet known */
+        DefenseThreat: {
+            /** @description Id for `threats` (search key; `<key>:heavy` for the heavy variant) */
+            key: string;
+            player: {
+                /** @description Null when unknown */
+                id: number | null;
+                name: string;
+                status: string[];
+                allyTag: string | null;
+            };
+            reasons: {
+                /** @enum {string} */
+                kind: "spied" | "attacked" | "incoming" | "nearby";
+                count: number;
+                last: number | null;
+            }[];
+            fleet: {
+                units: components["schemas"]["UnitCounts"];
+                points: number;
+                /**
+                 * @description `combat`: battle at the caller's body; `battles`: rebuilt from battle reports elsewhere
+                 * @enum {string}
+                 */
+                source: "spy" | "combat" | "incoming" | "battles";
+                time: number;
+                from: components["schemas"]["PageCoords"] | null;
+            };
+            /** @description Newest fleet points of the statistics */
+            fleetPoints: {
+                points: number;
+                time: number;
+            } | null;
+            /** @description Research of the newest spy report; `known` false: the caller's own levels stand in */
+            research: {
+                values: components["schemas"]["UnitCounts"];
+                known: boolean;
+                time: number | null;
+            };
+            flight: components["schemas"]["DefenseFlight"] | null;
+            /** @description Heavy ships only; null without heavy ships or when the fleet has nothing else */
+            heavy: {
+                units: components["schemas"]["UnitCounts"];
+                points: number;
+                flight: components["schemas"]["DefenseFlight"] | null;
+            } | null;
+        };
+        /** @description One attack of a threat against the planet */
+        ThreatOutcome: {
+            key: string;
+            /** @description Expected profit of one attack in deuterium value (negative a loss for the attacker) */
+            profit: number;
+            loot: components["schemas"]["RiskResources"];
+            debris: {
+                metal: number;
+                crystal: number;
+            };
+            /** @description Costs of the attacker's ships lost for good */
+            lost: components["schemas"]["RiskResources"];
+            /** @description Costs of the defender's units lost for good (rebuilt defense not counted) */
+            defenderLost: components["schemas"]["RiskResources"];
+            fuel: number;
+            /** @description Share of the runs (0-1) won by the attacker */
+            wins: number;
+        };
+        /** @description The defense advisor for one of the caller's planets or moons (see `getDefenseAdvice`) */
+        DefenseAdvice: {
+            planet: {
+                key: string;
+                name: string;
+                coords: components["schemas"]["PageCoords"];
+                /** @enum {string} */
+                type: "planet" | "moon";
+                /** @description Time of the state */
+                time: number;
+                /** @description Units defending (ships with `ships`, defense incl. the shipyard queue, solar satellites) */
+                units: components["schemas"]["UnitCounts"];
+                /** @description Combat research */
+                research: components["schemas"]["UnitCounts"];
+                /** @description Resources at the attack */
+                resources: components["schemas"]["RiskResources"];
+                /** @description Defense in deuterium by the rate */
+                defenseValue: number;
+            };
+            /** @description Metal and crystal per deuterium */
+            rate: {
+                m: number;
+                k: number;
+                /** @enum {string} */
+                source: "market" | "default";
+            };
+            /** @description Defense units the planet can build (requirements met; shield domes not built yet) */
+            candidates: number[];
+            threats: components["schemas"]["DefenseThreat"][];
+            /** @description Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`) */
+            simulated: string[];
+            /** @description The search result, `{ error }` when the simulator is busy or missing, null with `sim=0` or without threats */
+            advice: null | {
+                error: string;
+            } | {
+                error: null;
+                /** @enum {string} */
+                status: "safe" | "found" | "limit" | "budget";
+                before: components["schemas"]["ThreatOutcome"][];
+                /** @description With the added defense (null when nothing is added) */
+                after: components["schemas"]["ThreatOutcome"][] | null;
+                /** @description Defense units to build */
+                add: components["schemas"]["UnitCounts"];
+                cost: components["schemas"]["RiskResources"];
+                /** @description Cost in deuterium value */
+                costValue: number;
+                battles: number;
+                /** @description Runs per battle */
+                runs: number;
+            };
+            now: number;
         };
         Enabled: {
             enabled: boolean;
@@ -4516,24 +5261,24 @@ export type components = {
             mine?: boolean;
         };
         User: {
-            id?: number;
-            username?: string;
-            isAdmin?: boolean;
+            id: number;
+            username: string;
+            isAdmin: boolean;
             /** @enum {string} */
-            lang?: "de" | "en";
+            lang: "de" | "en";
             /**
              * @description Date format of the hub; `auto` follows `lang` (de DD.MM.YYYY, en DD/MM/YYYY)
              * @enum {string}
              */
-            dateFormat?: "auto" | "dmy." | "dmy/" | "ymd";
+            dateFormat: "auto" | "dmy." | "dmy/" | "ymd";
             tours?: components["schemas"]["Tours"];
         };
         /** @description Page tours of the hub (guided explanations shown on the first visit of a page) */
         Tours: {
             /** @description Whether tours start automatically on the first visit of a page */
-            enabled?: boolean;
+            enabled: boolean;
             /** @description Ids of the tours already seen or skipped */
-            seen?: string[];
+            seen: string[];
         };
         /** @description An offline window of the fleet save planner */
         FleetSavePreset: {
@@ -4629,12 +5374,26 @@ export type components = {
             };
             /** @description Cargo capacity */
             capacity: number;
-            /** @description Per drive (combustion, impulse, hyperspace): base speed, research level from which it is used (0 none, 1 always) and deuterium consumption; null: does not fly */
-            drives: {
-                speed?: number[];
-                tech?: number[];
-                consumption?: number[];
-            } | null;
+            /** @description Drives of the unit; null: does not fly */
+            drives: components["schemas"]["UnitDrives"] | null;
+        };
+        /** @description Per drive (combustion, impulse, hyperspace): base speed, research level from which it is used (0 none, 1 always) and deuterium consumption */
+        UnitDrives: {
+            speed: [
+                number,
+                number,
+                number
+            ];
+            tech: [
+                number,
+                number,
+                number
+            ];
+            consumption: [
+                number,
+                number,
+                number
+            ];
         };
         /** @description Differences of a universe from the defaults by unit id: changed fields of `UnitDef` (without `id`), `hidden: true` for a unit the universe does not have; a new id needs `name` and `cost`. At most 100 units. */
         UnitOverrides: {
@@ -4685,22 +5444,22 @@ export type components = {
              */
             fleetSpeed: number;
             /**
-             * @description Game config building_speed (2500 = 1×)
+             * @description Game config building_speed (2500 = 1×), 0 unknown
              * @default 0
              */
             buildingSpeed: number;
             /**
-             * @description Game config research_speed (2500 = 1×)
+             * @description Game config research_speed (2500 = 1×), 0 unknown
              * @default 0
              */
             researchSpeed: number;
             /**
-             * @description Game config shipyard_speed (2500 = 1×)
+             * @description Game config shipyard_speed (2500 = 1×), 0 unknown
              * @default 0
              */
             shipyardSpeed: number;
             /**
-             * @description Game config resource_multiplier (2500 = 1×)
+             * @description Game config resource_multiplier (2500 = 1×), 0 unknown
              * @default 0
              */
             resourceMultiplier: number;
@@ -4779,41 +5538,56 @@ export type components = {
         /** @description Universe and alliance context for the selected group */
         Context: {
             /** @description Universe with its `settings` (layout, speeds, distance factors, time zone, game URL, `pr0planUrl` linked from the build order tab, as set by a hub admin; `pr0plan_url_invalid` when not http(s)). Speed settings use the game's internal values (2500 = 1×): `buildingSpeed`, `researchSpeed`, `shipyardSpeed`, `resourceMultiplier` and `fleetSpeed`; `storageMultiplier` is the game config `storage_multiplier` (default 1). Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator), `noobLimit`, `noobFactor` and `noobInactives` (game config `noob_protection_time`, `noob_protection_multi` and `noob_inactives`, default 0 = unknown, 5 and false; weak/strong are derived from them and `player.points`), `inactiveDays` (days without login until the game flags a player inactive, number ≥ 0, default 7; the player page adds them to the last stat update with a points gain), `fleetDebrisPercent` and `defenseDebrisPercent` (game config `fleet_debris_percentage` and `def_debris_percentage`, 0-100, default 40 and 0) and `bigShields` (boolean, default false: shield domes must fall before other units can be hit); passed on to the battle simulator. `startsAt`: scheduled start (epoch seconds; read-only before it), null = active since its creation. `endedAt`: end of the universe (epoch seconds, may lie ahead; frozen and read-only from then on), null = no end. `units`: the universe's differences from the hub's ships, defense and missiles (`UnitOverrides`, set by a hub admin). */
-            universe?: {
-                settings?: components["schemas"]["UniverseSettings"];
-            };
-            group?: {
-                id?: number;
-                name?: string;
+            universe: components["schemas"]["Universe"];
+            group: {
+                id: number;
+                name: string;
                 /** @description Short alliance tag (at most 10 characters) for narrow places; null = none, the name is shown instead */
-                tag?: string | null;
-                role?: string;
+                tag: string | null;
+                role: string;
             };
             /** @description Base URL of the pr0game tools with trailing slash (server setting `TOOLS_URL`, default the root of the hub's origin); the hub links the tool pages (flight calculator, battle simulator, …) below it. */
-            toolsUrl?: string;
+            toolsUrl: string;
             /** @description The group's current market rate (newest from a marketplace sync or set by hand, see `getMarket`); null when none is known. The hub uses it for the loot settlement and links to the battle simulator. */
-            marketRate?: components["schemas"]["MarketRate"] | null;
+            marketRate: components["schemas"]["MarketRate"] | null;
             /** @description Alliance members. `name` is the hub display name, falling back to the username. */
-            members?: {
+            members: {
                 id: number;
                 username: string;
-                /** @description Display name */
+                /** @description Display name, or the username when none is set */
                 name: string;
                 /** @description Stored display name; null when unset */
-                display_name?: string | null;
+                display_name: string | null;
                 role: string;
-                global_admin?: number;
-                ingame_name?: string | null;
-                last_seen_at?: number | null;
+                global_admin: number;
+                ingame_name: string | null;
+                last_seen_at: number | null;
             }[];
-            me?: components["schemas"]["User"];
+            me: components["schemas"]["User"];
             /** @description Hub player of the requesting member (`id`) with the newest synced total `points` (null if unknown); the pages derive weak/strong (noob protection) from them */
-            player?: {
-                id?: number;
-                points?: number | null;
+            player: {
+                id: number;
+                points: number | null;
             } | null;
             /** @description Own data from the newest own empire page: `time`, `research` (element id → level) and `planets` with `name`, `coords`, `type` (planet/moon), `silo` (missile silo level) and `ipm` (interplanetary missiles). */
-            own?: Record<string, never> | null;
+            own: {
+                time: number;
+                research: {
+                    [key: string]: number;
+                };
+                planets: {
+                    name: string;
+                    coords: {
+                        g: number;
+                        s: number;
+                        p: number;
+                    };
+                    /** @enum {string} */
+                    type: "planet" | "moon";
+                    silo: number;
+                    ipm: number;
+                }[];
+            } | null;
         };
         Overview: {
             players: {
@@ -4879,56 +5653,100 @@ export type components = {
             } | null)[];
         };
         Imperium: {
-            userId?: number;
-            empire?: Record<string, never> | null;
+            userId: number;
+            /** @description The member's newest synced empire page */
+            empire: {
+                time: number;
+                data: components["schemas"]["EmpirePage"];
+            } | null;
             /** @description Without an empire page, the empire put together from the spy reports of the member's player (planets with buildings, fleet and defense per newest report; research with `researchTime`). */
-            spy?: Record<string, never> | null;
-            overview?: Record<string, never> | null;
-            fleets?: components["schemas"]["SharedFleets"];
-            fleetHistory?: Record<string, never>[];
+            spy: {
+                time: number;
+                research: components["schemas"]["UnitCounts"];
+                researchTime: number | null;
+                planets: components["schemas"]["AllianceEmpirePlanet"][];
+            } | null;
+            /** @description The member's newest synced game overview page */
+            overview: {
+                time: number;
+                data: components["schemas"]["OverviewPage"];
+            } | null;
+            fleets: components["schemas"]["SharedFleets"];
+            /** @description Fleets of the older lists that arrived in the last 12 hours, oldest first (shared like `fleets`) */
+            fleetHistory: components["schemas"]["FleetMovement"][];
             /** @description Fleet and expedition slots the member's fleets take (for another member by the fleets they share); null without a synced fleet list */
-            slots?: components["schemas"]["FleetSlots"] | null;
+            slots: components["schemas"]["FleetSlots"] | null;
             /** @description The caller's fleet alerts, only when the member is the caller (null otherwise). Alerts whose fleet is missing from a newer fleet list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed. */
-            fleetAlerts?: components["schemas"]["FleetAlert"][] | null;
-            player?: Record<string, never> | null;
-            fleetBase?: Record<string, never> | null;
-            leader?: Record<string, never> | null;
+            fleetAlerts: components["schemas"]["FleetAlert"][] | null;
+            /** @description The member's player with the newest synced statistics per category (1 total … 5 defense) */
+            player: {
+                id: number;
+                name: string;
+                stats: {
+                    [key: string]: {
+                        type: number;
+                        points: number;
+                        rank: number;
+                        time: number;
+                    };
+                };
+            } | null;
+            /** @description Ship points on the planets in the first empire page after the newest fleet or total statistics update (`points`) and the statistics fleet of that update (`stat`), for the live fleet points */
+            fleetBase: {
+                time: number;
+                points: number;
+                stat: number;
+            } | null;
+            /** @description Player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the newest statistics */
+            leader: {
+                name: string;
+                buildings: number | null;
+                research: number | null;
+                fleet: number | null;
+                weighted: number;
+            } | null;
             /** @description The member's planets (newest empire page, else the galaxy's planets of their player) that a known sensor phalanx of a moon outside the own alliance reaches, with the moons nearest first. Levels from the newest moon spy report showing the buildings; moons the galaxy shows destroyed since are left out. */
-            phalanx?: components["schemas"]["PhalanxExposure"][];
+            phalanx: components["schemas"]["PhalanxExposure"][];
         };
         MemberPlanet: {
-            g?: number;
-            s?: number;
-            p?: number;
-            name?: string | null;
+            g: number;
+            s: number;
+            p: number;
+            name: string | null;
         };
         /** @description Owner of the moon now (galaxy data, else the spy report) */
         PhalanxOwner: {
-            id?: number | null;
-            name?: string;
+            id: number | null;
+            name: string;
             /** @description Alliance tag (or name) */
-            ally?: string | null;
+            ally: string | null;
             /** @description In vacation mode (cannot use the phalanx) */
-            vacation?: boolean;
+            vacation: boolean;
         } | null;
         PhalanxExposure: {
-            planet?: components["schemas"]["MemberPlanet"];
-            threats?: {
-                /** @description `g`, `s`, `p` of the moon */
-                moon?: Record<string, never>;
-                level?: number;
-                /** @description Range in systems (`(level² − 1) × phalanxRangeFactor` */
-                range?: number;
-                /** @description Systems between moon and planet (circular galaxies wrap around) */
-                distance?: number;
-                /** @description Report time of the newest level */
-                time?: number;
-                /** @description Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) */
-                since?: number;
-                /** @description When that report reached the hub */
-                known?: number;
-                player?: components["schemas"]["PhalanxOwner"];
-            }[];
+            planet: components["schemas"]["MemberPlanet"];
+            threats: components["schemas"]["PhalanxThreat"][];
+        };
+        /** @description A hostile moon whose sensor phalanx reaches a planet */
+        PhalanxThreat: {
+            /** @description The moon with the phalanx */
+            moon: {
+                g: number;
+                s: number;
+                p: number;
+            };
+            level: number;
+            /** @description Range in systems (`(level² − 1) × phalanxRangeFactor`, level 1 its own system) */
+            range: number;
+            /** @description Systems between moon and planet (circular galaxies wrap around) */
+            distance: number;
+            /** @description Report time of the newest level */
+            time: number;
+            /** @description Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) */
+            since: number;
+            /** @description When that report reached the hub */
+            known: number;
+            player: components["schemas"]["PhalanxOwner"];
         };
         /** @description A row synced by a member; `user_id` and `username` (hub name) are null when the account is gone. */
         MemberRow: {
@@ -4962,7 +5780,7 @@ export type components = {
             archived: 0 | 1;
             /** @description Owner of the target from the galaxy */
             target_player_name?: string | null;
-            /** @description At one of the member's own planets (a defense */
+            /** @description At one of the member's own planets (a defense, not a raid) */
             defense: boolean;
         } & components["schemas"]["MemberRow"];
         /** @description A recycling report of a member (`recycle_reports` row). */
@@ -5184,8 +6002,7 @@ export type components = {
                 planet_type: "planet" | "moon";
                 planet_name?: string | null;
                 report_time: number;
-                /** @description Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense) */
-                sections: Record<string, never>;
+                sections: components["schemas"]["SpySections"];
             }[];
             statusLog: {
                 status: string;
@@ -5244,8 +6061,7 @@ export type components = {
             player_name: string | null;
             player_id: number | null;
             report_time: number;
-            /** @description Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense) */
-            sections: Record<string, never>;
+            sections: components["schemas"]["SpySections"];
             /** @description Hub name of the member who synced it */
             reporter: string | null;
         };
@@ -5287,13 +6103,25 @@ export type components = {
             /** @enum {string} */
             type: "planet" | "moon";
         };
-        /** @description A hostile attack (single fleet or ACS) from the members' overview pastes or a phalanx result. */
+        /** @description A hostile attack with the plans answering it and its hidden mark (`getHostileAttacks`). */
         HostileAttack: {
+            /** @description Retime plan against it */
+            planId: number | null;
+            /** @description Hold plan against it */
+            holdPlanId: number | null;
+            /** @description Hidden in the raid planner by a member, until its latest return */
+            hidden: {
+                by: string | null;
+                at: number;
+            } | null;
+        } & components["schemas"]["IncomingAttack"];
+        /** @description A hostile attack (single fleet or ACS) from the members' overview pastes or a phalanx result. */
+        IncomingAttack: {
             /** @description Stable while the attack lasts: route and the lead fleet's ships */
             key: string;
             /** @description Member it heads for (overview); null when only seen in a phalanx */
             memberId: number | null;
-            /** @description That member */
+            /** @description That member, or the attacked player by the galaxy data (phalanx) */
             member: string | null;
             /** @enum {string} */
             source: "overview" | "phalanx";
@@ -5327,15 +6155,6 @@ export type components = {
             } | null;
             /** @description Latest possible return: slowest speed without any drive research */
             until: number;
-            /** @description Retime plan against it */
-            planId: number | null;
-            /** @description Hold plan against it */
-            holdPlanId: number | null;
-            /** @description Hidden in the raid planner by a member, until its latest return */
-            hidden: {
-                by: string | null;
-                at: number;
-            } | null;
         };
         BattleHallEntry: {
             id: number;
@@ -5344,7 +6163,8 @@ export type components = {
             time: number | null;
             attackers: string[];
             defenders: string[];
-            winner: string | null;
+            /** @enum {string|null} */
+            winner: "attacker" | "defender" | "draw" | null;
             units: number;
             created_at: number;
             /** @description State of the crawler fetching the full report */
@@ -5390,7 +6210,7 @@ export type components = {
             moon_extra: number;
             /** @enum {integer} */
             moon_created: 0 | 1;
-            /** @description Units of the battle hall entry */
+            /** @description Units of the battle hall entry, null without one */
             units: number | null;
             fleets: {
                 /** @enum {string} */
@@ -5427,7 +6247,7 @@ export type components = {
             coords: string | null;
             /** @description Player of the own alliance */
             ally: boolean;
-            /** @description Hub player */
+            /** @description Hub player, when known */
             player: number | null;
         };
         Messages: {
@@ -5483,10 +6303,20 @@ export type components = {
             status: "invited" | "ready" | "launched" | "withdrawn";
             recalled_at: number | null;
             updated_at: number;
-            /** @description Drive research of the member (synced or entered by hand) */
-            drives: Record<string, never> | null;
-            /** @description Combat research from a taken-over simulation where the member's is unknown */
-            sim_research: Record<string, never> | null;
+            /** @description Research of the member for flight times and the simulators: their latest empire page, else the newest spy report showing it; drives entered by hand count when newer */
+            drives: {
+                time: number;
+                /** @description Levels by research id */
+                research: {
+                    [key: string]: number;
+                };
+                /** @enum {string} */
+                source: "empire" | "spy" | "manual";
+            } | null;
+            /** @description Combat research from a taken-over simulation where the member's is unknown (levels by research id) */
+            sim_research: {
+                [key: string]: number;
+            } | null;
             /** @description The launch as seen in the member's newest fleet list */
             seen: {
                 /** @description Real arrival (Unix seconds) */
@@ -5508,8 +6338,8 @@ export type components = {
             g: number | null;
             s: number | null;
             p: number | null;
-            /** @enum {string|null} */
-            planet_type: "planet" | "moon" | null;
+            /** @enum {string} */
+            planet_type: "planet" | "moon";
             target_time: number;
             /** @enum {string} */
             time_precision: "day" | "hour" | "exact";
@@ -5519,7 +6349,7 @@ export type components = {
             /** @enum {string} */
             mission: "attack" | "hold";
             /** @description Fleets of players outside the hub taking part (simulator) */
-            guests: Record<string, never>[];
+            guests: components["schemas"]["PlanGuest"][];
             created_at: number;
             updated_at: number;
             /** @description Member holding the active claim of the target */
@@ -5535,13 +6365,18 @@ export type components = {
             } | null;
             fleets: components["schemas"]["PlanFleet"][];
             /** @description The hostile fleet a retime or hold plan is about */
-            enemy: Record<string, never> | null;
+            enemy: components["schemas"]["PlanEnemy"] | null;
             /** @description Newest spy values of the target (or the attacker for a hold) for the simulators */
             spy: {
                 time: number;
                 values: {
                     [key: string]: number;
                 };
+                /**
+                 * @description Attack plans: the spy report, or a taken-over simulation newer than it (missing for hold plans)
+                 * @enum {string}
+                 */
+                source?: "spy" | "sim";
             } | null;
         };
         Stats: {
@@ -5619,7 +6454,7 @@ export type components = {
                 /** @enum {string} */
                 source: "spy" | "empire";
                 own: boolean;
-                player?: Record<string, never> | null;
+                player?: components["schemas"]["PhalanxOwner"];
             }[];
             rows: {
                 p: number;
@@ -5630,8 +6465,11 @@ export type components = {
                 moon_diameter?: number | null;
                 /** @enum {integer} */
                 destroyed: 0 | 1;
-                /** @description Debris field (metal */
-                debris?: Record<string, never> | null;
+                /** @description Debris field as the galaxy shows it (amounts as text) */
+                debris?: {
+                    metal: string;
+                    crystal: string;
+                } | null;
                 updated_at: number | null;
                 player_id: number | null;
                 ingame_id?: number | null;
@@ -5669,7 +6507,7 @@ export type components = {
             pageType: string;
             source: string | null;
             lang: string | null;
-            /** @description Stable codes */
+            /** @description Stable codes, translated by the web app */
             warnings: string[];
             counts: {
                 [key: string]: {
@@ -5704,7 +6542,7 @@ export type components = {
             parts: {
                 /** @enum {string} */
                 key: "empire" | "overview" | "galaxy" | "buildings" | "messages" | "research";
-                /** @description Share of the score */
+                /** @description Share of the score, all weights add up to 100 */
                 weight: number;
                 /** @description 0–1 */
                 value: number;
@@ -5758,7 +6596,7 @@ export type components = {
             own?: {
                 /** @enum {string} */
                 page: "empire" | "overview" | "buildings" | "research";
-                /** @description Unix seconds of the previous page */
+                /** @description Unix seconds of the previous page, null for the first one */
                 before: number | null;
             }[];
             /** @description Sync hints of the member that are done now (own syncs only) */
@@ -5809,7 +6647,7 @@ export type components = {
         SharedFleets: {
             /** @description Unix seconds of the synced page */
             time: number;
-            /** @description Fleets (own */
+            /** @description Fleets (own, friendly, hostile) the caller may see */
             data: components["schemas"]["FleetMovement"][];
             /** @description The member shares no fleets by default (`fleetShare` off); single fleets may still be shared */
             private: boolean;
@@ -5827,13 +6665,13 @@ export type components = {
         /** @description One movement of a member's synced fleet list (the game overview's events) */
         FleetMovement: {
             /**
-             * @description Own fleet
+             * @description Own fleet, hostile fleet heading for an own planet, or another fleet
              * @enum {string}
              */
             owner: "own" | "hostile" | "foreign";
             /** @description Owner of a foreign fleet when the game names it */
             player: string | null;
-            /** @description Game mission id */
+            /** @description Game mission id, null if unknown */
             mission: number | null;
             /** @description Mission as shown in the game */
             missionName: string;
@@ -5904,7 +6742,7 @@ export type components = {
             created_at: number | null;
             data: components["schemas"]["AllianceEmpire"];
             fleets: components["schemas"]["SharedFleets"];
-            /** @description Fleets of the member's older lists that arrived in the last 12 hours */
+            /** @description Fleets of the member's older lists that arrived in the last 12 hours, as far as they share them */
             fleetHistory: components["schemas"]["FleetMovement"][];
         };
     };
@@ -6248,7 +7086,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PushSettings"];
+                "application/json": components["schemas"]["PushSettingsChange"];
             };
         };
         responses: {
@@ -6308,7 +7146,7 @@ export interface operations {
                 "application/json": {
                     /**
                      * Format: uri
-                     * @description HTTPS URL of FCM
+                     * @description HTTPS URL of FCM, Mozilla, Apple or Windows push
                      */
                     endpoint: string;
                     keys: {
@@ -6500,7 +7338,7 @@ export interface operations {
                     webhook?: string | null;
                     /** @description Discord user id (17 to 20 digits); null or empty removes it */
                     userId?: string | null;
-                    prefs?: components["schemas"]["PushSettings"];
+                    prefs?: components["schemas"]["PushSettingsChange"];
                 };
             };
         };
@@ -7146,9 +7984,44 @@ export interface operations {
                         kind: "shipyard" | "techtree" | "info";
                         /** @enum {string} */
                         lang: "de" | "en";
-                        units: Record<string, never>[];
+                        units: {
+                            id: number;
+                            /** @description Name in the page's language */
+                            name?: string;
+                            /** @description Metal, crystal, deuterium */
+                            cost?: [
+                                number,
+                                number,
+                                number
+                            ];
+                            /** @description Requirements, building or research id -> level */
+                            req?: {
+                                [key: string]: number;
+                            };
+                            /** @description Once per planet */
+                            one?: boolean;
+                            /** @description Metal + crystal (info page) */
+                            structure?: number;
+                            attack?: number;
+                            shield?: number;
+                            capacity?: number;
+                            drives?: components["schemas"]["UnitDrives"] | null;
+                            /** @description Target id -> shots */
+                            rapidfire?: {
+                                [key: string]: number;
+                            };
+                            /** @description Shooter id -> shots against this unit */
+                            rapidfireFrom?: {
+                                [key: string]: number;
+                            };
+                        }[];
                         /** @description Names without a known id */
                         unknown: string[];
+                        /**
+                         * @description Shipyard page: which list it is (units missing on it do not exist in the universe)
+                         * @enum {string}
+                         */
+                        mode?: "fleet" | "defense";
                     };
                 };
             };
@@ -7257,7 +8130,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description 3–32 characters (letters */
+                    /** @description 3–32 characters (letters, digits, . _ -) */
                     username: string;
                     password: string;
                     /** @description Shown to the admin */
@@ -7324,23 +8197,23 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        requests?: {
-                            id?: number;
-                            username?: string;
-                            message?: string;
-                            created_at?: number;
+                        requests: {
+                            id: number;
+                            username: string;
+                            message: string;
+                            created_at: number;
                             /**
                              * @description The player without an account whose login name the request carries; the request can only be
                              *     assigned to them (`username_of_placeholder` otherwise)
                              */
-                            placeholder?: number | null;
+                            placeholder: number | null;
                         }[];
-                        placeholders?: {
+                        placeholders: {
                             /** @description User id to assign to */
-                            id?: number;
-                            name?: string;
-                            group?: string;
-                            universe?: string;
+                            id: number;
+                            name: string;
+                            group: string;
+                            universe: string;
                         }[];
                     };
                 };
@@ -7734,7 +8607,7 @@ export interface operations {
                         scope: "farm" | "galaxy" | "stats";
                         /** @description The time window, null for `galaxy` (the views shown now) */
                         days: number | null;
-                        /** @description Members who synced the data */
+                        /** @description Members who synced the data, the caller included */
                         members: number;
                         /** @description The caller is one of them */
                         me: boolean;
@@ -7840,7 +8713,7 @@ export interface operations {
                                 /** @description Reached level, 0: not yet */
                                 level: number;
                                 levels: number;
-                                /** @description Count of the next level */
+                                /** @description Count of the next level, null at the top */
                                 next: number | null;
                                 /** @description The counts of all levels */
                                 steps: number[];
@@ -7886,7 +8759,7 @@ export interface operations {
                             userId: number;
                             name: string;
                             points: number;
-                            /** @description Points per kind (galaxy */
+                            /** @description Points per kind (galaxy, spy, empire, …) */
                             parts: {
                                 [key: string]: number;
                             };
@@ -8302,26 +9175,26 @@ export interface operations {
                 content: {
                     "application/json": {
                         players: {
-                            id?: number;
-                            name?: string;
-                            status?: string[];
-                            ally_tag?: string | null;
-                            ally_name?: string | null;
+                            id: number;
+                            name: string;
+                            status: string[];
+                            ally_tag: string | null;
+                            ally_name: string | null;
                             /** @description Former name that matched (null when the current name matched) */
-                            alias?: string | null;
+                            alias: string | null;
                         }[];
                         alliances: {
-                            id?: number;
-                            name?: string;
-                            tag?: string | null;
+                            id: number;
+                            name: string;
+                            tag: string | null;
                             /** @description Known players of the alliance */
-                            players?: number;
+                            players: number;
                         }[];
                         /** @description Only for coordinates; owner fields are missing when the position is unknown */
                         planet: {
-                            g?: number;
-                            s?: number;
-                            p?: number;
+                            g: number;
+                            s: number;
+                            p: number;
                             name?: string | null;
                             has_moon?: boolean;
                             moon_name?: string | null;
@@ -8360,54 +9233,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        generatedAt?: number;
-                        weights?: {
+                        generatedAt: number;
+                        weights: {
                             [key: string]: number;
                         };
-                        events?: number;
-                        skipped?: number;
+                        events: number;
+                        skipped: number;
                         /** @description Used events whose last login a proof of activity narrowed down */
-                        narrowed?: number;
-                        detection?: {
-                            hours?: number;
-                            n?: number;
-                            likely?: number;
-                            inactive?: number;
-                            median?: number | null;
+                        narrowed: number;
+                        detection: {
+                            hours: number;
+                            n: number;
+                            likely: number;
+                            inactive: number;
+                            median: number | null;
                         }[];
-                        falseAlarms?: components["schemas"]["FalseAlarmSummary"] & {
+                        falseAlarms: components["schemas"]["FalseAlarmSummary"] & {
                             /** @description Share of high scores disproved within 24 hours (the false alarm rate) */
-                            rate?: number | null;
+                            rate: number | null;
                             /** @description Disproved within 72 hours, by what came first: gain or the proof source */
-                            causes?: {
+                            causes: {
                                 [key: string]: number;
                             };
-                            examples?: {
-                                playerId?: number;
-                                name?: string;
-                                time?: number;
-                                score?: number;
+                            examples: {
+                                playerId: number;
+                                name: string;
+                                time: number;
+                                score: number;
                                 /** @description Earliest horizon within which activity showed */
-                                hours?: number;
+                                hours: number;
                                 /** @description Time of the cause */
-                                activeAt?: number;
+                                activeAt: number;
                                 /** @description gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone) */
-                                cause?: string;
-                                gain?: {
+                                cause: string;
+                                gain: {
                                     /** @description Points of the gain */
-                                    size?: number | null;
+                                    size: number | null;
                                     /** @description Share of the median gain of the active players around the rank */
-                                    ratio?: number | null;
+                                    ratio: number | null;
                                     /** @description Categories that grew in that update (2 fleet, 3 research, 4 buildings, 5 defense) and by how much */
-                                    categories?: {
+                                    categories: {
                                         [key: string]: number;
                                     };
                                 } | null;
                             }[];
                         };
                         /** @description Ended universe: samples whose 72 hours of follow-up reach into the last 7 days before the end, counted apart (players come back before a universe closes); null for a running universe */
-                        endPhase?: (components["schemas"]["FalseAlarmSummary"] & {
-                            ended?: number;
+                        endPhase: (components["schemas"]["FalseAlarmSummary"] & {
+                            ended: number;
                         }) | null;
                     };
                 };
@@ -8479,10 +9352,10 @@ export interface operations {
                         from: number;
                         events: components["schemas"]["ActivityEvent"][];
                         /** @description Total points per stat time since 12 hours before `from`, oldest first: the gain per stat window compared with the player's other windows tells how active they were then (coarse, 6-hour blocks). */
-                        scores?: {
+                        scores: {
                             /** @description Stat time (Unix seconds) */
-                            time?: number;
-                            points?: number;
+                            time: number;
+                            points: number;
                         }[];
                     };
                 };
@@ -8641,50 +9514,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        fields?: {
-                            g?: number;
-                            s?: number;
-                            p?: number;
-                            metal?: number;
-                            crystal?: number;
-                            time?: number;
-                            base?: {
+                        fields: {
+                            g: number;
+                            s: number;
+                            p: number;
+                            metal: number;
+                            crystal: number;
+                            time: number;
+                            base: {
                                 /** @enum {string} */
-                                source?: "galaxy" | "recycle";
-                                time?: number;
-                                metal?: number;
-                                crystal?: number;
+                                source: "galaxy" | "recycle";
+                                time: number;
+                                metal: number;
+                                crystal: number;
                                 /** @description Member whose recyclers left the rest */
-                                by?: string | null;
+                                by: string | null;
                             } | null;
-                            battles?: {
-                                time?: number;
-                                metal?: number;
-                                crystal?: number;
+                            battles: {
+                                time: number;
+                                metal: number;
+                                crystal: number;
                             }[];
                             /** @description Owner of the planet at the position; `member` when it is one of the group's members */
-                            owner?: {
-                                id?: number;
-                                name?: string;
-                                ally_tag?: string | null;
-                                member?: boolean;
+                            owner: {
+                                id: number;
+                                name: string;
+                                ally_tag: string | null;
+                                member: boolean;
                             } | null;
                         }[];
-                        recyclers?: {
-                            userId?: number;
-                            member?: string;
-                            g?: number;
-                            s?: number;
-                            p?: number;
+                        recyclers: {
+                            userId: number;
+                            member: string;
+                            g: number;
+                            s: number;
+                            p: number;
                             /** @enum {string} */
-                            type?: "planet" | "moon";
-                            recyclers?: number;
-                            speed?: number;
-                            time?: number;
+                            type: "planet" | "moon";
+                            recyclers: number;
+                            speed: number;
+                            time: number;
                         }[];
-                        capacity?: number | null;
-                        days?: number;
-                        now?: number;
+                        capacity: number | null;
+                        days: number;
+                        now: number;
                     };
                 };
             };
@@ -8695,7 +9568,7 @@ export interface operations {
             query?: {
                 /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
                 group?: components["parameters"]["HubGroupQuery"];
-                /** @description Range in systems (1–200 */
+                /** @description Range in systems (1–200, default 25) */
                 range?: number;
             };
             header?: {
@@ -8766,19 +9639,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        fields?: {
+                        fields: {
                             [key: string]: {
-                                s?: number;
-                                p?: number;
-                                visible?: boolean;
-                                active?: boolean;
-                                sure?: boolean;
+                                s: number;
+                                p: number;
+                                visible: boolean;
+                                active: boolean;
+                                sure: boolean;
                                 /** @description Newest sign of the field (Unix seconds) */
-                                time?: number;
+                                time: number;
                             }[];
                         };
                         /** @description The last run of the weekly debris cleaner (Unix seconds) */
-                        cleanup?: number;
+                        cleanup: number;
                     };
                 };
             };
@@ -8811,12 +9684,12 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @description Per galaxy the systems with free positions */
-                        systems?: {
+                        systems: {
                             [key: string]: {
-                                s?: number;
-                                free?: number[];
+                                s: number;
+                                free: number[];
                                 /** @description When the galaxy showed the system (Unix seconds) */
-                                seen?: number;
+                                seen: number;
                             }[];
                         };
                     };
@@ -8853,7 +9726,7 @@ export interface operations {
                         window: number;
                         members: {
                             userId: number;
-                            /** @description Hub display name */
+                            /** @description Hub display name, or the username when none is set */
                             name: string;
                             /** @description In-game name when it differs from `name` */
                             ingameName: string | null;
@@ -9027,69 +9900,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** @description The hostile attack (`key`, `arrival`, `from`, `to`, `fleets`, `player`, `drives`, …) */
-                        attack?: Record<string, never>;
-                        member?: {
-                            id?: number;
-                            name?: string;
-                        } | null;
-                        /** @description The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units of the empire page), `present` (`values` without the ships of `away`: what defends in the simulation and can still be saved), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page */
-                        target?: Record<string, never> | null;
-                        /** @description The member's planets and moons (`g`, `s`, `p`, `type`, `name`) */
-                        bodies?: Record<string, never>[];
-                        /** @description The member's research levels */
-                        research?: Record<string, never>;
-                        attacker?: {
-                            player?: Record<string, never> | null;
-                            /** @description `values` and `time` of the newest spy report showing research */
-                            research?: Record<string, never> | null;
-                            /** @description Ships of all fleets of the attack */
-                            ships?: Record<string, never>;
-                            /** @description When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead */
-                            estimated?: Record<string, never> | null;
-                        };
-                        /** @description Resources the surviving attackers could take (`metal`, `crystal`, `deuterium`) */
-                        loot?: Record<string, never> | null;
-                        helpers?: {
-                            userId?: number;
-                            member?: string;
-                            from?: Record<string, never>;
-                            ships?: Record<string, never>;
-                            points?: number;
-                            /** @description One-way seconds at full speed */
-                            duration?: number;
-                            /** @description Latest launch (Unix seconds) */
-                            launch?: number;
-                        }[];
-                        /** @description Id of an open hold plan for the attack */
-                        holdPlan?: number | null;
-                        /** @description Ships of the member that left the attacked body after their newest empire page (newer fleet list, not in a fleet list from up to the empire page) and are not back by the impact; taken off the planet in the simulation. `unknown` when no fleet list from before the empire page exists. */
-                        away?: {
-                            ships?: Record<string, never>;
-                            fleets?: number;
-                            unknown?: boolean;
-                        } | null;
-                        /** @description Hold fleets at the planet at the impact (they defend in the simulation) */
-                        holds?: {
-                            /** @description Member it belongs to (by fleet list or start planet) */
-                            member?: string | null;
-                            player?: string | null;
-                            from?: Record<string, never>;
-                            ships?: Record<string, never>;
-                            /** @description The member's research (empty for others) */
-                            research?: Record<string, never>;
-                            /** @description Landing at the planet; null when holding there already */
-                            arrival?: number | null;
-                        }[];
-                        /** @description Hostile phalanxes reaching the planet (like `PhalanxExposure.threats`) */
-                        phalanx?: Record<string, never>[];
-                        /** @description Ships and planet are known (a simulation is possible) */
-                        simulated?: boolean;
-                        /** @description Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }` */
-                        sim?: Record<string, never> | null;
-                        now?: number;
-                    };
+                    "application/json": components["schemas"]["AttackAssist"];
                 };
             };
             /** @description No such hostile attack (`attack_not_found`) */
@@ -9136,41 +9947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** @description `key`, `name`, `coords`, `type`, `time` of the state, `units` defending (ships with `ships`, defense incl. the shipyard queue, solar satellites), combat `research`, `resources` at the attack, `defenseValue` (defense in deuterium by the rate) */
-                        planet?: Record<string, never>;
-                        /** @description `m` and `k` (metal and crystal per deuterium) and `source` (`market` or `default`) */
-                        rate?: Record<string, never>;
-                        /** @description Defense units the planet can build (requirements met; shield domes not built yet) */
-                        candidates?: number[];
-                        threats?: {
-                            /** @description Id for `threats` */
-                            key?: string;
-                            /** @description `id` (null when unknown), `name`, `status`, `allyTag` */
-                            player?: Record<string, never>;
-                            reasons?: {
-                                /** @enum {string} */
-                                kind?: "spied" | "attacked" | "incoming" | "nearby";
-                                count?: number;
-                                last?: number | null;
-                            }[];
-                            /** @description `units`, `points`, `source` (`spy`, `combat`: battle at the caller's body, `incoming`, `battles`: rebuilt from battle reports elsewhere), `time`, `from` (null when unknown) */
-                            fleet?: Record<string, never>;
-                            /** @description `points` and `time` of the newest fleet statistics */
-                            fleetPoints?: Record<string, never> | null;
-                            /** @description `values`, `known` (from a spy report), `time` */
-                            research?: Record<string, never>;
-                            /** @description `from`, `distance`, `duration` (seconds), `fuel` (deuterium) */
-                            flight?: Record<string, never> | null;
-                            /** @description Heavy ships only: `units`, `points`, `flight`; null without heavy ships or when the fleet has nothing else */
-                            heavy?: Record<string, never> | null;
-                        }[];
-                        /** @description Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`) */
-                        simulated?: string[];
-                        /** @description `status` (`safe`, `found`, `limit`, `budget`), `before` and `after` (per threat `key`, `profit` in deuterium, average `loot`, `debris`, `lost` and `defenderLost` resources, `fuel`, `wins` share of the attacker), `add` (defense units to build), `cost`, `costValue`, `battles` and `runs` per battle; or `{ error }` */
-                        advice?: Record<string, never> | null;
-                        now?: number;
-                    };
+                    "application/json": components["schemas"]["DefenseAdvice"];
                 };
             };
             /** @description Invalid `planet` (`planet_invalid`) */
@@ -9388,7 +10165,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        alerts?: components["schemas"]["FleetAlert"][];
+                        alerts: components["schemas"]["FleetAlert"][];
                     };
                 };
             };
@@ -9495,7 +10272,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        alerts?: components["schemas"]["FleetAlert"][];
+                        alerts: components["schemas"]["FleetAlert"][];
                     };
                 };
             };
@@ -9647,7 +10424,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        alerts?: components["schemas"]["BuildingAlert"][];
+                        alerts: components["schemas"]["BuildingAlert"][];
                     };
                 };
             };
@@ -9698,7 +10475,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        hidden?: number[];
+                        hidden: number[];
                     };
                 };
             };
@@ -9736,7 +10513,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        alerts?: components["schemas"]["BuildingAlert"][];
+                        alerts: components["schemas"]["BuildingAlert"][];
                     };
                 };
             };
@@ -10224,47 +11001,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        rate?: components["schemas"]["MarketRate"] | null;
-                        rates?: components["schemas"]["MarketRate"][];
+                        rate: components["schemas"]["MarketRate"] | null;
+                        rates: components["schemas"]["MarketRate"][];
                         /** @description Epoch seconds (game time of the page) */
-                        syncedAt?: number | null;
-                        syncedBy?: string | null;
-                        offers?: {
-                            id?: number;
+                        syncedAt: number | null;
+                        syncedBy: string | null;
+                        offers: {
+                            id: number;
                             /** @description The game's offer id (page source only) */
-                            offerId?: number | null;
+                            offerId: number | null;
                             /** @description Offered resource (`m`, `k`, `d`) and amount */
-                            give?: {
+                            give: {
                                 /** @enum {string} */
-                                res?: "m" | "k" | "d";
-                                amount?: number;
+                                res: "m" | "k" | "d";
+                                amount: number;
                             };
                             /** @description Asked resource and amount */
-                            want?: {
+                            want: {
                                 /** @enum {string} */
-                                res?: "m" | "k" | "d";
-                                amount?: number;
+                                res: "m" | "k" | "d";
+                                amount: number;
                             };
                             /** @description Exchange rate the game showed (offered / asked value in deuterium) */
-                            ratio?: number | null;
+                            ratio: number | null;
                             /** @description Offered by the own alliance or by one with an accepted main, wing, alliance or trade alliance pact (the game's `trade-ally` row) */
-                            ally?: boolean;
-                            endsAt?: number;
-                            firstSeen?: number;
+                            ally: boolean;
+                            endsAt: number;
+                            firstSeen: number;
                         }[];
                         /** @description Synced trade history (accepted offers of the universe as the marketplace lists them), newest first, at most 200 */
-                        trades?: {
+                        trades: {
                             /** @description Epoch seconds of the trade */
-                            time?: number;
-                            give?: {
+                            time: number;
+                            give: {
                                 /** @enum {string} */
-                                res?: "m" | "k" | "d";
-                                amount?: number;
+                                res: "m" | "k" | "d";
+                                amount: number;
                             };
-                            want?: {
+                            want: {
                                 /** @enum {string} */
-                                res?: "m" | "k" | "d";
-                                amount?: number;
+                                res: "m" | "k" | "d";
+                                amount: number;
                             };
                         }[];
                     };
@@ -10395,16 +11172,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        planets?: {
+                        planets: {
                             [key: string]: number;
                         };
-                        points?: {
+                        points: {
                             [key: string]: number;
                         };
-                        seen?: {
+                        seen: {
                             [key: string]: number;
                         };
-                        own?: number[];
+                        own: number[];
                     };
                 };
             };
@@ -10568,8 +11345,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        reports?: Record<string, never>[];
-                        total?: number;
+                        /** @description Newest first */
+                        reports: components["schemas"]["SpyHistoryReport"][];
+                        /** @description Reports of the position */
+                        total: number;
                     };
                 };
             };
@@ -10698,21 +11477,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        from?: number;
-                        to?: number;
+                        from: number;
+                        to: number;
                         /** @description Newest hostile espionage events (up to 1000) */
-                        list?: {
-                            from_player?: string;
+                        list: {
+                            id: number;
+                            /** @description The spied member */
+                            user_id: number | null;
+                            /** @description Hub name of the member who synced it */
+                            username: string | null;
+                            time: number | null;
+                            from_player: string;
                             /** @description Hub player id of the spy when known */
-                            from_player_id?: number | null;
+                            from_player_id: number | null;
+                            from_planet: string | null;
+                            from_g: number;
+                            from_s: number;
+                            from_p: number;
+                            /** @enum {string} */
+                            from_type: "planet" | "moon";
+                            target_planet: string | null;
+                            target_g: number;
+                            target_s: number;
+                            target_p: number;
+                            /** @enum {string} */
+                            target_type: "planet" | "moon";
                         }[];
                         /** @description Aggregated by spy name */
-                        bySpy?: {
-                            from_player?: string;
-                            from_player_id?: number | null;
-                            count?: number;
-                            victims?: number;
-                            last?: number | null;
+                        bySpy: {
+                            from_player: string;
+                            from_player_id: number | null;
+                            count: number;
+                            victims: number;
+                            last: number | null;
                         }[];
                     };
                 };
@@ -11030,7 +11827,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -11086,7 +11883,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
         };
@@ -11151,10 +11948,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id?: number;
-                        claimedBy?: string | null;
-                    };
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
             /** @description Attack arrived, already planned, not pasted or not the caller's (`attack_not_found`) */
@@ -11202,13 +11996,13 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @description The simulation had a defender (taken over as the target) */
-                        defender?: boolean;
+                        defender: boolean;
                         /** @description Attacker fleets in the simulation */
-                        attackers?: number;
+                        attackers: number;
                         /** @description Attacker fleets recognised as a plan fleet or guest */
-                        identified?: number;
+                        identified: number;
                         /** @description Recognised fleets the simulation changed */
-                        updated?: number;
+                        updated: number;
                     };
                 };
             };
@@ -11720,7 +12514,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        id: number;
+                        /** @description Epoch seconds */
+                        expires_at: number;
+                    };
                 };
             };
         };
@@ -11781,7 +12579,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -11868,38 +12666,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        battles?: {
-                            reportId?: string;
-                            time?: number;
-                            g?: number | null;
-                            s?: number | null;
-                            p?: number | null;
-                            chance?: number;
-                            extra?: number;
-                            created?: boolean;
-                            attackers?: string[];
-                            defenders?: string[];
+                        battles: {
+                            reportId: string;
+                            time: number;
+                            g: number | null;
+                            s: number | null;
+                            p: number | null;
+                            chance: number;
+                            extra: number;
+                            created: boolean;
+                            attackers: string[];
+                            defenders: string[];
                             /** @enum {string|null} */
-                            memberSide?: "attacker" | "defender" | null;
-                            moon?: {
-                                diameter?: number | null;
+                            memberSide: "attacker" | "defender" | null;
+                            moon: {
+                                diameter: number | null;
                             } | null;
                         }[];
-                        members?: {
-                            name?: string;
-                            battles?: number;
-                            expected?: number;
-                            created?: number;
+                        members: {
+                            name: string;
+                            battles: number;
+                            expected: number;
+                            created: number;
                         }[];
-                        newMoons?: {
-                            time?: number;
-                            g?: number;
-                            s?: number;
-                            p?: number;
-                            player?: string;
-                            diameter?: number | null;
+                        newMoons: {
+                            time: number;
+                            g: number;
+                            s: number;
+                            p: number;
+                            player: string;
+                            diameter: number | null;
                         }[];
-                        days?: number;
+                        days: number;
                     };
                 };
             };
@@ -11928,116 +12726,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** @description Stable while the event lasts */
-                        id: string;
-                        /** @enum {string} */
-                        kind: "attack" | "invite" | "comment" | "launch" | "building" | "fleet" | "storage" | "settlement" | "buildorder" | "phalanx" | "expedition";
-                        /** @description attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder, phalanx and expedition: the caller; settlement: who finalized it */
-                        userId: number;
-                        member: string;
-                        /** @description Unix seconds (arrival */
-                        time: number;
-                        /** @description building and fleet: id of the building or fleet alert */
-                        alert?: number;
-                        /** @description fleet only: minutes before the arrival the alert reminds */
-                        lead?: number;
-                        /** @description building: the planet or moon; storage: the planet (no type, moons have no production) */
-                        planet?: {
-                            g?: number;
-                            s?: number;
-                            p?: number;
-                            /** @enum {string} */
-                            type?: "planet" | "moon";
-                            name?: string;
-                        };
-                        /** @description building only: building id */
-                        element?: number;
-                        /** @description building: the affordable level; phalanx: the sensor phalanx level */
-                        level?: number;
-                        /** @description phalanx only: the moon with the phalanx (`g`, `s`, `p`) */
-                        moon?: Record<string, never>;
-                        /** @description phalanx only: range in systems */
-                        range?: number;
-                        /** @description phalanx only: game time of the oldest spy report of the newest run that shows the phalanx reaching the planets */
-                        since?: number;
-                        player?: components["schemas"]["PhalanxOwner"];
-                        /** @description phalanx only: the caller's planets in reach */
-                        planets?: components["schemas"]["MemberPlanet"][];
-                        /**
-                         * @description storage only: the full storage's resource (metal, crystal, deuterium)
-                         * @enum {integer}
-                         */
-                        resource?: 901 | 902 | 903;
-                        /** @description attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert; expedition: the last line of the flight (the return, for a lost one the stay) */
-                        fleet?: Record<string, never>;
-                        /** @description expedition only: swallowed by a black hole at the end of its stay */
-                        lost?: boolean;
-                        /** @description expedition only: expedition slots taken after it was back, and their number by astrophysics (null when unknown) */
-                        slots?: {
-                            used: number;
-                            max: number | null;
-                        };
-                        /** @description attack only: number of fleets of an ACS */
-                        fleets?: number;
-                        /** @description invite, launch and settlement (launch: `time_precision` is always exact and missing; `target_time` instead; settlement: target and mission only) */
-                        plan?: {
-                            id?: number;
-                            g?: number | null;
-                            s?: number | null;
-                            p?: number | null;
-                            /** @enum {string} */
-                            planet_type?: "planet" | "moon";
-                            /** @enum {string} */
-                            mission?: "attack" | "hold";
-                            /** @enum {string} */
-                            time_precision?: "day" | "hour" | "exact";
-                            target_time?: number;
-                        };
-                        /** @description settlement only: the caller's open deliveries to send (by name) */
-                        sends?: {
-                            to?: string;
-                            res?: Record<string, never>;
-                        }[];
-                        /** @description settlement only: the caller's open deliveries to get (by name) */
-                        gets?: {
-                            from?: string;
-                            res?: Record<string, never>;
-                        }[];
-                        /** @description comment only: a player, the loot settlement of a raid plan (with the plan target), or a planet/moon with its owner */
-                        thread?: {
-                            player: number;
-                            name: string;
-                        } | {
-                            plan: number;
-                            g: number;
-                            s: number;
-                            p: number;
-                            /** @enum {string} */
-                            type: "planet" | "moon";
-                        } | {
-                            g: number;
-                            s: number;
-                            p: number;
-                            /** @enum {string} */
-                            type: "planet" | "moon";
-                            owner?: string | null;
-                        };
-                        /** @description comment only: the newest comment, shortened */
-                        excerpt?: string;
-                        /** @description comment only: one of the comments mentions the caller (`@name`) */
-                        mention?: boolean;
-                        /** @description comment only: new comments in the thread */
-                        count?: number;
-                        /** @description launch only: start planet or moon of the fleet */
-                        from?: {
-                            g?: number;
-                            s?: number;
-                            p?: number;
-                            /** @enum {string} */
-                            type?: "planet" | "moon";
-                        };
-                    }[];
+                    "application/json": components["schemas"]["Notification"][];
                 };
             };
         };
@@ -12100,7 +12789,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description Id of the tab */
+                    /** @description Id of the tab, new on every page load */
                     tab?: string;
                     page?: string;
                     g?: number;
@@ -12175,7 +12864,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Wrong username or password (`login_failed`) */
@@ -12212,7 +12901,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12231,7 +12920,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        lang: "de" | "en";
+                    };
                 };
             };
         };
@@ -12250,7 +12943,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        username: string;
+                    };
                 };
             };
             /** @description Wrong password or invalid username (`password_wrong`, `username_invalid`) */
@@ -12353,7 +13049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Old password wrong or new one invalid (`old_password_wrong`, `password_too_short`, `password_too_long`) */
@@ -12544,7 +13240,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Alliance the invite adds to (null for a hub invite without one) */
+                        group: {
+                            name: string;
+                            /** @description Name of the universe */
+                            universe: string;
+                        } | null;
+                        /** @enum {string} */
+                        role: "member" | "admin";
+                        /** @description Epoch seconds */
+                        expiresAt: number;
+                        /** @description In-game name of the placeholder member the link claims (when known) */
+                        member?: {
+                            name: string;
+                        };
+                        /** @description The link sets a new password of an existing account */
+                        recovery: boolean;
+                        /** @description Username of the account the link is for (claim and recovery links) */
+                        username?: string;
+                    };
                 };
             };
         };
@@ -12565,7 +13280,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12591,7 +13306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12619,7 +13334,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12640,7 +13355,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        username: string;
+                    };
                 };
             };
         };
@@ -12659,7 +13377,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": {
+                        id: number;
+                        name: string;
+                        tag: string | null;
+                        /** @description Slug of the universe */
+                        universe: string;
+                        members: number;
+                    }[];
                 };
             };
         };
@@ -12699,7 +13424,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12731,7 +13456,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Invalid display name (`display_name_invalid`) */
@@ -12762,7 +13487,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12785,7 +13510,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        token?: string;
+                        token: string;
                     };
                 };
             };
@@ -12816,7 +13541,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12836,19 +13561,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        id?: number;
-                        group_id?: number;
-                        group_name?: string;
-                        universe?: string;
-                        username?: string | null;
-                        code?: string;
-                        page?: string | null;
-                        note?: string | null;
-                        created_at?: number;
+                        id: number;
+                        group_id: number;
+                        group_name: string;
+                        universe: string;
+                        username: string | null;
+                        code: string;
+                        page: string | null;
+                        note: string | null;
+                        created_at: number;
                         /** @description Compressed size */
-                        html_size?: number | null;
+                        html_size: number | null;
                         /** @description Compressed size */
-                        text_size?: number | null;
+                        text_size: number | null;
                     }[];
                 };
             };
@@ -12892,7 +13617,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12913,7 +13638,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": {
+                        id: number;
+                        source: string | null;
+                        page_type: string | null;
+                        url: string | null;
+                        /** @description What the sync stored (counts per record kind, warnings) and `about`, a description of its content */
+                        summary: {
+                            [key: string]: unknown;
+                        };
+                        created_at: number;
+                        /** @description Member whose data the sync is */
+                        username: string | null;
+                        /** @description Member who sent it (a sync for someone else) */
+                        synced_by: string | null;
+                        /** @description Stored page size in bytes (compressed) */
+                        html_size: number | null;
+                        text_size: number | null;
+                    }[];
                 };
             };
         };
@@ -13020,7 +13762,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Statistics snapshots left without score rows */
+                        snapshots: number;
+                        /** @description Score rows the sync brought */
+                        scores: number;
+                        activity: number;
+                        /** @description Players only the snapshots brought in */
+                        players: string[];
+                        alliances: string[];
+                        /** @description Players of the snapshots kept because other data refers to them */
+                        kept: string[];
+                        empires: number;
+                        overviews: number;
+                        fleets: number;
+                        spyReports: number;
+                        /** @description Record kinds of the sync that cannot be taken back */
+                        skipped: string[];
+                    };
                 };
             };
         };
@@ -13107,7 +13866,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": [
+                        {
+                            [key: string]: {
+                                [key: string]: null | number | {
+                                    planetname: string;
+                                    hasmoon: boolean;
+                                    playerid: number;
+                                    name: string;
+                                    /** @description -1 without alliance */
+                                    allianceid: number;
+                                    alliancename: string;
+                                    /** @description Status letters as in the game's export */
+                                    special: string;
+                                };
+                            };
+                        },
+                        {
+                            [key: string]: components["schemas"]["UniverseJsonName"];
+                        },
+                        {
+                            [key: string]: components["schemas"]["UniverseJsonName"];
+                        }
+                    ];
                 };
             };
         };
@@ -13135,7 +13916,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["IngestSummary"];
                 };
             };
         };
@@ -13163,7 +13944,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Hostile attacks the scan showed */
+                        attacks: number;
+                    };
                 };
             };
         };
@@ -13191,7 +13975,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
         };
@@ -13219,7 +14003,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -13249,7 +14033,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        /** @description Hub name of the member holding the claim when the change claimed the target, else null */
+                        claimedBy: string | null;
+                    };
                 };
             };
         };
@@ -13279,7 +14067,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13309,7 +14097,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13339,7 +14127,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13369,7 +14157,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -13401,7 +14189,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13433,7 +14221,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13462,7 +14250,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13491,7 +14279,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13520,7 +14308,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13549,7 +14337,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13606,7 +14394,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13635,7 +14423,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13664,7 +14452,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        shared: boolean;
+                    };
                 };
             };
         };

@@ -1,38 +1,10 @@
 import { readError } from './api';
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { UnitOverrides } from '@pr0hub/core/units';
-import { protectionStatus, type UniverseSettings } from './format';
+import type { UniContext } from './apiTypes';
+import { protectionStatus } from './format';
 
-export interface MarketRate {
-  m: number;
-  k: number;
-  /** source: page source (exact), text: estimated from a text copy, manual: set by hand */
-  source: 'source' | 'text' | 'manual';
-  time: number;
-  by: string | null;
-}
-
-export interface UniContext {
-  universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; units?: UnitOverrides; startsAt: number | null; endedAt: number | null };
-  group: { id: number; name: string; tag: string | null; role: string };
-  /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
-  toolsUrl?: string;
-  /** the group's market rate (metal and crystal per 1 deuterium), newest synced or set by hand */
-  marketRate?: MarketRate | null;
-  /** name = display name, falls back to the hub username; global_admin = hub admin (1/0) */
-  members: { id: number; username: string; name: string; display_name: string | null; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
-  me: { id: number; username: string; isAdmin: boolean };
-  /** own player with the newest synced total points */
-  player: { id: number; points: number | null } | null;
-  /** own research and planets from the latest own empire page */
-  own: {
-    time: number;
-    research: Record<string, number>;
-    /** silo: missile silo level, ipm: interplanetary missiles (both 0 on moons) */
-    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; silo?: number; ipm?: number }[];
-  } | null;
-}
+export type { MarketRate, UniContext } from './apiTypes';
 
 const KEY: InjectionKey<Ref<UniContext | null>> = Symbol('uni');
 

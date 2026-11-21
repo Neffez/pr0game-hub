@@ -1,25 +1,10 @@
 import { ref } from 'vue';
 import { uniApi } from './api';
+import type { ApiResponse, Schema } from './apiTypes';
 import { nowSec, upcoming } from './clock';
 
 /** Target a member claimed for a while (server: routes/claims.ts). */
-export interface Claim {
-  id: number;
-  user_id: number;
-  member: string;
-  g: number;
-  s: number;
-  p: number;
-  /** debris: the debris field at the position, claimed for recycling */
-  planet_type: 'planet' | 'moon' | 'debris';
-  kind: 'farm' | 'attack' | 'spy' | 'recycle';
-  note: string | null;
-  created_at: number;
-  expires_at: number;
-  player_id: number | null;
-  player_name: string | null;
-  planet_name: string | null;
-}
+export type Claim = Schema<'Claim'>;
 
 export const CLAIM_KINDS = ['farm', 'attack', 'spy'] as const;
 /** Durations offered when claiming or extending, in minutes. */
@@ -36,7 +21,7 @@ export const activeClaims = upcoming(claims, (c) => c.expires_at, clock);
 export async function loadClaims(uni: string) {
   ticker ??= setInterval(() => (clock.value = nowSec()), 15_000);
   try {
-    claims.value = await uniApi<Claim[]>(uni, '/claims');
+    claims.value = await uniApi<ApiResponse<'/api/{uni}/claims'>>(uni, '/claims');
     clock.value = nowSec();
   } catch {
     /* kept until the next reload */

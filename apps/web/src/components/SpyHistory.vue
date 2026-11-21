@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { Schema } from '../apiTypes';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import ActionMenu, { type MenuItem } from './ActionMenu.vue';
@@ -8,14 +9,8 @@ import {
   type UniverseSettings,
 } from '../format';
 
-export interface SpyReport {
-  id: number;
-  report_time: number;
-  sections: Record<string, Record<string, number>>;
-  reporter?: string | null;
-  player_name?: string;
-  destroy_chance?: number | null;
-}
+/** A spy report as the history shows it (`GET /spy/{g}/{s}/{p}`; other lists pass their rows with the same fields). */
+export type SpyReport = Pick<Schema<'SpyHistoryReport'>, 'id' | 'report_time' | 'sections'> & Partial<Schema<'SpyHistoryReport'>>;
 
 const props = defineProps<{
   reports: SpyReport[];

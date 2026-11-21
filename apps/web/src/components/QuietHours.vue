@@ -4,13 +4,9 @@
  * day, except the kinds ticked; what was held back comes when they end. The time zone is this browser's.
  */
 import { useI18n } from 'vue-i18n';
+import type { Schema } from '../apiTypes';
 
-export interface QuietHours {
-  from: string;
-  to: string;
-  tz: string;
-  except: string[];
-}
+export type QuietHours = Schema<'QuietHours'>;
 
 const props = defineProps<{ modelValue: QuietHours | null }>();
 const emit = defineEmits<{ 'update:modelValue': [QuietHours | null] }>();
@@ -27,8 +23,10 @@ function set(patch: Partial<QuietHours>) {
   const next = { ...props.modelValue!, ...patch, tz: zone() };
   if (/^\d\d:\d\d$/.test(next.from) && /^\d\d:\d\d$/.test(next.to) && next.from !== next.to) emit('update:modelValue', next);
 }
-function toggleBreak(k: string) {
-  const list = props.modelValue!.except;
+/** The kinds that come through (the server sends them; missing means all, like the server's default). */
+const breaks = () => props.modelValue?.except ?? [...BREAKS];
+function toggleBreak(k: (typeof BREAKS)[number]) {
+  const list = breaks();
   set({ except: list.includes(k) ? list.filter((x) => x !== k) : [...list, k] });
 }
 </script>
@@ -45,7 +43,7 @@ function toggleBreak(k: string) {
       <div class="quiet-breaks">
         <span class="small">{{ t('account.quiet.except') }}</span>
         <label v-for="k in BREAKS" :key="k" class="check">
-          <input type="checkbox" :checked="modelValue.except.includes(k)" @change="toggleBreak(k)" /> {{ t(`account.quiet.break.${k}`) }}
+          <input type="checkbox" :checked="breaks().includes(k)" @change="toggleBreak(k)" /> {{ t(`account.quiet.break.${k}`) }}
         </label>
       </div>
     </template>

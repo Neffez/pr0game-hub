@@ -16,6 +16,7 @@ import Sheet from '../components/Sheet.vue';
 import { computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { loadClaims } from '../claims';
 import { useMobile, vStack } from '../composables';
 import { coords, duration, fmt, name, timeWithAge } from '../format';
@@ -98,7 +99,7 @@ async function saveEdit() {
   const body = editSheet.coordsOnly
     ? { g: full.g, s: full.s, p: full.p, type: full.type }
     : o && o.precision === d.precision && o.date === d.date && o.time === d.time ? rest : full;
-  const ok = await run(async () => claimedInfo(await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body })), t('plans.toast.saved'));
+  const ok = await run(async () => claimedInfo(await uniApi<ApiResponse<'/api/{uni}/plans/{id}', 'put'>>(uni.value, `/plans/${p.id}`, { method: 'PUT', body })), t('plans.toast.saved'));
   if (ok) editSheet.open = false;
   loadClaims(uni.value);
 }
@@ -110,7 +111,7 @@ async function saveEdit() {
 const simSheet = reactive({ open: false, text: '' });
 async function sendSim() {
   await run(async () => {
-    const res = await uniApi<{ defender: boolean; attackers: number; identified: number; updated: number }>(uni.value, `/plans/${plan.value!.id}/sim`, {
+    const res = await uniApi<ApiResponse<'/api/{uni}/plans/{id}/sim', 'post'>>(uni.value, `/plans/${plan.value!.id}/sim`, {
       body: { text: simSheet.text },
     });
     toast([

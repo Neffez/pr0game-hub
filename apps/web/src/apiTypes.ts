@@ -4,6 +4,8 @@
  * the shape by hand; `ApiResponse<'/api/{uni}/…'>` gives the answer of any operation.
  */
 import type { ApiResponse, Schema } from '@pr0hub/api-types';
+import type { UnitOverrides } from '@pr0hub/core/units';
+import type { UniverseSettings } from '@pr0hub/core/universe';
 import type { Overrides } from '@pr0hub/loot';
 import type { BuildOrder } from '@pr0hub/planner';
 
@@ -71,6 +73,22 @@ export type FarmSimulation = Schema<'FarmSimulation'>;
 /** Where the hub took the values of a settlement draft from (`GET /plans/{id}/settlement` → `draft.sources`). */
 export type SettlementSources = Schema<'SettlementSources'>;
 
+export type AccessRequests = ApiResponse<'/api/admin/access-requests'>;
+
+export type MarketRate = Schema<'MarketRate'>;
+
+/**
+ * Universe and group context of the selected group (`GET /context`). The universe's `settings` and `units` take the
+ * core's types: the spec describes the settings map more loosely than `@pr0hub/core/universe` validates it.
+ */
+export type UniContext = Omit<Schema<'Context'>, 'universe'> & {
+  universe: Omit<Schema<'Universe'>, 'settings' | 'units'> & { settings: UniverseSettings; units: UnitOverrides };
+};
+
+export type Imperium = ApiResponse<'/api/{uni}/imperium'>;
+
+/** Ships, defense and missiles of a universe for the admin (`overrides` takes the core's type, looser in the spec). */
+export type UnitsAdmin = Omit<Schema<'UnitsAdmin'>, 'overrides'> & { overrides: UnitOverrides };
 /**
  * `GET /plans/{id}/settlement` (also the answer of saving, finalizing and reopening it). The corrections are typed by
  * `@pr0hub/loot`, which computes them on the server (the spec describes them as an open object).

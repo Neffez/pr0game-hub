@@ -12,71 +12,14 @@ import {
   type FleetPlan,
   type RetimeCandidate,
 } from '@pr0hub/flight';
+import type { Schema } from './apiTypes';
 import { flightCalcLink, type UniverseSettings } from './format';
 
 /** Fleet of an attack plan (server: routes/plans.ts). */
-export interface PlanFleet {
-  id: number;
-  user_id: number;
-  member: string;
-  g: number | null;
-  s: number | null;
-  p: number | null;
-  planet_type: 'planet' | 'moon' | null;
-  ships: Record<string, number>;
-  speed: number;
-  status: 'invited' | 'ready' | 'launched' | 'withdrawn';
-  /** weapons, shields, armour from a taken-over simulation, only those the member's research (`drives`) lacks */
-  sim_research: Record<string, number> | null;
-  /** withdrawn because the member's overview showed it recalled (time of that paste) */
-  recalled_at: number | null;
-  updated_at: number;
-  /** research for flight times and the simulator: the member's latest empire page, else spy reports; drives also by hand (the newest counts) */
-  drives: { time: number; research: Record<string, number>; source: 'empire' | 'spy' | 'manual' } | null;
-  /**
-   * in flight per an overview: real arrival, time of that paste, the ships flying; `lead`: listed first in its ACS
-   * (the real lead), null when not in an ACS
-   */
-  seen: { arrival: number; time: number; ships: Record<string, number>; lead: boolean | null } | null;
-}
+export type PlanFleet = Schema<'PlanFleet'>;
 
 /** Own attack of one or more members on one target at one time (server: routes/plans.ts). */
-export interface AttackPlan {
-  id: number;
-  user_id: number;
-  creator: string;
-  /** target coordinates, null until known (the plan then names a player) */
-  g: number | null;
-  s: number | null;
-  p: number | null;
-  planet_type: 'planet' | 'moon';
-  /** with `time_precision` day: start of that day; hour: around that time; exact: impact to the second */
-  target_time: number;
-  time_precision: Precision;
-  note: string | null;
-  status: 'planning' | 'launched' | 'done' | 'cancelled';
-  /** attack (solo, ACS, retime) or hold on a member's planet against a hostile attack */
-  mission: 'attack' | 'hold';
-  created_at: number;
-  updated_at: number;
-  /** member holding the plan's target claim (null: none, e.g. claimed by someone else) */
-  claim_user_id: number | null;
-  player_id: number | null;
-  player_name: string | null;
-  planet_name: string | null;
-  fleets: PlanFleet[];
-  /** retime: the hostile fleet the plan answers */
-  enemy: PlanEnemy | null;
-  /** ACS fleets of non-members taken over from an overview, only for the combat simulators */
-  guests: GuestFleet[];
-  /**
-   * newest spy report of the target (values by element id) for the combat simulators; hold plans: the defended planet
-   * from the member's empire page, else its newest spy report
-   */
-  spy: { time: number; values: Record<string, number>; source?: 'spy' | 'sim' } | null;
-  /** battle simulation taken over into an attack plan (target's ships, defense, combat research; guests' research) */
-  sim: { time: number; by: string | null; defender: boolean } | null;
-}
+export type AttackPlan = Schema<'Plan'>;
 
 export interface Body {
   g: number;
@@ -90,38 +33,7 @@ export interface EnemyFleet {
 }
 
 /** Hostile fleet of a retime plan (server: routes/plans.ts); its inputs are shared by all participants. */
-export interface PlanEnemy {
-  member_id: number | null;
-  member: string | null;
-  from: Body;
-  to: Body;
-  /** the lead first */
-  fleets: EnemyFleet[];
-  follow: number;
-  arrival: number;
-  first_seen: number;
-  drives: Record<string, number>;
-  drives_source: 'spy' | 'manual' | null;
-  drives_time: number | null;
-  /** hold plans: research of the attacking player (newest spy report showing it) for the combat simulators */
-  research?: Record<string, number> | null;
-  research_time?: number | null;
-  departure: { from: number; to: number } | null;
-  recall: { from: number; to: number } | null;
-  recall_lead: boolean;
-  /** the attack vanished from the member's overview between these pastes, before it arrived: likely recalled */
-  recall_seen: { from: number; to: number } | null;
-  percent: number | null;
-  buffer: number;
-  /** hold plans: seconds from the impact the hold fleets land */
-  hold_offset: number;
-  /** hold plans: ships on the attacked planet changed by hand, null: from the empire page or spy report (`spy`) */
-  planet_ships: Record<string, number> | null;
-  /** landing back home as a pasted phalanx showed it (then the retime lands after it) */
-  phalanx: { home: number; time: number | null } | null;
-  updated_at: number;
-  updated_by: string | null;
-}
+export type PlanEnemy = NonNullable<AttackPlan['enemy']>;
 
 /** Ships as a comparable key (amounts above zero, by id). */
 const shipsKey = (ships: Record<string, number>) =>
@@ -130,57 +42,13 @@ const shipsKey = (ships: Record<string, number>) =>
 export const seenShipsDiffer = (f: PlanFleet) => !!f.seen && shipsKey(f.seen.ships) !== shipsKey(f.ships);
 
 /** Hostile attack on a member from the overview pastes, or seen in a phalanx (server: repo/hostile.ts). */
-export interface HostileAttack {
-  key: string;
-  /** member it heads for; null when only seen in a phalanx */
-  memberId: number | null;
-  /** that member, or the attacked player by the galaxy data */
-  member: string | null;
-  source: 'overview' | 'phalanx';
-  /** member who pasted the phalanx */
-  reporter: string | null;
-  /** landing back home when the phalanx shows the return (the scanned player's own attack) */
-  home: number | null;
-  seen: number;
-  arrival: number;
-  from: Body;
-  to: Body;
-  fleets: EnemyFleet[];
-  player: { id: number; name: string } | null;
-  drives: { research: Record<string, number>; time: number | null } | null;
-  until: number;
-  /** retime and hold plan answering it */
-  planId: number | null;
-  holdPlanId: number | null;
-  /** hidden by hand for the group (until its latest possible return) */
-  hidden: { by: string | null; at: number } | null;
-}
+export type HostileAttack = Schema<'HostileAttack'>;
 
 /** A fleet of a non-member in an own ACS (server: routes/plans.ts), with their player's research from spy reports. */
-export interface GuestFleet {
-  player: { id: number; name: string } | null;
-  /** name from a battle report when the player is not in the galaxy data */
-  name?: string;
-  from: Body;
-  mission: number | null;
-  ships: Record<string, number>;
-  research: Record<string, number> | null;
-  research_time: number | null;
-  /** combat research from a taken-over simulation (newer than the spy reports) */
-  research_source?: 'sim';
-}
+export type GuestFleet = AttackPlan['guests'][number];
 
 /** Own attack in flight from the overview pastes without a plan yet, only for its participants (server: repo/plans.ts). */
-export interface OwnAttack {
-  key: string;
-  seen: number;
-  arrival: number;
-  to: Body;
-  /** owner of the target */
-  player: { id: number; name: string } | null;
-  /** the lead first; `memberId` null: a non-member in the ACS */
-  fleets: { memberId: number | null; member: string | null; player: { id: number; name: string } | null; from: Body; mission: number | null; ships: Record<string, number> }[];
-}
+export type OwnAttack = Schema<'OwnAttack'>;
 
 /** Inputs of the enemy analysis (plan enemy or form values). */
 export type EnemyInput = Pick<PlanEnemy, 'from' | 'to' | 'fleets' | 'follow' | 'arrival' | 'first_seen' | 'drives' | 'departure' | 'recall' | 'recall_lead'>;

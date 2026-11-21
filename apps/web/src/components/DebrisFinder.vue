@@ -9,6 +9,7 @@ import { distance, drivesFromResearch, flightDuration, shipSpeed } from '@pr0hub
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -16,19 +17,9 @@ import { ago, coords, dateTime, duration, fmt, name, short } from '../format';
 import { units } from '../units';
 
 /** Debris finder (backlog B-4), a tab of the farm finder: open debris fields to recycle, with recyclers needed and the nearest member with recyclers (server: repo/debris.ts). */
-interface Field {
-  g: number;
-  s: number;
-  p: number;
-  metal: number;
-  crystal: number;
-  time: number;
-  base: { source: 'galaxy' | 'recycle'; time: number; metal: number; crystal: number; by: string | null } | null;
-  battles: { time: number; metal: number; crystal: number }[];
-  owner: { id: number; name: string; ally_tag: string | null; member: boolean } | null;
-}
-interface Stock { userId: number; member: string; g: number; s: number; p: number; type: 'planet' | 'moon'; recyclers: number; speed: number; time: number }
-interface DebrisResponse { fields: Field[]; recyclers: Stock[]; capacity: number | null; days: number; now: number }
+type DebrisResponse = ApiResponse<'/api/{uni}/debris'>;
+type Field = DebrisResponse['fields'][number];
+type Stock = DebrisResponse['recyclers'][number];
 interface Row extends Field {
   key: string;
   total: number;
@@ -56,7 +47,7 @@ const FILTER_DEFAULTS = {
 const filter = useStored('debris.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
-const { data, error, load } = useLoader(() => uniApi<DebrisResponse>(uni.value, `/debris?days=${filter.value.days}`));
+const { data, error, load } = useLoader(() => uniApi<ApiResponse<'/api/{uni}/debris'>>(uni.value, `/debris?days=${filter.value.days}`));
 onMounted(load);
 watch(() => filter.value.days, () => load());
 useLiveReload(load, tables('galaxy_systems', 'battle_reports', 'combat_reports', 'recycle_reports', 'empire'));

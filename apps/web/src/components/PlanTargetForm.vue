@@ -5,6 +5,7 @@ import Hint from './Hint.vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { ApiResponse, PlayerDetails, Schema } from '../apiTypes';
 import { useUni } from '../composables';
 import { coords } from '../format';
 import { PRECISIONS, type PlanDraft } from '../plans';
@@ -19,11 +20,7 @@ defineProps<{ coordsOnly?: boolean }>();
 const { t } = useI18n();
 const { uni } = useUni();
 
-interface Found {
-  id: number;
-  name: string;
-  ally_name: string | null;
-}
+type Found = Schema<'PlayerMatch'>;
 const query = ref('');
 const found = ref<Found[]>([]);
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -32,7 +29,7 @@ watch(query, (q) => {
   if (q.trim().length < 2) return void (found.value = []);
   timer = setTimeout(async () => {
     try {
-      found.value = (await uniApi<Found[]>(uni.value, `/players?q=${encodeURIComponent(q.trim())}`)).slice(0, 8);
+      found.value = (await uniApi<ApiResponse<'/api/{uni}/players'>>(uni.value, `/players?q=${encodeURIComponent(q.trim())}`)).slice(0, 8);
     } catch {
       found.value = [];
     }
@@ -53,7 +50,7 @@ watch(
     bodies.value = [];
     if (!id) return;
     try {
-      const d = await uniApi<{ planets: { g: number; s: number; p: number; name: string | null; has_moon: number; moon_name: string | null }[] }>(
+      const d = await uniApi<PlayerDetails>(
         uni.value,
         `/players/${id}`,
       );

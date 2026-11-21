@@ -14,7 +14,7 @@ import { readError, uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { alertFor, FLEET_HISTORY, type Fleet, type FleetAlert } from '../components/FleetList.vue';
 import FleetSlots from '../components/FleetSlots.vue';
-import type { Schema } from '../apiTypes';
+import type { ApiResponse, Imperium, Schema } from '../apiTypes';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import Ticker from '../components/Ticker.vue';
@@ -28,76 +28,11 @@ import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES, STATUS_L
  * the last game overview page. The page itself reads the clock only in computeds that rarely change; the ticking
  * values (resources, countdowns) are rendered in `<Ticker>`s, so the page is not rendered again every second.
  */
-interface C3 {
-  g: number;
-  s: number;
-  p: number;
-}
-interface EmpirePlanet {
-  name: string;
-  coords: C3;
-  type: 'planet' | 'moon';
-  values: Record<string, number>;
-  temp?: number;
-  resources?: Record<string, number>;
-  perHour?: Record<string, number>;
-  building?: { id: number; level: number } | null;
-  shipyard?: Record<string, number>;
-}
-interface Queue {
-  kind: 'building' | 'research' | 'shipyard';
-  coords: C3;
-  type: 'planet' | 'moon';
-  id: number;
-  level: number;
-  destroy: boolean;
-  seconds: number;
-}
+type C3 = Schema<'PageCoords'>;
+type EmpirePlanet = Schema<'EmpirePage'>['planets'][number];
+type Queue = Schema<'OverviewPage'>['queues'][number];
 /** A moon outside the own alliance whose sensor phalanx reaches a planet of the member (server: repo/phalanx.ts). */
-interface PhalanxThreat {
-  moon: C3;
-  level: number;
-  range: number;
-  distance: number;
-  /** report time of the newest level */
-  time: number;
-  /** since when it is known to reach the planet (game time) */
-  since: number;
-  player: { id: number | null; name: string; ally: string | null; vacation: boolean } | null;
-}
-interface Data {
-  empire: {
-    time: number;
-    data: {
-      planets: EmpirePlanet[];
-      research?: Record<string, number>;
-      researchQueue?: { id: number; level: number; coords: C3 | null } | null;
-      flying?: Record<string, number>;
-      flyingShips?: Record<string, number>;
-      active?: { coords: C3; type: 'planet' | 'moon'; storage: Record<string, number> } | null;
-    };
-  } | null;
-  overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
-  /** `private`: the member shares none of their own fleets (fleets heading for them are still listed) */
-  fleets: { time: number; data: Fleet[]; private?: boolean } | null;
-  /** fleets of the older lists that arrived in the last 12 hours, oldest first (shared like `fleets`) */
-  fleetHistory: Fleet[];
-  /** the viewer's alerts for their own fleets (null for other members) */
-  fleetAlerts: FleetAlert[] | null;
-  /** fleet and expedition slots taken by the listed fleets */
-  slots: Schema<'FleetSlots'> | null;
-  /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
-  player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
-  /**
-   * ships on the planets (points) in the first empire page after the newest fleet or total statistics update that has one,
-   * and the statistics fleet of that update (for the total: total minus the other points of that empire page)
-   */
-  fleetBase: { time: number; points: number; stat: number } | null;
-  /** player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the latest statistics */
-  leader: { name: string; weighted: number } | null;
-  /** the member's planets in reach of a known hostile phalanx */
-  phalanx?: { planet: C3 & { name: string | null }; threats: PhalanxThreat[] }[];
-}
+type PhalanxThreat = Schema<'PhalanxThreat'>;
 
 const RES = RESOURCES;
 
@@ -107,7 +42,7 @@ const mobile = useMobile();
 const userId = useStored<number | null>('imperium.user', null);
 const { data, error, load } = useLoader(() => {
   if (!ctx.value!.members.some((m) => m.id === userId.value)) userId.value = ctx.value!.me.id;
-  return uniApi<Data>(uni.value, `/imperium?user=${userId.value}`);
+  return uniApi<Imperium>(uni.value, `/imperium?user=${userId.value}`);
 });
 const now = useClock();
 
@@ -135,8 +70,8 @@ async function setAlert(f: Fleet, lead: number | null) {
   try {
     const res =
       lead == null
-        ? await uniApi<{ alerts: FleetAlert[] }>(uni.value, `/fleets/alerts/${known!.id}`, { method: 'DELETE' })
-        : await uniApi<{ alerts: FleetAlert[] }>(uni.value, '/fleets/alerts', {
+        ? await uniApi<ApiResponse<'/api/{uni}/fleets/alerts/{id}', 'delete'>>(uni.value, `/fleets/alerts/${known!.id}`, { method: 'DELETE' })
+        : await uniApi<ApiResponse<'/api/{uni}/fleets/alerts', 'put'>>(uni.value, '/fleets/alerts', {
             method: 'PUT', body: { mission: f.mission, phase: f.phase, from: f.from, to: f.to, arrival: f.arrival, lead },
           });
     data.value!.fleetAlerts = res.alerts;

@@ -8,6 +8,7 @@ import { Chart, type ChartDataset } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { activityCurve, minuteOfDay, pointsRate, tickEvents, type ActivityEvent, type ActivitySource } from '../activity';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -29,7 +30,7 @@ const CURVE = '#7c6cf0';
 const POINTS = '#8b98a9';
 
 const days = useStored('player.activityDays', 7);
-const { data, error, load } = useLoader(() => uniApi<{ from: number; events: ActivityEvent[]; scores: { time: number; points: number }[] }>(uni.value, `/players/${props.player}/activity`));
+const { data, error, load } = useLoader(() => uniApi<ApiResponse<'/api/{uni}/players/{id}/activity'>>(uni.value, `/players/${props.player}/activity`));
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 

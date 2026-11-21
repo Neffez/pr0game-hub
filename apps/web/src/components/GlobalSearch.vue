@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { useFocusTrap, useScrollLock, useUni } from '../composables';
 import { coords } from '../format';
 
@@ -19,13 +20,7 @@ const { uni } = useUni();
 const route = useRoute();
 const router = useRouter();
 
-interface Result {
-  players: { id: number; name: string; status: string[]; ally_tag: string | null; ally_name: string | null; alias: string | null }[];
-  alliances: { id: number; name: string; tag: string | null; players: number }[];
-  planet:
-    | { g: number; s: number; p: number; name?: string | null; has_moon?: boolean; moon_name?: string | null; destroyed?: boolean; player_id?: number | null; player_name?: string | null; ally_tag?: string | null }
-    | null;
-}
+type Result = ApiResponse<'/api/{uni}/search'>;
 interface Item {
   key: string;
   group: 'pages' | 'coords' | 'players' | 'alliances';
@@ -68,7 +63,7 @@ watch(q, (term) => {
   loading.value = true;
   timer = setTimeout(async () => {
     try {
-      const res = await uniApi<Result>(uni.value, `/search?q=${encodeURIComponent(term.trim())}`);
+      const res = await uniApi<ApiResponse<'/api/{uni}/search'>>(uni.value, `/search?q=${encodeURIComponent(term.trim())}`);
       if (current === runs) result.value = res;
     } catch {
       if (current === runs) result.value = null;

@@ -3,6 +3,7 @@ import type { SaveTarget } from '@pr0hub/flight';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, uniApi } from '../api';
+import type { ApiResponse, Imperium, Schema } from '../apiTypes';
 import { useClock } from '../clock';
 import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
@@ -23,18 +24,14 @@ import { fleetShips } from '../units';
  * the own empire page). The member sends it in the game by hand; after pasting the overview the bell on the fleet
  * reminds them before it lands.
  */
-interface C3 { g: number; s: number; p: number }
-interface Body { name: string; coords: C3; type: 'planet' | 'moon'; values: Record<string, number>; resources?: Record<string, number>; perHour?: Record<string, number> }
-interface Data {
-  empire: { time: number; data: { planets: Body[]; research?: Record<string, number> } } | null;
-  phalanx?: { planet: C3 & { name: string | null }; threats: { moon: C3; level: number; player: { name: string; ally: string | null } | null }[] }[];
-}
+type C3 = Schema<'PageCoords'>;
+type Body = Schema<'EmpirePage'>['planets'][number];
 type Builtin = 'night' | 'work';
-interface Preset { name: string; from: string; to: string; builtin?: Builtin }
+type Preset = Schema<'FleetSavePreset'>;
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
-const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, `/imperium?user=${ctx.value!.me.id}`));
+const { data, error, load } = useLoader(() => uniApi<Imperium>(uni.value, `/imperium?user=${ctx.value!.me.id}`));
 onMounted(load);
 useLiveReload(load, tables('empire'));
 useAutoTour('fleetsave', () => !!data.value);
@@ -80,10 +77,10 @@ function dropLocalPresets() {
     /* storage unavailable */
   }
 }
-const postPresets = (list: Preset[]) => api<{ presets: Preset[] }>('/auth/fleetsave-presets', { body: { presets: list } });
+const postPresets = (list: Preset[]) => api<ApiResponse<'/api/auth/fleetsave-presets', 'post'>>('/auth/fleetsave-presets', { body: { presets: list } });
 async function loadPresets() {
   try {
-    const { presets: stored } = await api<{ presets: Preset[] | null }>('/auth/fleetsave-presets');
+    const { presets: stored } = await api<ApiResponse<'/api/auth/fleetsave-presets'>>('/auth/fleetsave-presets');
     if (stored) {
       presets.value = stored;
       dropLocalPresets();
@@ -122,12 +119,12 @@ async function loadFields() {
   const gs = [...new Set((data.value?.empire?.data.planets ?? []).map((b) => b.coords.g))];
   if (!gs.length) return;
   try {
-    ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${gs.join(',')}`));
+    ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<ApiResponse<'/api/{uni}/debris-fields'>>(uni.value, `/debris-fields?g=${gs.join(',')}`));
   } catch {
     /* without them no recycling */
   }
   try {
-    ({ systems: free.value } = await uniApi<{ systems: Record<string, FreeSystem[]> }>(uni.value, `/free-positions?g=${gs.join(',')}`));
+    ({ systems: free.value } = await uniApi<ApiResponse<'/api/{uni}/free-positions'>>(uni.value, `/free-positions?g=${gs.join(',')}`));
   } catch {
     /* without them no colonization */
   }

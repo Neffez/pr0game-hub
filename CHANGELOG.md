@@ -4,6 +4,30 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
+  buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
+  check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;
+  only the loot settlement view was left (`MAX_HAND_WRITTEN` 5; 0 together with the settlement types). The spec describes these answers completely now: new
+  schemas `AttackAssist` (its attack is the new `IncomingAttack`, `HostileAttack` adds the plans and hidden mark),
+  `Imperium` with `EmpirePage` and `OverviewPage`, `BuildPlanet` and `ShownLevels` for the buildings page,
+  `DefenseAdvice` with `DefenseThreat` and `ThreatOutcome`, `SpyHistoryReport` and `SpySections`, `PhalanxThreat`,
+  `UnitDrives` (drive and cost triples as tuples) and the parsed units of the unit editor, plus `required` fields for
+  debris, moon chances, search, hostile spying, galaxy, fleet and building alerts, parser samples and more.
+- Web API types, first part: the notifications, plans (with their enemy fleet, guests and member drives), own and
+  hostile attacks, universe context, market, comments, push and account settings, tours and presence take their
+  answer types from the OpenAPI spec (34 hand-written types fewer, `MAX_HAND_WRITTEN` 48). For that the spec now
+  describes these answers completely: notifications are one schema per `kind` (`Notification`), the plan's enemy
+  (`PlanEnemy`) and guests (`PlanGuest`), `Context` with its universe, members and own empire data, and `required`
+  fields for market, access requests, tours, users, push settings and more. Push and Discord settings answer
+  `PushSettings` (all fields), requests send `PushSettingsChange`. The unused `PlanBody` schema is gone (own attacks
+  use `Coords`).
+- OpenAPI spec: descriptions containing a comma inside a one-line mapping were cut off at the comma (YAML read the
+  rest as extra keys); they are quoted now.
+- OpenAPI spec: every JSON answer is described now (`MAX_UNDESCRIBED` 0). The writes that answered a bare object
+  (claims, comments, raid plans and their fleets, auth, invites, admin universes/groups/members, player notes, deck,
+  message sharing) name their fields; plain confirmations share the new `Ok` schema, new plans `ClaimedPlan`. Also
+  described: the invite info, the admin's alliance list and sync list, the undo summary of a sync, both directions of
+  `universe.json` (the download in the game's export format). A test covers the alliance list.
 - API types: the settlement answers are described in full in the OpenAPI spec (`Settlement`, `LootState` with
   `LootRes`, `LootDebris` and `LootShips`, the list of settlements, `from-report` and `done`, all with `required`
   fields), and the loot settlement page and the settlement list take their types from `@pr0hub/api-types`

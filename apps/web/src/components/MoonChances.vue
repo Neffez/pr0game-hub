@@ -2,6 +2,7 @@
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { useLoader, useStored, useUni } from '../composables';
 import Loading from './Loading.vue';
 import { tables, useLiveReload } from '../live';
@@ -12,16 +13,8 @@ import { coords, dateTime, fmt, moonCalcLink } from '../format';
  * against created moons per member, moons that appeared at members' planets, and the moon destruction calculator with
  * the moon's diameter for a moon at a battle's position (server: repo/moons.ts).
  */
-interface Battle {
-  reportId: string; time: number; g: number | null; s: number | null; p: number | null; chance: number; extra: number; created: boolean;
-  attackers: string[]; defenders: string[]; memberSide: 'attacker' | 'defender' | null; moon: { diameter: number | null } | null;
-}
-interface MoonResponse {
-  battles: Battle[];
-  members: { name: string; battles: number; expected: number; created: number }[];
-  newMoons: { time: number; g: number; s: number; p: number; player: string; diameter: number | null }[];
-  days: number;
-}
+type MoonResponse = ApiResponse<'/api/{uni}/moon-chances'>;
+type Battle = MoonResponse['battles'][number];
 
 const { t } = useI18n();
 const { ctx, uni } = useUni();
@@ -31,7 +24,7 @@ const filter = useStored('moons.filter', { days: 30, membersOnly: true });
 if (!DAYS.includes(filter.value.days)) filter.value.days = 30;
 const days = computed({ get: () => filter.value.days, set: (v) => (filter.value.days = v) });
 const membersOnly = computed({ get: () => filter.value.membersOnly, set: (v) => (filter.value.membersOnly = v) });
-const { data, error, load } = useLoader(() => uniApi<MoonResponse>(uni.value, `/moon-chances?days=${days.value}`));
+const { data, error, load } = useLoader(() => uniApi<ApiResponse<'/api/{uni}/moon-chances'>>(uni.value, `/moon-chances?days=${days.value}`));
 onMounted(load);
 watch(days, load);
 useLiveReload(load, tables('combat_reports', 'galaxy_systems'));

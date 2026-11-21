@@ -6,6 +6,7 @@ import Section from '../components/Section.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { ApiResponse, Schema } from '../apiTypes';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import { useLoader, useUni, vStack, type MarketRate } from '../composables';
@@ -14,32 +15,17 @@ import { clockTime, dateTime, duration, fmt, name, rateText, timeWithAge } from 
 import { toast } from '../toast';
 
 /** Resource market: the group's rate (synced or set by hand) and the open offers of the latest marketplace sync. */
-interface Offer {
-  id: number;
-  offerId: number | null;
-  give: { res: Res; amount: number };
-  want: { res: Res; amount: number };
-  ratio: number | null;
-  ally: boolean;
-  endsAt: number;
-  firstSeen: number;
-}
-interface Trade {
-  time: number;
-  give: { res: Res; amount: number };
-  want: { res: Res; amount: number };
-}
-type Res = 'm' | 'k' | 'd';
+type Market = ApiResponse<'/api/{uni}/market'>;
+type Offer = Market['offers'][number];
+type Trade = Market['trades'][number];
+type Res = Offer['give']['res'];
 
 const RES_ID: Record<Res, number> = { m: 901, k: 902, d: 903 };
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const { data, error, load } = useLoader(() =>
-  uniApi<{ rate: MarketRate | null; rates: MarketRate[]; syncedAt: number | null; syncedBy: string | null; offers: Offer[]; trades: Trade[] }>(
-    uni.value,
-    '/market',
-  ),
+  uniApi<ApiResponse<'/api/{uni}/market'>>(uni.value, '/market'),
 );
 onMounted(load);
 useLiveReload(load, tables('market_rates', 'market_offers', 'market_trades'));
@@ -65,7 +51,7 @@ async function save() {
   if (!valid.value) return;
   busy.value = true;
   try {
-    const rate = await uniApi<MarketRate>(uni.value, '/market/rate', { method: 'PUT', body: { m: m.value, k: k.value } });
+    const rate = await uniApi<Schema<'MarketRate'>>(uni.value, '/market/rate', { method: 'PUT', body: { m: m.value, k: k.value } });
     if (ctx.value) ctx.value.marketRate = rate;
     toast(t('market.saved'));
     await load();

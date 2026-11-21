@@ -6,27 +6,10 @@
  */
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { Schema } from '../apiTypes';
 import { session } from '../api';
 
-export interface NotifyPrefs {
-  attackSelf: boolean;
-  attackOthers: boolean;
-  invites: boolean;
-  comments: boolean;
-  launch: boolean;
-  buildings: boolean;
-  fleets: boolean;
-  storage: boolean;
-  buildOrder: boolean;
-  phalanx: boolean;
-  expeditions: boolean;
-  settlements: boolean;
-  accessRequests: boolean;
-  parserSamples: boolean;
-  leadMinutes: number;
-  mentionsOnly: boolean;
-  quiet: { from: string; to: string; tz: string; except: string[] } | null;
-}
+export type NotifyPrefs = Schema<'PushSettings'>;
 
 defineProps<{ prefs: NotifyPrefs }>();
 const emit = defineEmits<{ change: [] }>();

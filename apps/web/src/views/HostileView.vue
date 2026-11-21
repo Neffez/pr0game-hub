@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router';
 import ThreatList from '../components/ThreatList.vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import RangePicker from '../components/RangePicker.vue';
 import { useLoader, useStored, useUni, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -37,43 +38,10 @@ const tab = computed<Tab>({
 });
 const threats = ref<{ ready: boolean }>();
 
-type PlanetType = 'planet' | 'moon';
-/** One espionage of a member by a player outside the alliance (`GET /api/{uni}/hostile`). */
-interface HostileSpying {
-  id: number;
-  user_id: number | null;
-  /** hub name of the member who synced it */
-  username: string | null;
-  time: number | null;
-  from_player: string;
-  from_player_id: number | null;
-  from_planet: string | null;
-  from_g: number;
-  from_s: number;
-  from_p: number;
-  from_type: PlanetType;
-  target_planet: string | null;
-  target_g: number;
-  target_s: number;
-  target_p: number;
-  target_type: PlanetType;
-}
-/** Espionages per spying player. */
-interface HostileSpy {
-  from_player: string;
-  from_player_id: number | null;
-  count: number;
-  last: number | null;
-  victims: number;
-}
-interface Hostile {
-  from: number;
-  to: number;
-  list: HostileSpying[];
-  bySpy: HostileSpy[];
-}
+/** Hostile espionage of members (`GET /api/{uni}/hostile`): the newest events and per spying player. */
+type Hostile = ApiResponse<'/api/{uni}/hostile'>;
 
-const { data, error, load: loadSpying } = useLoader<Hostile>(() => uniApi<Hostile>(uni.value, `/hostile?from=${nowSec() - days.value * 86400}`));
+const { data, error, load: loadSpying } = useLoader<Hostile>(() => uniApi<ApiResponse<'/api/{uni}/hostile'>>(uni.value, `/hostile?from=${nowSec() - days.value * 86400}`));
 /** The alliance's spying loads when its tab is shown. */
 const load = () => (tab.value === 'alliance' ? loadSpying() : Promise.resolve());
 watch(tab, (v) => v === 'alliance' && !data.value && loadSpying());

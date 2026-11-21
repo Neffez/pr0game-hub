@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from './api';
+import type { ApiResponse, Schema } from './apiTypes';
 import { loadClaims } from './claims';
 import { useUni } from './composables';
 import { abbr, battleSimLink, clockTime, coords, duration, fmt, ipmCalcLink, ipmStart, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
@@ -69,9 +70,9 @@ export function useRaidPlanner() {
       // GET /plans is a pure read; opening the planner writes the catch-up from stored overviews
       if (opts?.sync) await uniApi(uni.value, '/plans/sync', { body: {} });
       [plans.value, attacks.value, ownAttacks.value] = await Promise.all([
-        uniApi<AttackPlan[]>(uni.value, '/plans'),
-        uniApi<HostileAttack[]>(uni.value, '/hostile-attacks'),
-        uniApi<OwnAttack[]>(uni.value, '/own-attacks'),
+        uniApi<ApiResponse<'/api/{uni}/plans'>>(uni.value, '/plans'),
+        uniApi<ApiResponse<'/api/{uni}/hostile-attacks'>>(uni.value, '/hostile-attacks'),
+        uniApi<ApiResponse<'/api/{uni}/own-attacks'>>(uni.value, '/own-attacks'),
       ]);
       now.value = nowSec();
     } catch (e) {
@@ -253,7 +254,7 @@ export function useRaidPlanner() {
     const target = (a.home ?? (full ? candidateHome(full) : a.arrival + 3600)) + DEFAULT_BUFFER;
     let id: number | null = null;
     await run(async () => {
-      const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
+      const res = await uniApi<Schema<'ClaimedPlan'>>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
       claimedInfo(res);
       id = res.id;
     }, t('plans.toast.created'));
@@ -264,7 +265,7 @@ export function useRaidPlanner() {
   async function planHold(a: HostileAttack) {
     let id: number | null = null;
     await run(async () => {
-      id = (await uniApi<{ id: number }>(uni.value, '/plans/hold', { body: { key: a.key } })).id;
+      id = (await uniApi<Schema<'Created'>>(uni.value, '/plans/hold', { body: { key: a.key } })).id;
     }, t('plans.toast.created'));
     return id;
   }
@@ -272,7 +273,7 @@ export function useRaidPlanner() {
   async function planOwn(a: OwnAttack) {
     let id: number | null = null;
     await run(async () => {
-      const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/own', { body: { key: a.key } });
+      const res = await uniApi<Schema<'ClaimedPlan'>>(uni.value, '/plans/own', { body: { key: a.key } });
       claimedInfo(res);
       id = res.id;
     }, t('plans.toast.created'));

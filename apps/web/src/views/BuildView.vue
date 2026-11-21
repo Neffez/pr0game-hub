@@ -9,6 +9,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { readError, uniApi } from '../api';
+import type { ApiResponse, Schema } from '../apiTypes';
 import { useClock } from '../clock';
 import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -30,57 +31,17 @@ import { tables, useLiveReload } from '../live';
  * lists ships, defense and missiles like the shipyard: count, cost and time per unit, how many fit now.
  * Before the universe starts only the build order is there (imported from pr0plan, planned without synced planets).
  */
-interface C3 {
-  g: number;
-  s: number;
-  p: number;
-}
-interface Planet {
-  key: string;
-  name: string;
-  coords: C3;
-  type: 'planet' | 'moon';
-  source: 'empire' | 'buildings' | 'research';
-  planet: BuildPlanet;
-  shown: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
-  shownResearch: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
-  arrivals: (Arrival & { missionName: string; from: C3 })[];
-  temp: number | null;
-}
-interface Alert {
-  id: number;
-  g: number;
-  s: number;
-  p: number;
-  planet_type: 'planet' | 'moon';
-  element_id: number;
-  level: number;
-}
-interface Data {
-  planets: Planet[];
-  research: Record<string, number>;
-  researchQueue: { id: number; level: number; end: number | null }[];
-  researchSpeed: number | null;
-  universityFactor: number;
-  catchUp: number | null;
-  catchUpFrom: { source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null;
-  buildingSpeed: number | null;
-  shipyardSpeed: number | null;
-  resourceSpeed: number | null;
-  storageFactor: number;
-  empireTime: number | null;
-  fleetsTime: number | null;
-  alerts: Alert[];
-  /** buildings the viewer hid (account, all planets) */
-  hidden: number[];
-}
+type C3 = Schema<'PageCoords'>;
+type Data = Schema<'Buildings'>;
+type Planet = Data['planets'][number];
+type Alert = Schema<'BuildingAlert'>;
 
 const { t, locale } = useI18n();
 const { uni, ctx } = useUni();
 const route = useRoute();
 const router = useRouter();
 const mobile = useMobile();
-const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/buildings'));
+const { data, error, load } = useLoader(() => uniApi<Schema<'Buildings'>>(uni.value, '/buildings'));
 onMounted(load);
 useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'shipyard', 'fleets', 'building_alerts'));
 
@@ -169,7 +130,7 @@ const search = ref('');
 const isHidden = (b: { id: number }) => hidden.value.includes(b.id);
 async function saveHidden(ids: number[]) {
   try {
-    data.value!.hidden = (await uniApi<{ hidden: number[] }>(uni.value, '/buildings/hidden', { method: 'PUT', body: { ids } })).hidden;
+    data.value!.hidden = (await uniApi<ApiResponse<'/api/{uni}/buildings/hidden', 'put'>>(uni.value, '/buildings/hidden', { method: 'PUT', body: { ids } })).hidden;
   } catch (e) {
     error.value = readError(e);
   }
@@ -229,8 +190,8 @@ async function toggleAlert(b: BuildingInfo) {
   busy.value = b.id;
   try {
     const res = a
-      ? await uniApi<{ alerts: Alert[] }>(uni.value, `/buildings/alerts/${a.id}`, { method: 'DELETE' })
-      : await uniApi<{ alerts: Alert[] }>(uni.value, '/buildings/alerts', { method: 'PUT', body: { ...p.coords, type: p.type, id: b.id, level: b.next } });
+      ? await uniApi<ApiResponse<'/api/{uni}/buildings/alerts/{id}', 'delete'>>(uni.value, `/buildings/alerts/${a.id}`, { method: 'DELETE' })
+      : await uniApi<ApiResponse<'/api/{uni}/buildings/alerts', 'put'>>(uni.value, '/buildings/alerts', { method: 'PUT', body: { ...p.coords, type: p.type, id: b.id, level: b.next } });
     data.value!.alerts = res.alerts;
   } catch (e) {
     error.value = readError(e);

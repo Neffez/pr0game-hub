@@ -2,33 +2,11 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, readError } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { dateTime, fmt, short, STATS_SHORT } from '../format';
 
 /** Admin panel: how well the inactivity score fits the alliance's data (server: repo/inactivityCheck.ts). */
-interface Check {
-  generatedAt: number;
-  weights: Record<string, number>;
-  events: number;
-  skipped: number;
-  narrowed: number;
-  detection: { hours: number; n: number; likely: number; inactive: number; median: number | null }[];
-  falseAlarms: Summary & {
-    rate: number | null;
-    causes: Record<string, number>;
-    examples: {
-      playerId: number; name: string; time: number; score: number; hours: number; activeAt: number; cause: string;
-      gain: { size: number | null; ratio: number | null; categories: Record<string, number> } | null;
-    }[];
-  };
-  endPhase: (Summary & { ended: number }) | null;
-}
-interface Summary {
-  days: number;
-  positives: number;
-  players: number;
-  horizons: { hours: number; contradicted: number; players: number; rate: number | null }[];
-  bands: { band: string; positives: number; within: Record<string, number> }[];
-}
+type Check = ApiResponse<'/api/{uni}/inactivity-check'>;
 
 const props = defineProps<{ universe: string; groupId: number }>();
 const { t } = useI18n();
@@ -40,7 +18,7 @@ async function run(fresh: boolean) {
   busy.value = true;
   error.value = '';
   try {
-    data.value = await api<Check>(`/${props.universe}/inactivity-check?group=${props.groupId}${fresh ? '&fresh=1' : ''}`);
+    data.value = await api<ApiResponse<'/api/{uni}/inactivity-check'>>(`/${props.universe}/inactivity-check?group=${props.groupId}${fresh ? '&fresh=1' : ''}`);
   } catch (e) {
     error.value = readError(e);
   } finally {

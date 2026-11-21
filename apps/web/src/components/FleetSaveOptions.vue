@@ -3,6 +3,7 @@ import { COLONY_SHIP, distance, drivesFromResearch, fleetSaveOptions, shipSpeed,
 import { ASTROPHYSICS, planetLimit } from '@pr0hub/core/universe';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { ApiResponse } from '../apiTypes';
 import { useMobile, useUni } from '../composables';
 import { abbr, clockTime, dateTime, duration, fmt, short } from '../format';
 import { fleetShips, units } from '../units';
@@ -10,24 +11,10 @@ import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
 
 /** An existing debris field (server: `/debris-fields`): shown in the galaxy now, or seen within the last week. */
-export interface DebrisField {
-  s: number;
-  p: number;
-  visible: boolean;
-  /** debris created since the weekly cleaner: flyable also when harvested empty */
-  active: boolean;
-  /** active, or debris seen after the cleaner */
-  sure: boolean;
-  time: number;
-}
+export type DebrisField = ApiResponse<'/api/{uni}/debris-fields'>['fields'][string][number];
 
 /** A system with free positions by the galaxy view (server: `/free-positions`): colonization targets. */
-export interface FreeSystem {
-  s: number;
-  free: number[];
-  /** when the galaxy showed the system */
-  seen: number;
-}
+export type FreeSystem = ApiResponse<'/api/{uni}/free-positions'>['systems'][string][number];
 
 /**
  * Fleet save options of one planet or moon (math: `fleetSaveOptions` of @pr0hub/flight): the fleet on it flies to
