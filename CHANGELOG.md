@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Badges explain themselves on phones and tablets: a long press on a badge (online list, player profile, streaks &
+  badges, recap) shows its tooltip as a sheet above the tab bar, which closes with the next touch; the press no
+  longer opens the link around the badge or the browser's menu (`useLongPress` in `composables.ts`).
 - Recap: the number of syncs follows a rule per page type, so a script or a busy tab that syncs the same pages many
   times an hour no longer inflates it. Every sync is still stored and used as before; only the count skips it.
   - The overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an
