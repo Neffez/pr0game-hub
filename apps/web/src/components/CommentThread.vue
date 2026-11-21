@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { ApiResponse, Schema } from '../apiTypes';
 import { useLoader, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -12,17 +13,10 @@ const props = defineProps<{ player?: number; plan?: number; g?: number; s?: numb
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 
-interface Comment {
-  id: number;
-  user_id: number | null;
-  member: string | null;
-  body: string;
-  created_at: number;
-  edited_at: number | null;
-}
+type Comment = Schema<'Comment'>;
 
 const query = computed(() => (props.player ? `player=${props.player}` : props.plan ? `plan=${props.plan}` : `c=${props.g}:${props.s}:${props.p}&type=${props.type ?? 'planet'}`));
-const { data, error, load } = useLoader(() => uniApi<Comment[]>(uni.value, `/comments?${query.value}`));
+const { data, error, load } = useLoader(() => uniApi<ApiResponse<'/api/{uni}/comments'>>(uni.value, `/comments?${query.value}`));
 onMounted(load);
 watch(query, load);
 useLiveReload(load, tables('comments'), 300);

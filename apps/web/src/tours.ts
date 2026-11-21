@@ -7,6 +7,7 @@ import { driver, type DriveStep, type Driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { computed, nextTick, onBeforeUnmount, toValue, watch, type MaybeRefOrGetter } from 'vue';
 import { api, session } from './api';
+import type { Schema } from './apiTypes';
 import { t } from './i18n';
 
 /** One step: `el` is the value of a `data-tour` attribute (no element = centered popover). */
@@ -358,7 +359,7 @@ export const TOURS = {
 } satisfies Record<string, Tour>;
 export type TourId = keyof typeof TOURS;
 
-type ToursState = { enabled: boolean; seen: string[] };
+type ToursState = Schema<'Tours'>;
 
 /** Tour state of the logged-in user (defaults while the session is not loaded). */
 export const tours = computed<ToursState>(() => session.me?.user?.tours ?? { enabled: true, seen: [] });
@@ -378,7 +379,7 @@ function findEl(name: string): HTMLElement | undefined {
 
 /** Stores a change and takes the server's state; throws on failure. */
 async function post(body: { seen?: string; enabled?: boolean; reset?: true }) {
-  const res = await api<ToursState>('/auth/tours', { body });
+  const res = await api<Schema<'Tours'>>('/auth/tours', { body });
   if (session.me?.user) session.me.user.tours = res;
 }
 /**

@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { api, session } from './api';
+import type { ApiResponse, Schema } from './apiTypes';
 
 /**
  * Web push of this browser (server: push.ts, worker: public/sw.js). The browser asks for permission only when the
@@ -11,12 +12,7 @@ export type PushStatus = 'loading' | 'unsupported' | 'disabled' | 'denied' | 'of
 export const pushStatus = ref<PushStatus>('loading');
 
 /** Quiet hours of this browser (server: notify.ts), null for none; known once the browser is registered. */
-export interface DeviceQuiet {
-  from: string;
-  to: string;
-  tz: string;
-  except: string[];
-}
+export type DeviceQuiet = Schema<'QuietHours'>;
 export const deviceQuiet = ref<DeviceQuiet | null>(null);
 
 const BASE = import.meta.env.BASE_URL;
@@ -70,7 +66,7 @@ export async function checkPushOwner(userId: number) {
 export async function loadPushStatus() {
   if (!supported()) return (pushStatus.value = 'unsupported');
   try {
-    const res = await api<{ enabled: boolean; publicKey: string | null }>('/push/key');
+    const res = await api<ApiResponse<'/api/push/key'>>('/push/key');
     key = res.publicKey;
     if (!res.enabled || !key) return (pushStatus.value = 'disabled');
     if (Notification.permission === 'denied') return (pushStatus.value = 'denied');
@@ -78,7 +74,7 @@ export async function loadPushStatus() {
     const sub = await (await registration()).pushManager.getSubscription();
     if (sub && Notification.permission === 'granted') {
       // re-registers the browser (the hub may have dropped it, e.g. after an error of the push service)
-      deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
+      deviceQuiet.value = (await api<ApiResponse<'/api/push/subscriptions', 'post'>>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
       return (pushStatus.value = 'on');
     }
     return (pushStatus.value = 'off');
@@ -100,7 +96,7 @@ export async function enablePush() {
   if (permission !== 'granted') return (pushStatus.value = permission === 'denied' ? 'denied' : 'off');
   const reg = await registration();
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) }));
-  deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
+  deviceQuiet.value = (await api<ApiResponse<'/api/push/subscriptions', 'post'>>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
   setOwner(session.me?.user?.id ?? null);
   return (pushStatus.value = 'on');
 }
@@ -121,11 +117,11 @@ export async function disablePush() {
 }
 
 /** Test notification to all devices of the user; returns how many were reached. */
-export const testPush = () => api<{ devices: number }>('/push/test', { body: {} }).then((r) => r.devices);
+export const testPush = () => api<ApiResponse<'/api/push/test', 'post'>>('/push/test', { body: {} }).then((r) => r.devices);
 
 /** Sets or clears (null) the quiet hours of this browser. */
 export async function setDeviceQuiet(quiet: DeviceQuiet | null) {
   const sub = await (await navigator.serviceWorker.getRegistration(BASE))?.pushManager.getSubscription();
   if (!sub) return;
-  deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions/quiet', { method: 'PUT', body: { endpoint: sub.endpoint, quiet } })).quiet;
+  deviceQuiet.value = (await api<ApiResponse<'/api/push/subscriptions/quiet', 'put'>>('/push/subscriptions/quiet', { method: 'PUT', body: { endpoint: sub.endpoint, quiet } })).quiet;
 }

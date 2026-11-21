@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 import { api, session, uniApi } from './api';
+import type { AccessRequests, ApiResponse, Schema } from './apiTypes';
 import { nowSec, upcoming } from './clock';
-import type { Fleet } from './components/FleetList.vue';
 import { useStored } from './composables';
 
 /**
@@ -10,112 +10,18 @@ import { useStored } from './composables';
  * building the viewer waits for being affordable, the arrival of an own fleet with an alert, a full storage on one of
  * the viewer's planets, a hostile sensor phalanx newly known to reach the viewer's planets, a free expedition slot.
  */
-export type Notification =
-  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification | BuildOrderNotification | PhalanxNotification | ExpeditionNotification;
-
-interface Base {
-  id: string;
-  userId: number;
-  member: string;
-  time: number;
-}
-
-export interface AttackNotification extends Base {
-  kind: 'attack';
-  /** for an ACS: the lead fleet with the ships of all its fleets */
-  fleet: Fleet;
-  /** number of fleets of an ACS, 1 for a single fleet */
-  fleets: number;
-}
-
-/** The viewer is invited to a plan (`member`: its creator). */
-export interface InviteNotification extends Base {
-  kind: 'invite';
-  plan: {
-    id: number; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold';
-    time_precision: 'day' | 'hour' | 'exact';
-  };
-}
-
-/** New comments of others in a thread the viewer wrote in (`member`: the newest author). */
-export interface CommentNotification extends Base {
-  kind: 'comment';
-  thread: { player: number; name: string } | { plan: number; g: number; s: number; p: number; type: 'planet' | 'moon' } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
-  excerpt: string;
-  count: number;
-  /** one of them mentions the viewer (`@name`) */
-  mention?: boolean;
-}
-
-/** A fleet of the viewer in a plan has to launch at `time`. */
-export interface LaunchNotification extends Base {
-  kind: 'launch';
-  plan: { id: number; g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold'; target_time: number };
-  from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
-}
-
-/** The resources for `level` of a building on one of the viewer's planets are there since `time`. */
-export interface BuildingNotification extends Base {
-  kind: 'building';
-  alert: number;
-  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
-  element: number;
-  level: number;
-}
-
-/** An own fleet with an alert arrives at `time` (shown from `lead` minutes before). */
-export interface FleetNotification extends Base {
-  kind: 'fleet';
-  alert: number;
-  fleet: Fleet;
-  lead: number;
-}
-
-/** A storage on one of the viewer's planets is full since `time` (production stopped). */
-export interface StorageNotification extends Base {
-  kind: 'storage';
-  planet: { g: number; s: number; p: number; name: string };
-  /** 901 metal, 902 crystal, 903 deuterium */
-  resource: number;
-}
-
-/** The next step of the viewer's build order on a planet can start (`time`: when the server looked). */
-export interface BuildOrderNotification extends Base {
-  kind: 'buildorder';
-  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
-  step: { id: string; kind: 'building' | 'research' | 'ship' | 'defense' | 'prod' | 'transport'; element: number | null; count: number | null; target: number | null };
-}
-
-/** A loot settlement the viewer takes part in was finalized (`time`) and they still have deliveries open. */
-export interface SettlementNotification extends Base {
-  kind: 'settlement';
-  plan: { id: number; g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold' };
-  sends: { to: string; res: { m: number; k: number; d: number } }[];
-  gets: { from: string; res: { m: number; k: number; d: number } }[];
-}
-
-/** A sensor phalanx outside the own alliance is newly known to reach the viewer's `planets` (`time`: when the hub learned it). */
-export interface PhalanxNotification extends Base {
-  kind: 'phalanx';
-  moon: { g: number; s: number; p: number };
-  level: number;
-  range: number;
-  /** game time of the spy report that showed it */
-  since: number;
-  player: { id: number | null; name: string; ally: string | null; vacation: boolean } | null;
-  planets: { g: number; s: number; p: number; name: string | null }[];
-}
-
-/** An expedition of the viewer is back (or lost to a black hole, `lost`) at `time`: its slot is free. */
-export interface ExpeditionNotification extends Base {
-  kind: 'expedition';
-  /** the last line of the flight (the return, for a lost one the stay) */
-  fleet: Fleet;
-  lost: boolean;
-  /** expedition slots taken after it, their number by astrophysics */
-  slots: { used: number; max: number | null };
-}
+export type Notification = Schema<'Notification'>;
+export type AttackNotification = Schema<'AttackNotification'>;
+export type InviteNotification = Schema<'InviteNotification'>;
+export type CommentNotification = Schema<'CommentNotification'>;
+export type LaunchNotification = Schema<'LaunchNotification'>;
+export type BuildingNotification = Schema<'BuildingNotification'>;
+export type FleetNotification = Schema<'FleetNotification'>;
+export type StorageNotification = Schema<'StorageNotification'>;
+export type BuildOrderNotification = Schema<'BuildOrderNotification'>;
+export type SettlementNotification = Schema<'SettlementNotification'>;
+export type PhalanxNotification = Schema<'PhalanxNotification'>;
+export type ExpeditionNotification = Schema<'ExpeditionNotification'>;
 
 /**
  * An invitation lasts until the end of the plan's day or hour, new comments two days, affordable buildings one day,
@@ -168,12 +74,7 @@ const due = computed(() => {
 /** Current notifications, the next first (loaded by the layout, kept up to date by live events). */
 export const notifications = upcoming(due, until, notifyClock);
 /** Open access requests from the login page (global and alliance admins; they open the admin page). */
-export interface AccessRequest {
-  id: number;
-  username: string;
-  message: string;
-  created_at: number;
-}
+export type AccessRequest = AccessRequests['requests'][number];
 export const accessRequests = ref<AccessRequest[]>([]);
 const accessId = (r: AccessRequest) => `access:${r.id}`;
 export const unseen = computed(
@@ -184,7 +85,7 @@ export const attacks = computed(() => notifications.value.filter((n) => n.kind =
 export async function loadNotifications(uni: string) {
   ticker ??= setInterval(() => (notifyClock.value = nowSec()), 1000);
   try {
-    list.value = await uniApi<Notification[]>(uni, '/notifications');
+    list.value = await uniApi<ApiResponse<'/api/{uni}/notifications'>>(uni, '/notifications');
   } catch {
     /* kept until the next reload */
   }
@@ -195,7 +96,7 @@ export async function loadNotifications(uni: string) {
 export async function loadAccessRequests() {
   if (!session.me?.user?.isAdmin && !session.me?.groups.some((g) => g.role === 'admin')) return;
   try {
-    accessRequests.value = (await api<{ requests: AccessRequest[] }>('/admin/access-requests')).requests;
+    accessRequests.value = (await api<AccessRequests>('/admin/access-requests')).requests;
   } catch {
     /* kept until the next reload */
   }

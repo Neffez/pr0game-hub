@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Schema } from '../apiTypes';
+import type { ApiResponse, Schema } from '../apiTypes';
 import BackLink from '../components/BackLink.vue';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -49,7 +49,7 @@ const saveUsername = () =>
 
 const saveDisplayName = () =>
   run(async () => {
-    const res = await api<{ displayName: string | null }>('/auth/display-name', { body: { displayName: displayName.value } });
+    const res = await api<ApiResponse<'/api/auth/display-name', 'post'>>('/auth/display-name', { body: { displayName: displayName.value } });
     displayName.value = res.displayName ?? '';
   }, () => t('account.displayNameChanged'));
 
@@ -97,18 +97,12 @@ async function togglePush() {
 const saveDeviceQuiet = (quiet: Quiet | null) => run(() => setDeviceQuiet(quiet), () => t('account.pushSaved'));
 
 /** Planets of the alliance opened here whose full storages stay silent (push and Discord). */
-interface StoragePlanet {
-  g: number;
-  s: number;
-  p: number;
-  name: string;
-  muted: boolean;
-}
+type StoragePlanet = Schema<'StorageAlerts'>['planets'][number];
 const storagePlanets = ref<StoragePlanet[]>([]);
 const saveStorageAlerts = () =>
   run(async () => {
     const muted = storagePlanets.value.filter((x) => x.muted).map((x) => `${x.g}:${x.s}:${x.p}`);
-    storagePlanets.value = (await uniApi<{ planets: StoragePlanet[] }>(uni, '/storage-alerts', { method: 'PUT', body: { muted } })).planets;
+    storagePlanets.value = (await uniApi<Schema<'StorageAlerts'>>(uni, '/storage-alerts', { method: 'PUT', body: { muted } })).planets;
   }, () => t('account.pushSaved'));
 
 const sendTestPush = () =>
@@ -118,17 +112,13 @@ const sendTestPush = () =>
   }, () => t('account.pushTestSent'));
 
 /** The user's own Discord webhook (server: discord.ts): only its start comes back, settings separate from push. */
-interface DiscordSettings {
-  webhook: string | null;
-  userId: string | null;
-  prefs: PushPrefs;
-}
+type DiscordSettings = Schema<'DiscordSettings'>;
 const discord = ref<DiscordSettings | null>(null);
 const discordWebhook = ref('');
 const discordUserId = ref('');
 async function saveDiscord(body: Record<string, unknown>, ok: string) {
   await run(async () => {
-    discord.value = await api<DiscordSettings>('/auth/discord', { body });
+    discord.value = await api<Schema<'DiscordSettings'>>('/auth/discord', { body });
     discordWebhook.value = '';
     discordUserId.value = discord.value.userId ?? '';
   }, () => t(ok));
@@ -197,10 +187,10 @@ onMounted(async () => {
       api<Schema<'Enabled'>>('/auth/message-share'),
       api<Schema<'Enabled'>>('/auth/show-online'),
       api<Schema<'Enabled'>>('/auth/share-activity'),
-      api<{ enabled: boolean }>('/auth/share-syncs'),
-      api<PushPrefs>('/auth/push-settings'),
-      api<DiscordSettings>('/auth/discord'),
-      api<{ displayName: string | null }>('/auth/display-name'),
+      api<Schema<'Enabled'>>('/auth/share-syncs'),
+      api<Schema<'PushSettings'>>('/auth/push-settings'),
+      api<Schema<'DiscordSettings'>>('/auth/discord'),
+      api<ApiResponse<'/api/auth/display-name'>>('/auth/display-name'),
       loadApiTokens(),
       loadPushStatus(),
     ]);
@@ -208,7 +198,7 @@ onMounted(async () => {
     pushPrefs.value = prefs;
     discord.value = discordSettings;
     // optional: the planets of the alliance opened here (none outside a universe or before the first sync)
-    if (inUni) uniApi<{ planets: StoragePlanet[] }>(uni, '/storage-alerts').then((r) => (storagePlanets.value = r.planets)).catch(() => {});
+    if (inUni) uniApi<Schema<'StorageAlerts'>>(uni, '/storage-alerts').then((r) => (storagePlanets.value = r.planets)).catch(() => {});
     discordUserId.value = discordSettings.userId ?? '';
     share.value = fleetShare;
     messageShare.value = messages;

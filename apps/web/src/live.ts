@@ -1,5 +1,6 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { session, uniApi } from './api';
+import type { ApiResponse } from './apiTypes';
 import { useStored } from './composables';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
@@ -23,7 +24,8 @@ export interface Whereabouts {
   player?: number;
   active: boolean;
 }
-export type PresenceMember = { userId: number } & Whereabouts;
+/** A member in the online list (`GET /presence`, presence events). */
+export type PresenceMember = ApiResponse<'/api/{uni}/presence'>[number];
 
 /** `resync`: the connection was interrupted, events may have been missed (views reload). */
 export type LiveEvent = DataEvent | { type: 'presence'; members: PresenceMember[] } | { type: 'resync' };
@@ -50,7 +52,7 @@ export function dispatch(e: LiveEvent) {
 /** Current presence list; afterwards the events keep it up to date. */
 async function loadPresence(uni: string) {
   try {
-    presence.value = await uniApi<PresenceMember[]>(uni, '/presence');
+    presence.value = await uniApi<ApiResponse<'/api/{uni}/presence'>>(uni, '/presence');
   } catch {
     /* shown again with the next presence event */
   }

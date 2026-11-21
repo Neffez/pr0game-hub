@@ -6,6 +6,7 @@ import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { readError, uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
@@ -54,7 +55,7 @@ async function createFromReport() {
   fromReport.busy = true;
   fromReport.error = '';
   try {
-    const res = await uniApi<{ id: number; existing: boolean }>(uni.value, '/settlements/from-report', {
+    const res = await uniApi<ApiResponse<'/api/{uni}/settlements/from-report', 'post'>>(uni.value, '/settlements/from-report', {
       body: { text: fromReport.text, mission: fromReport.mission || undefined },
     });
     Object.assign(fromReport, { open: false, text: '', mission: '' });

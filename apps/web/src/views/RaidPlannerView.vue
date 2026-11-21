@@ -17,6 +17,7 @@ import Sheet from '../components/Sheet.vue';
 import { computed, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
+import type { ApiResponse, Schema } from '../apiTypes';
 import { activeClaims, loadClaims } from '../claims';
 import { useStored } from '../composables';
 import { coords, duration } from '../format';
@@ -89,7 +90,7 @@ async function create() {
   if (!body) return void (error.value = t('plans.formInvalid'));
   let id = 0;
   const ok = await run(async () => {
-    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans', { body });
+    const res = await uniApi<Schema<'ClaimedPlan'>>(uni.value, '/plans', { body });
     claimedInfo(res);
     id = res.id;
   }, t('plans.toast.created'));
@@ -103,7 +104,7 @@ async function create() {
 const phalanx = reactive({ open: false, text: '' });
 async function sendPhalanx() {
   await run(async () => {
-    const res = await uniApi<{ attacks: number }>(uni.value, '/phalanx', { body: { text: phalanx.text } });
+    const res = await uniApi<ApiResponse<'/api/{uni}/phalanx', 'post'>>(uni.value, '/phalanx', { body: { text: phalanx.text } });
     toast(t('phalanx.found', { n: res.attacks }, res.attacks), res.attacks ? 'ok' : 'warn');
     Object.assign(phalanx, { open: false, text: '' });
   });

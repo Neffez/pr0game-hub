@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { readError, uniApi } from '../api';
+import type { Schema } from '../apiTypes';
 import { useClock } from '../clock';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
@@ -135,7 +136,7 @@ const invited = reactive(new Set<string>());
 const helperKey = (h: Assist['helpers'][number]) => `${h.userId}:${c(h.from)}:${h.from.type}`;
 async function holdPlan(): Promise<number> {
   if (data.value!.holdPlan) return data.value!.holdPlan;
-  const res = await uniApi<{ id: number }>(uni.value, '/plans/hold', { method: 'POST', body: { key: data.value!.attack.key } });
+  const res = await uniApi<Schema<'Created'>>(uni.value, '/plans/hold', { method: 'POST', body: { key: data.value!.attack.key } });
   data.value!.holdPlan = res.id;
   return res.id;
 }
