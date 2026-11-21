@@ -1700,6 +1700,8 @@ const en: typeof de = {
   badges: {
     level: 'Level {n} of {of}',
     notYet: 'not reached yet',
+    awarded: 'awarded',
+    notAwarded: 'not awarded yet',
     next: 'Next level at {n}',
     top: 'Top level reached',
     legend: 'All badges',
@@ -1721,6 +1723,7 @@ const en: typeof de = {
     collector: { name: 'Debt collector', what: '{n} ACS settlements', how: 'Finalize ACS loot settlements' },
     forist: { name: 'Forist', what: '{n} comments', how: 'Write comments in player profiles' },
     miner: { name: 'Miner', what: 'Build order plans 5 days ahead', how: 'Plan at least 5 days ahead with the build order' },
+    livingLegend: { name: 'Living legend', what: 'Awarded by the hub admins for outstanding merit', how: 'Only awarded by the hub admins' },
   },
   recap: {
     since: 'Since the start',
@@ -2769,6 +2772,10 @@ const en: typeof de = {
     role: 'Role',
     hubAdmin: 'Admin',
     roles: { member: 'Member', admin: 'Alliance admin' },
+    awards: 'Honours',
+    awardsHint: 'Badges that only hub admins can award. They show at the member like the other badges.',
+    awardGiven: 'Badge awarded',
+    awardRevoked: 'Badge revoked',
     displayName: 'Display name',
     ingameName: 'In-game name',
     joined: 'Joined',

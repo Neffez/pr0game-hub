@@ -16,6 +16,7 @@ let group = 0;
 let carolId = 0;
 let daveId = 0;
 let carol: Record<string, string>;
+let admin = '';
 const TZ = 'Europe/Berlin';
 
 async function login(username: string, password: string) {
@@ -34,6 +35,7 @@ beforeAll(async () => {
   carolId = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass')).lastInsertRowid);
   daveId = Number(db.prepare("INSERT INTO users (username, password_hash) VALUES ('dave', 'x')").run().lastInsertRowid);
   const cookie = await login('admin', 'adminpass');
+  admin = cookie;
   await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8', name: 'Universum 8' }, headers: { cookie } });
   group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'A' }, headers: { cookie } })).json().id;
   for (const id of [carolId, daveId]) db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(group, id);
@@ -118,5 +120,35 @@ describe('badges and ranking', () => {
     expect(rows[0].userId).toBe(carolId);
     expect(rows.find((r: any) => r.userId === daveId).points).toBe(0);
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/ranking?period=year', headers: carol })).statusCode).toBe(400);
+  });
+});
+
+describe('badges awarded by hand', () => {
+  const award = (method: 'PUT' | 'DELETE', userId: number, key: string, headers: Record<string, string>) =>
+    app.inject({ method, url: `/hub/api/admin/groups/${group}/members/${userId}/awards/${key}`, headers });
+  const legend = async (userId: number) => (await getJson('u8/achievements')).members.find((m: any) => m.userId === userId).badges.find((b: any) => b.key === 'livingLegend');
+
+  it('lets only global admins award and revoke the living legend', async () => {
+    expect(await legend(daveId)).toEqual({ key: 'livingLegend', count: 0, level: 0, levels: 1, next: 1, steps: [1] });
+    // alliance members (and alliance admins) cannot
+    db.prepare("UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?").run(group, carolId);
+    expect((await award('PUT', daveId, 'livingLegend', carol)).statusCode).toBe(403);
+    db.prepare("UPDATE group_members SET role = 'member' WHERE group_id = ? AND user_id = ?").run(group, carolId);
+    expect((await award('PUT', daveId, 'scout', { cookie: admin })).statusCode).toBe(400);
+    expect((await award('PUT', 99999, 'livingLegend', { cookie: admin })).statusCode).toBe(404);
+
+    const res = await award('PUT', daveId, 'livingLegend', { cookie: admin });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    // twice: still one
+    expect((await award('PUT', daveId, 'livingLegend', { cookie: admin })).statusCode).toBe(200);
+    expect(await legend(daveId)).toMatchObject({ count: 1, level: 1, next: null });
+    const members = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${group}/members`, headers: { cookie: admin } })).json();
+    expect(members.find((m: any) => m.id === daveId).awards).toEqual(['livingLegend']);
+    expect(members.find((m: any) => m.id === carolId).awards).toEqual([]);
+
+    expect((await award('DELETE', daveId, 'livingLegend', carol)).statusCode).toBe(403);
+    expect((await award('DELETE', daveId, 'livingLegend', { cookie: admin })).statusCode).toBe(200);
+    expect(await legend(daveId)).toMatchObject({ count: 0, level: 0 });
   });
 });

@@ -85,7 +85,7 @@ export function addCredits(db: DB, groupId: number, userId: number, day: string,
 
 export type BadgeKey =
   | 'imperator' | 'cartographer' | 'scout' | 'fleeter' | 'expeditioner' | 'trader' | 'socializer' | 'chronicler'
-  | 'fresh' | 'streak' | 'raider' | 'collector' | 'forist' | 'miner';
+  | 'fresh' | 'streak' | 'raider' | 'collector' | 'forist' | 'miner' | 'livingLegend';
 
 /** Levels of each badge: the counts that reach them. */
 export const BADGES: Record<BadgeKey, number[]> = {
@@ -103,8 +103,13 @@ export const BADGES: Record<BadgeKey, number[]> = {
   collector: [1, 10, 20],
   forist: [1, 10, 20, 50, 100],
   miner: [1],
+  livingLegend: [1],
 };
 export const BADGE_KEYS = Object.keys(BADGES) as BadgeKey[];
+/** Badges that global admins award by hand (`member_awards`) instead of a count. */
+export const MANUAL_BADGES = ['livingLegend'] as const satisfies readonly BadgeKey[];
+export type ManualBadgeKey = (typeof MANUAL_BADGES)[number];
+export const isManualBadge = (key: string): key is ManualBadgeKey => (MANUAL_BADGES as readonly string[]).includes(key);
 
 export interface Badge {
   key: BadgeKey;
@@ -221,6 +226,7 @@ export function achievementsAt(db: DB, ctx: GroupContext, days: string[]): Map<s
       collector: byUser('SELECT finalized_by AS user_id, COUNT(*) AS n FROM raid_settlements WHERE group_id = ? AND finalized_by IS NOT NULL AND finalized_at < ? GROUP BY finalized_by', end),
       forist: byUser('SELECT user_id, COUNT(*) AS n FROM comments WHERE group_id = ? AND player_id IS NOT NULL AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
       miner: credits('miner'),
+      livingLegend: byUser("SELECT user_id, COUNT(*) AS n FROM member_awards WHERE group_id = ? AND key = 'livingLegend' AND awarded_at < ? GROUP BY user_id", end),
     };
   };
 

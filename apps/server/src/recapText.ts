@@ -38,7 +38,7 @@ const de = {
   more: 'Alles im Hub',
   badge: {
     imperator: 'Imperator', cartographer: 'Kartograph', scout: 'Späher', fleeter: 'Fleeter', expeditioner: 'Expeditioner', trader: 'Händler', socializer: 'Socializer',
-    chronicler: 'Chronist', fresh: 'Immer frisch', streak: 'Serie', raider: 'Raider', collector: 'Geldeintreiber', forist: 'Forist', miner: 'Miner',
+    chronicler: 'Chronist', fresh: 'Immer frisch', streak: 'Serie', raider: 'Raider', collector: 'Geldeintreiber', forist: 'Forist', miner: 'Miner', livingLegend: 'Lebende Legende',
   } satisfies Record<BadgeKey, string>,
   kind: {
     galaxy: 'Galaxie', spy: 'Spionageberichte', empire: 'Imperium', overview: 'Übersicht/Flotten', hostile: 'Fremdspionage', battle: 'Kampfberichte',
@@ -76,7 +76,7 @@ const en: typeof de = {
   more: 'Everything in the hub',
   badge: {
     imperator: 'Imperator', cartographer: 'Cartographer', scout: 'Scout', fleeter: 'Fleeter', expeditioner: 'Expeditioner', trader: 'Trader', socializer: 'Socializer',
-    chronicler: 'Chronicler', fresh: 'Always fresh', streak: 'Streak', raider: 'Raider', collector: 'Debt collector', forist: 'Forist', miner: 'Miner',
+    chronicler: 'Chronicler', fresh: 'Always fresh', streak: 'Streak', raider: 'Raider', collector: 'Debt collector', forist: 'Forist', miner: 'Miner', livingLegend: 'Living legend',
   },
   kind: {
     galaxy: 'Galaxy', spy: 'Spy reports', empire: 'Empire', overview: 'Overview/fleets', hostile: 'Foreign espionage', battle: 'Battle reports',

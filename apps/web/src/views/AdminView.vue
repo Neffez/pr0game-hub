@@ -20,6 +20,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, readError, selectedGroup, session } from '../api';
 import { clockTime, coords, dateTime, fmt, STATS_CATEGORIES } from '../format';
+import { BADGE_ICONS, MANUAL_BADGES } from '../achievements';
 
 type FleetAttackRow = Schema<'StoredFleetAttack'>;
 
@@ -369,6 +370,12 @@ const setRole = (m: any, role: string) => run(async () => {
   await api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { role } });
   await loadGroup();
 });
+/** Badges awarded by hand (global admins): award or take back. */
+const toggleAward = (m: any, key: string, on: boolean) =>
+  run(async () => {
+    await api(`/admin/groups/${groupId.value}/members/${m.id}/awards/${key}`, { method: on ? 'PUT' : 'DELETE' });
+    await loadGroup();
+  }, on ? 'admin.awardGiven' : 'admin.awardRevoked');
 const setIngame = (m: any) => run(() => api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { ingameName: m.ingame_name } }), 'deck.saved');
 const setDisplay = (m: any) => run(() => api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { displayName: m.display_name } }), 'deck.saved');
 const renameUser = (m: any) => run(async () => {
@@ -794,6 +801,7 @@ const doMerge = () => run(async () => {
               <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}<SortMark :dir="memberSort.direction('joined')" /></th>
               <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}<SortMark :dir="memberSort.direction('login')" /></th>
               <th class="sortable" :title="t('onboarding.adminHint')" @click="memberSort.sortBy('onboarding')">{{ t('onboarding.column') }}<SortMark :dir="memberSort.direction('onboarding')" /></th>
+              <th v-if="isAdmin">{{ t('admin.awards') }}<Hint>{{ t('admin.awardsHint') }}</Hint></th>
               <th class="invite-col">{{ t('admin.memberInvite') }}</th>
               <th />
             </tr>
@@ -819,6 +827,13 @@ const doMerge = () => run(async () => {
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
               <td class="small" :title="onboardingTitle(m)" :class="{ ok: m.onboarding?.length === ONBOARDING.length }">{{ m.onboarding?.length ?? 0 }}/{{ ONBOARDING.length }}</td>
+              <td v-if="isAdmin">
+                <label v-for="key in MANUAL_BADGES" :key="key" class="award" :title="t(`badges.${key}.what`)">
+                  <input type="checkbox" :checked="m.awards?.includes(key)" @change="toggleAward(m, key, ($event.target as HTMLInputElement).checked)" />
+                  <Icon :name="BADGE_ICONS[key]" />
+                  {{ t(`badges.${key}.name`) }}
+                </label>
+              </td>
               <td class="invite-col">
                 <div v-if="m.invite_expires_at && freshInvites[m.id]" class="invite-row">
                   <CopyField :value="inviteUrl(freshInvites[m.id])" @copied="msg = t('admin.linkCopied')" />
@@ -981,6 +996,7 @@ const doMerge = () => run(async () => {
 </template>
 
 <style scoped>
+.award { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: #d4af37; }
 .tag-input { width: 110px; }
 .access-request { padding: 8px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .access-request:first-of-type { border-top: 0; }

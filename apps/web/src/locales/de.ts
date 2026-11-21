@@ -1701,6 +1701,8 @@ const de = {
   badges: {
     level: 'Stufe {n} von {of}',
     notYet: 'noch nicht erreicht',
+    awarded: 'verliehen',
+    notAwarded: 'noch nicht verliehen',
     next: 'Nächste Stufe bei {n}',
     top: 'Höchste Stufe erreicht',
     legend: 'Alle Abzeichen',
@@ -1722,6 +1724,7 @@ const de = {
     collector: { name: 'Geldeintreiber', what: '{n} AKS-Abrechnungen', how: 'AKS-Beuteabrechnungen abschließen' },
     forist: { name: 'Forist', what: '{n} Kommentare', how: 'Kommentare in Spielerprofilen schreiben' },
     miner: { name: 'Miner', what: 'Bauliste plant 5 Tage voraus', how: 'Mit der Bauliste mindestens 5 Tage im Voraus planen' },
+    livingLegend: { name: 'Lebende Legende', what: 'Von den Hub-Admins für besondere Verdienste verliehen', how: 'Wird nur von den Hub-Admins verliehen' },
   },
   recap: {
     since: 'Seit Start',
@@ -2771,6 +2774,10 @@ const de = {
     role: 'Rolle',
     hubAdmin: 'Admin',
     roles: { member: 'Mitglied', admin: 'Allianz-Admin' },
+    awards: 'Ehrungen',
+    awardsHint: 'Abzeichen, die nur Hub-Admins verleihen können. Sie erscheinen beim Mitglied wie die übrigen Abzeichen.',
+    awardGiven: 'Abzeichen verliehen',
+    awardRevoked: 'Abzeichen entzogen',
     displayName: 'Anzeigename',
     ingameName: 'Ingame-Name',
     joined: 'Beigetreten',
