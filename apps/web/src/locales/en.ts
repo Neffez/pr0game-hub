@@ -1723,7 +1723,7 @@ const en: typeof de = {
     collector: { name: 'Debt collector', what: '{n} ACS settlements', how: 'Finalize ACS loot settlements' },
     forist: { name: 'Forist', what: '{n} comments', how: 'Write comments in player profiles' },
     miner: { name: 'Miner', what: 'Build order plans 5 days ahead', how: 'Plan at least 5 days ahead with the build order' },
-    livingLegend: { name: 'Living legend', what: 'Awarded by the hub admins for outstanding merit', how: 'Only awarded by the hub admins' },
+    livingLegend: { name: 'Living legend', what: 'Special achievement', how: 'Only awarded by the hub admins' },
   },
   recap: {
     since: 'Since the start',

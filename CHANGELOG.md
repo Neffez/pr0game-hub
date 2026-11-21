@@ -20,8 +20,8 @@ Every commit adds its changes here, newest first, grouped by date.
     pages parsed again (migration `099_sync_credits_last_at`, data migration `js:sync_counts_throttled`).
 - New badge "Living legend" (eagle icon) that only global admins award or take back by hand, per alliance member, in
   the admin page's member list. It has one level, shows in gold next to the counted badges (online list, player
-  profile, streaks & badges, recap) and is stored in `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`,
-  the member list returns `awards`.
+  profile, streaks & badges, recap) with the plain description "Special achievement" and is stored in
+  `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`, the member list returns `awards`.
 - Defense advisor: "Compare with research" weighs combat research against defense. The search runs once with the
   combat research after the research queue and once per next and second-next level of weapons, shielding and armour
   technology (requirements met, costs and research time on the planet with the fastest lab), and shows per option

@@ -30,8 +30,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Neues Abzeichen „Lebende Legende“ mit Adler: Es wird nicht erspielt, sondern nur von den Hub-Admins für besondere Verdienste verliehen.',
-        en: 'New badge "Living legend" with an eagle: it cannot be earned, the hub admins award it by hand for outstanding merit.',
+        de: 'Neues Abzeichen „Lebende Legende“ mit Adler: ein Sonderachievement, das nicht erspielt, sondern nur von den Hub-Admins verliehen wird.',
+        en: 'New badge "Living legend" with an eagle: a special achievement that cannot be earned, only the hub admins award it.',
       },
       {
         kind: 'new',
