@@ -742,6 +742,12 @@ components:
             arriveAt: { type: integer, description: 'Wanted arrival (Unix seconds); later when the resources are missing at the departure' }
         deactivated: { type: boolean }
         done: { type: boolean, description: Checked off by hand }
+        added:
+          type: integer
+          description: >-
+            Transports: when the hub first stored the step (Unix seconds), set by the server (a sent value is ignored).
+            The step is checked off by an own fleet to its target arriving after this, not by one that flew before it
+            was added; steps stored before this was recorded count from the import
     BuildOrder:
       type: object
       required: [base, planets]

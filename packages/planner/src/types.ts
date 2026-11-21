@@ -88,6 +88,11 @@ export interface Step {
   deactivated?: boolean;
   /** checked off by hand */
   done?: boolean;
+  /**
+   * When the hub first stored the step (epoch seconds, set by the server, transports only): only fleets arriving after
+   * it can check the step off. Steps stored before this existed count from the import.
+   */
+  added?: number;
 }
 
 /** Levels the build order starts from: building levels and unit counts per hub planet, research of the account. */

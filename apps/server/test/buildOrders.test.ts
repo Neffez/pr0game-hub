@@ -137,6 +137,13 @@ describe('build order', () => {
     expect(stored().done).toBe(true);
     db.prepare('DELETE FROM fleet_snapshots').run();
     expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0].done).toBe(true);
+    // a transport added afterwards gets its time from the server and is not checked off by the earlier fleet
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify([fleet]));
+    const before = (await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME];
+    const res = (await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [...before, { ...step, id: 't2', added: 1 }] } })).json();
+    expect(res.buildOrder.order.planets[HOME][1].added).toBeGreaterThan(1);
+    expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME].map((s: { done?: boolean }) => !!s.done)).toEqual([true, false]);
+    db.prepare('DELETE FROM fleet_snapshots').run();
   });
 
   it('assigns a planned planet to a synced one', async () => {

@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-21',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Bauliste: Ein neu hinzugefügter Transport wird nicht mehr sofort abgehakt, nur weil schon früher eine Flotte zum selben Ziel geflogen ist. Er gilt erst als erledigt, wenn danach eine passende Flotte losfliegt.',
+        en: 'Build order: a newly added transport is no longer checked off right away just because a fleet flew to the same target before. It only counts as done once a matching fleet leaves after it was added.',
+      },
+    ],
+  },
+  {
     date: '2026-11-20',
     items: [
       {
