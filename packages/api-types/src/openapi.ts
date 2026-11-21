@@ -4455,6 +4455,22 @@ export type components = {
             /** @description Stable key for clients */
             code: string;
         };
+        /** @description The change was stored */
+        Ok: {
+            /** @constant */
+            ok: true;
+        };
+        /** @description A new plan and who holds the claim of its target (null without coordinates) */
+        ClaimedPlan: {
+            id: number;
+            /** @description Hub name of the member holding the claim of the target */
+            claimedBy: string | null;
+        };
+        UniverseJsonName: {
+            name: string;
+            /** @description Epoch milliseconds of the newest galaxy view showing it */
+            timepoint: number;
+        };
         Enabled: {
             enabled: boolean;
         };
@@ -10997,7 +11013,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -11053,7 +11069,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
         };
@@ -11118,10 +11134,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        id?: number;
-                        claimedBy?: string | null;
-                    };
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
             /** @description Attack arrived, already planned, not pasted or not the caller's (`attack_not_found`) */
@@ -11691,7 +11704,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        id: number;
+                        /** @description Epoch seconds */
+                        expires_at: number;
+                    };
                 };
             };
         };
@@ -11752,7 +11769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -12146,7 +12163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Wrong username or password (`login_failed`) */
@@ -12183,7 +12200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12202,7 +12219,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        lang: "de" | "en";
+                    };
                 };
             };
         };
@@ -12221,7 +12242,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        username: string;
+                    };
                 };
             };
             /** @description Wrong password or invalid username (`password_wrong`, `username_invalid`) */
@@ -12324,7 +12348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Old password wrong or new one invalid (`old_password_wrong`, `password_too_short`, `password_too_long`) */
@@ -12515,7 +12539,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Alliance the invite adds to (null for a hub invite without one) */
+                        group: {
+                            name: string;
+                            /** @description Name of the universe */
+                            universe: string;
+                        } | null;
+                        /** @enum {string} */
+                        role: "member" | "admin";
+                        /** @description Epoch seconds */
+                        expiresAt: number;
+                        /** @description In-game name of the placeholder member the link claims (when known) */
+                        member?: {
+                            name: string;
+                        };
+                        /** @description The link sets a new password of an existing account */
+                        recovery: boolean;
+                        /** @description Username of the account the link is for (claim and recovery links) */
+                        username?: string;
+                    };
                 };
             };
         };
@@ -12536,7 +12579,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12562,7 +12605,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12590,7 +12633,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12611,7 +12654,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        username: string;
+                    };
                 };
             };
         };
@@ -12630,7 +12676,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": {
+                        id: number;
+                        name: string;
+                        tag: string | null;
+                        /** @description Slug of the universe */
+                        universe: string;
+                        members: number;
+                    }[];
                 };
             };
         };
@@ -12670,7 +12723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12702,7 +12755,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Invalid display name (`display_name_invalid`) */
@@ -12733,7 +12786,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12787,7 +12840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12863,7 +12916,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -12884,7 +12937,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": {
+                        id: number;
+                        source: string | null;
+                        page_type: string | null;
+                        url: string | null;
+                        /** @description What the sync stored (counts per record kind, warnings) and `about`, a description of its content */
+                        summary: {
+                            [key: string]: unknown;
+                        };
+                        created_at: number;
+                        /** @description Member whose data the sync is */
+                        username: string | null;
+                        /** @description Member who sent it (a sync for someone else) */
+                        synced_by: string | null;
+                        /** @description Stored page size in bytes (compressed) */
+                        html_size: number | null;
+                        text_size: number | null;
+                    }[];
                 };
             };
         };
@@ -12991,7 +13061,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Statistics snapshots left without score rows */
+                        snapshots: number;
+                        /** @description Score rows the sync brought */
+                        scores: number;
+                        activity: number;
+                        /** @description Players only the snapshots brought in */
+                        players: string[];
+                        alliances: string[];
+                        /** @description Players of the snapshots kept because other data refers to them */
+                        kept: string[];
+                        empires: number;
+                        overviews: number;
+                        fleets: number;
+                        spyReports: number;
+                        /** @description Record kinds of the sync that cannot be taken back */
+                        skipped: string[];
+                    };
                 };
             };
         };
@@ -13078,7 +13165,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": [
+                        {
+                            [key: string]: {
+                                [key: string]: null | number | {
+                                    planetname: string;
+                                    hasmoon: boolean;
+                                    playerid: number;
+                                    name: string;
+                                    /** @description -1 without alliance */
+                                    allianceid: number;
+                                    alliancename: string;
+                                    /** @description Status letters as in the game's export */
+                                    special: string;
+                                };
+                            };
+                        },
+                        {
+                            [key: string]: components["schemas"]["UniverseJsonName"];
+                        },
+                        {
+                            [key: string]: components["schemas"]["UniverseJsonName"];
+                        }
+                    ];
                 };
             };
         };
@@ -13106,7 +13215,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["IngestSummary"];
                 };
             };
         };
@@ -13134,7 +13243,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        /** @description Hostile attacks the scan showed */
+                        attacks: number;
+                    };
                 };
             };
         };
@@ -13162,7 +13274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ClaimedPlan"];
                 };
             };
         };
@@ -13190,7 +13302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -13220,7 +13332,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        ok: boolean;
+                        /** @description Hub name of the member holding the claim when the change claimed the target */
+                        claimedBy: string | null;
+                    };
                 };
             };
         };
@@ -13250,7 +13366,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13280,7 +13396,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13310,7 +13426,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13340,7 +13456,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Created"];
                 };
             };
         };
@@ -13372,7 +13488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13404,7 +13520,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13433,7 +13549,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13462,7 +13578,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13491,7 +13607,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13520,7 +13636,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13577,7 +13693,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13606,7 +13722,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
@@ -13635,7 +13751,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        shared: boolean;
+                    };
                 };
             };
         };

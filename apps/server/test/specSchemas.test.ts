@@ -7,7 +7,7 @@ import { parse } from 'yaml';
  * such) give the contract check nothing to verify and generate as `Record<string, never>` for the web. Their number
  * may only become fewer: when you describe some, lower `MAX_UNDESCRIBED` to the new count (CLAUDE.md, "API types").
  */
-const MAX_UNDESCRIBED = 41;
+const MAX_UNDESCRIBED = 0;
 
 type S = Record<string, unknown>;
 const spec = parse(readFileSync(new URL('../openapi.yaml', import.meta.url), 'utf8')) as {

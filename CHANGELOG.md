@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-21
+
+- OpenAPI spec: every JSON answer is described now (`MAX_UNDESCRIBED` 0). The writes that answered a bare object
+  (claims, comments, raid plans and their fleets, auth, invites, admin universes/groups/members, player notes, deck,
+  message sharing) name their fields; plain confirmations share the new `Ok` schema, new plans `ClaimedPlan`. Also
+  described: the invite info, the admin's alliance list and sync list, the undo summary of a sync, both directions of
+  `universe.json` (the download in the game's export format). A test covers the alliance list.
+
 ## 2026-11-20
 
 - Raid settlements: members and other players who fought in the battle report without a fleet in the plan (e.g. the

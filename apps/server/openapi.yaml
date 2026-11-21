@@ -1553,6 +1553,25 @@ components:
       properties:
         error: { type: string, description: English message }
         code: { type: string, description: Stable key for clients }
+    Ok:
+      type: object
+      description: The change was stored
+      required: [ok]
+      properties:
+        ok: { type: boolean, const: true }
+    ClaimedPlan:
+      type: object
+      description: A new plan and who holds the claim of its target (null without coordinates)
+      required: [id, claimedBy]
+      properties:
+        id: { type: integer }
+        claimedBy: { type: [string, 'null'], description: Hub name of the member holding the claim of the target }
+    UniverseJsonName:
+      type: object
+      required: [name, timepoint]
+      properties:
+        name: { type: string }
+        timepoint: { type: integer, description: Epoch milliseconds of the newest galaxy view showing it }
     Enabled:
       type: object
       required: [enabled]
@@ -6645,7 +6664,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/plans:
     get:
       tags: [Combat]
@@ -6693,7 +6712,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/ClaimedPlan' }
   /api/{uni}/plans/sync:
     post:
       tags: [Combat]
@@ -6740,7 +6759,7 @@ paths:
           description: Plan created; `claimedBy` names the member holding the target claim instead, if any
           content:
             application/json:
-              schema: { type: object, properties: { id: { type: integer }, claimedBy: { type: [string, 'null'] } } }
+              schema: { $ref: '#/components/schemas/ClaimedPlan' }
         '404':
           description: Attack arrived, already planned, not pasted or not the caller's (`attack_not_found`)
           content:
@@ -7117,7 +7136,12 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [id, expires_at]
+                properties:
+                  id: { type: integer }
+                  expires_at: { type: integer, description: Epoch seconds }
   /api/{uni}/comments:
     get:
       tags: [Social]
@@ -7157,7 +7181,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Created' }
   /api/{uni}/comments/counts:
     get:
       tags: [Social]
@@ -7474,7 +7498,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
         '401':
           description: Wrong username or password (`login_failed`)
           content:
@@ -7495,7 +7519,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/auth/lang:
     post:
       tags: [Auth]
@@ -7506,7 +7530,12 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [ok, lang]
+                properties:
+                  ok: { type: boolean }
+                  lang: { type: string, enum: [de, en] }
   /api/auth/username:
     post:
       tags: [Auth]
@@ -7517,7 +7546,12 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [ok, username]
+                properties:
+                  ok: { type: boolean }
+                  username: { type: string }
         '400':
           description: Wrong password or invalid username (`password_wrong`, `username_invalid`)
           content:
@@ -7589,7 +7623,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
         '400':
           description: Old password wrong or new one invalid (`old_password_wrong`, `password_too_short`, `password_too_long`)
           content:
@@ -7692,7 +7726,27 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [group, role, expiresAt, recovery]
+                properties:
+                  group:
+                    type: [object, 'null']
+                    description: Alliance the invite adds to (null for a hub invite without one)
+                    required: [name, universe]
+                    properties:
+                      name: { type: string }
+                      universe: { type: string, description: Name of the universe }
+                  role: { type: string, enum: [member, admin] }
+                  expiresAt: { type: integer, description: Epoch seconds }
+                  member:
+                    type: object
+                    description: In-game name of the placeholder member the link claims (when known)
+                    required: [name]
+                    properties:
+                      name: { type: string }
+                  recovery: { type: boolean, description: The link sets a new password of an existing account }
+                  username: { type: string, description: Username of the account the link is for (claim and recovery links) }
   /api/invites/{token}/accept:
     post:
       tags: [Auth]
@@ -7705,7 +7759,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/universes:
     post:
       tags: [Admin]
@@ -7725,7 +7779,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/universes/{slug}:
     put:
       tags: [Admin]
@@ -7747,7 +7801,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/users/{userId}:
     put:
       tags: [Admin]
@@ -7760,7 +7814,12 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [ok, username]
+                properties:
+                  ok: { type: boolean }
+                  username: { type: string }
   /api/admin/groups:
     get:
       tags: [Admin]
@@ -7771,7 +7830,17 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, tag, universe, members]
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    tag: { type: [string, 'null'] }
+                    universe: { type: string, description: Slug of the universe }
+                    members: { type: integer }
     post:
       tags: [Admin]
       operationId: createGroup
@@ -7794,7 +7863,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/groups/{id}/members/{userId}:
     put:
       tags: [Admin]
@@ -7819,7 +7888,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
         '400':
           description: Invalid display name (`display_name_invalid`)
           content:
@@ -7837,7 +7906,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/groups/{id}/members/{userId}/invite:
     post:
       tags: [Admin]
@@ -7875,7 +7944,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/parser-samples:
     get:
       tags: [Admin]
@@ -7926,7 +7995,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/admin/groups/{id}/ingests:
     get:
       tags: [Admin]
@@ -7939,7 +8008,26 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                description: The group's newest syncs (up to 200)
+                items:
+                  type: object
+                  required: [id, source, page_type, url, summary, created_at, username, synced_by, html_size, text_size]
+                  properties:
+                    id: { type: integer }
+                    source: { type: [string, 'null'] }
+                    page_type: { type: [string, 'null'] }
+                    url: { type: [string, 'null'] }
+                    summary:
+                      type: object
+                      description: What the sync stored (counts per record kind, warnings) and `about`, a description of its content
+                      additionalProperties: true
+                    created_at: { type: integer }
+                    username: { type: [string, 'null'], description: Member whose data the sync is }
+                    synced_by: { type: [string, 'null'], description: Member who sent it (a sync for someone else) }
+                    html_size: { type: [integer, 'null'], description: Stored page size in bytes (compressed) }
+                    text_size: { type: [integer, 'null'] }
   /api/admin/groups/{id}/activity/backfill:
     post:
       tags: [Admin]
@@ -8000,7 +8088,22 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                description: What taking the sync back removes (`dryRun`) or removed
+                required: [snapshots, scores, activity, players, alliances, kept, empires, overviews, fleets, spyReports, skipped]
+                properties:
+                  snapshots: { type: integer, description: Statistics snapshots left without score rows }
+                  scores: { type: integer, description: Score rows the sync brought }
+                  activity: { type: integer }
+                  players: { type: array, items: { type: string }, description: Players only the snapshots brought in }
+                  alliances: { type: array, items: { type: string } }
+                  kept: { type: array, items: { type: string }, description: Players of the snapshots kept because other data refers to them }
+                  empires: { type: integer }
+                  overviews: { type: integer }
+                  fleets: { type: integer }
+                  spyReports: { type: integer }
+                  skipped: { type: array, items: { type: string }, description: Record kinds of the sync that cannot be taken back }
   /api/{uni}/ingest:
     post:
       tags: [Universe]
@@ -8058,7 +8161,37 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, description: 'universe.json as the game tools read it: [universe, players, alliances]' }
+              schema:
+                type: array
+                description: 'universe.json as the game tools read it: [universe, players, alliances]'
+                prefixItems:
+                  - type: object
+                    description: 'Per system seen in the galaxy ("G:S"): positions "1".."N" (null when free) and `timepoint` (ms)'
+                    additionalProperties:
+                      type: object
+                      additionalProperties:
+                        oneOf:
+                          - type: 'null'
+                          - type: integer
+                          - type: object
+                            required: [planetname, hasmoon, playerid, name, allianceid, alliancename, special]
+                            properties:
+                              planetname: { type: string }
+                              hasmoon: { type: boolean }
+                              playerid: { type: integer }
+                              name: { type: string }
+                              allianceid: { type: integer, description: '-1 without alliance' }
+                              alliancename: { type: string }
+                              special: { type: string, description: Status letters as in the game's export }
+                  - type: object
+                    description: Players by in-game id
+                    additionalProperties: { $ref: '#/components/schemas/UniverseJsonName' }
+                  - type: object
+                    description: Alliances by in-game id (-1 without alliance)
+                    additionalProperties: { $ref: '#/components/schemas/UniverseJsonName' }
+                items: { type: object, additionalProperties: true }
+                minItems: 3
+                maxItems: 3
     post:
       tags: [Universe]
       operationId: uploadUniverseJson
@@ -8072,7 +8205,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/IngestSummary' }
   /api/{uni}/phalanx:
     post:
       tags: [Combat]
@@ -8087,7 +8220,11 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [attacks]
+                properties:
+                  attacks: { type: integer, description: Hostile attacks the scan showed }
   /api/{uni}/plans/retime:
     post:
       tags: [Combat]
@@ -8102,7 +8239,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/ClaimedPlan' }
   /api/{uni}/plans/hold:
     post:
       tags: [Combat]
@@ -8117,7 +8254,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Created' }
   /api/{uni}/plans/{id}:
     put:
       tags: [Combat]
@@ -8133,7 +8270,12 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [ok, claimedBy]
+                properties:
+                  ok: { type: boolean }
+                  claimedBy: { type: [string, 'null'], description: Hub name of the member holding the claim when the change claimed the target, else null }
     delete:
       tags: [Combat]
       operationId: deletePlan
@@ -8148,7 +8290,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/plans/{id}/phalanx:
     delete:
       tags: [Combat]
@@ -8164,7 +8306,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/plans/{id}/enemy:
     put:
       tags: [Combat]
@@ -8180,7 +8322,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/plans/{id}/fleets:
     post:
       tags: [Combat]
@@ -8196,7 +8338,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Created' }
   /api/{uni}/plans/{id}/fleets/{fleet}:
     parameters:
       - { $ref: '#/components/parameters/Uni' }
@@ -8213,7 +8355,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
     delete:
       tags: [Combat]
       operationId: deletePlanFleet
@@ -8223,7 +8365,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/claims/{id}:
     put:
       tags: [Social]
@@ -8239,7 +8381,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
     delete:
       tags: [Social]
       operationId: deleteClaim
@@ -8254,7 +8396,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/comments/{id}:
     put:
       tags: [Social]
@@ -8270,7 +8412,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
     delete:
       tags: [Social]
       operationId: deleteComment
@@ -8285,7 +8427,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/deck/events:
     post:
       tags: [Combat]
@@ -8316,7 +8458,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/players/{id}/note:
     put:
       tags: [Intelligence]
@@ -8332,7 +8474,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/messages/{id}/share:
     post:
       tags: [Social]
@@ -8348,4 +8490,8 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [shared]
+                properties:
+                  shared: { type: boolean }
