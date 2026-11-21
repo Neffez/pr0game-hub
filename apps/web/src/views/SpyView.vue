@@ -11,6 +11,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { readError, uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
 import { useLoader, useMobile, useProgressive, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -24,7 +25,7 @@ const router = useRouter();
 const target = ref(String(route.query.c ?? ''));
 const type = ref(route.query.type === 'moon' ? 'moon' : 'planet');
 const limit = ref(20);
-const recent = ref<any[]>([]);
+const recent = ref<ApiResponse<'/api/{uni}/spy-reports'>>([]);
 const recentDone = ref(false);
 let recentLoading = false;
 const RECENT_BATCH = 100;
@@ -36,7 +37,7 @@ const { data, error, load } = useLoader(async () => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
   if (!m) return null;
   router.replace({ query: { ...route.query, c: `${m[1]}:${m[2]}:${m[3]}`, type: type.value } });
-  return uniApi<{ reports: SpyReport[]; total: number }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
+  return uniApi<ApiResponse<'/api/{uni}/spy/{g}/{s}/{p}'>>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
 });
 const reports = computed(() => data.value?.reports ?? []);
 /** For a moon: the newest report of its planet, whose interceptors defend the moon against missiles. */
@@ -46,7 +47,7 @@ watch(data, async () => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
   if (!m || type.value !== 'moon' || !data.value?.reports.length) return;
   try {
-    const res = await uniApi<{ reports: SpyReport[] }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=planet&limit=1`);
+    const res = await uniApi<ApiResponse<'/api/{uni}/spy/{g}/{s}/{p}'>>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=planet&limit=1`);
     planetReport.value = res.reports[0] ?? null;
   } catch {
     // the link then leaves the interceptors to the user
@@ -75,7 +76,7 @@ async function appendRecent() {
   const last = recent.value.at(-1);
   try {
     const before = last ? `&before=${last.report_time}:${last.id}` : '';
-    const batch = await uniApi<any[]>(uni.value, `/spy-reports?limit=${RECENT_BATCH}${before}`);
+    const batch = await uniApi<ApiResponse<'/api/{uni}/spy-reports'>>(uni.value, `/spy-reports?limit=${RECENT_BATCH}${before}`);
     if (gen !== recentGen) return;
     const have = new Set(recent.value.map((r) => r.id));
     // push in place: replacing the array would reset useProgressive's visible count
@@ -173,7 +174,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
       <span class="m-line">
         <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
         <span v-if="r.planet_type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
-        <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name" @click.stop />
+        <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name ?? ''" @click.stop />
         <span v-else>{{ r.player_name }}</span>
         <span class="muted small al-ellipsis">{{ r.planet_name }}</span>
       </span>
@@ -197,7 +198,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
           <td class="small mono">{{ timeWithAge(r.report_time) }}</td>
           <td class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.planet_type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px"><Icon name="moon" :size="12" :label="t('common.moon')" /></span></td>
           <td>
-            <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name" />
+            <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name ?? ''" />
             <span v-else>{{ r.player_name }}</span>
           </td>
           <td class="muted">{{ r.planet_name }}</td>

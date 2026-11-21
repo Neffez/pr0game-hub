@@ -4,7 +4,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { readError, uniApi } from '../api';
-import type { Schema } from '../apiTypes';
+import type { ApiResponse, Schema } from '../apiTypes';
 import { useClock } from '../clock';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
@@ -26,38 +26,15 @@ import { useAutoTour } from '../tours';
  * will the planet hold, which fleet save is possible before the impact, what the attacker can take, and who of the
  * alliance can still land a hold. Everything in the game is done by hand.
  */
-interface C3 { g: number; s: number; p: number }
-type Res = { metal: number; crystal: number; deuterium: number };
-interface Range { avg: number; min: number; max: number }
-interface Assist {
-  attack: {
-    key: string; arrival: number; from: C3 & { type: 'planet' | 'moon' }; to: C3 & { type: 'planet' | 'moon' }; source: 'overview' | 'phalanx';
-    fleets: { mission: number | null; ships: Record<string, number> }[]; player: { id: number; name: string } | null; member: string | null;
-  };
-  member: { id: number; name: string | null } | null;
-  target: (C3 & { type: 'planet' | 'moon'; name: string; values: Record<string, number>; present: Record<string, number>; resources: Res | null; empireTime: number; deuterium: number | null; perHour: Record<string, number> | null }) | null;
-  bodies: (C3 & { type: 'planet' | 'moon'; name: string })[];
-  research: Record<string, number>;
-  attacker: { player: { id: number; name: string } | null; research: { values: Record<string, number>; time: number } | null; ships: Record<string, number>; estimated: { time: number } | null };
-  away: { ships: Record<string, number>; fleets: number; unknown: boolean } | null;
-  loot: Res | null;
-  helpers: { userId: number; member: string; from: C3 & { type: 'planet' | 'moon'; name: string }; ships: Record<string, number>; points: number; duration: number; launch: number }[];
-  holdPlan: number | null;
-  holds: { member: string | null; player: string | null; from: C3 & { type: string | null }; ships: Record<string, number>; research: Record<string, number>; arrival: number | null }[];
-  phalanx: { moon: C3; level: number; player: { name: string; ally: string | null } | null }[];
-  simulated: boolean;
-  sim: null | { error: string } | {
-    error: null; runs: number; wins: { attacker: number; defender: number; draw: number }; rounds: number;
-    loot: Res; debris: { metal: Range; crystal: Range }; lostResources: { attacker: Res; defender: Res };
-  };
-  now: number;
-}
+type Assist = Schema<'AttackAssist'>;
+type C3 = Schema<'PageCoords'>;
+type Res = Schema<'RiskResources'>;
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const route = useRoute();
 const query = computed(() => new URLSearchParams(Object.entries(route.query).filter(([k, v]) => ['key', 'member', 'arrival', 'from'].includes(k) && typeof v === 'string') as [string, string][]));
-const { data, error, load } = useLoader(() => uniApi<Assist>(uni.value, `/attack-assist?${query.value}`));
+const { data, error, load } = useLoader(() => uniApi<Schema<'AttackAssist'>>(uni.value, `/attack-assist?${query.value}`));
 onMounted(load);
 watch(query, load);
 useLiveReload(load, tables('fleets', 'empire', 'attack_plans'));
@@ -111,12 +88,12 @@ watch(
   async (g) => {
     if (g == null) return;
     try {
-      ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${g}`));
+      ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<ApiResponse<'/api/{uni}/debris-fields'>>(uni.value, `/debris-fields?g=${g}`));
     } catch {
       /* without them no recycling */
     }
     try {
-      ({ systems: free.value } = await uniApi<{ systems: Record<string, FreeSystem[]> }>(uni.value, `/free-positions?g=${g}`));
+      ({ systems: free.value } = await uniApi<ApiResponse<'/api/{uni}/free-positions'>>(uni.value, `/free-positions?g=${g}`));
     } catch {
       /* without them no colonization */
     }

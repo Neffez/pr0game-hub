@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiResponse, Schema, GoalSettings } from '../apiTypes';
+import type { AccessRequests, ApiResponse, GoalSettings, Schema } from '../apiTypes';
 import { startTour, useAutoTour } from '../tours';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
@@ -21,17 +21,7 @@ import { useRoute } from 'vue-router';
 import { api, loadMe, readError, selectedGroup, session } from '../api';
 import { clockTime, coords, dateTime, fmt, STATS_CATEGORIES } from '../format';
 
-type FleetAttackRow = {
-  userId: number;
-  member: string;
-  key: string;
-  owner: string;
-  arrival: number;
-  from: { g: number; s: number; p: number; type: string };
-  to: { g: number; s: number; p: number; type: string };
-  mission: number | null;
-  fleets: number;
-};
+type FleetAttackRow = Schema<'StoredFleetAttack'>;
 
 const { t } = useI18n();
 const route = useRoute();
@@ -163,11 +153,11 @@ const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
 /** Parser samples members sent (E-4, hub admins). */
-interface Sample { id: number; group_name: string; universe: string; username: string | null; code: string; page: string | null; note: string | null; created_at: number }
+type Sample = ApiResponse<'/api/admin/parser-samples'>[number];
 const samples = ref<Sample[]>([]);
 const BASE_URL = import.meta.env.BASE_URL;
 const loadSamples = async () => {
-  if (isAdmin.value) samples.value = await api<Sample[]>('/admin/parser-samples');
+  if (isAdmin.value) samples.value = await api<ApiResponse<'/api/admin/parser-samples'>>('/admin/parser-samples');
 };
 async function deleteSample(id: number) {
   await api(`/admin/parser-samples/${id}`, { method: 'DELETE' });
@@ -176,7 +166,7 @@ async function deleteSample(id: number) {
 const fleetAttacks = ref<FleetAttackRow[]>([]);
 const newMemberName = ref('');
 /** existing accounts (e.g. from the alliance in another universe) that can join this alliance */
-type Candidate = { id: number; username: string; account: boolean; ingameName: string | null; groups: string[] };
+type Candidate = ApiResponse<'/api/admin/groups/{id}/candidates'>[number];
 const candidates = ref<Candidate[]>([]);
 const assignUserId = ref<number | null>(null);
 const assignIngame = ref('');
@@ -228,8 +218,8 @@ async function loadGroup() {
     // sync history is technical administration: global admins only
     isAdmin.value ? api<ApiResponse<'/api/admin/groups/{id}/ingests'>>(`/admin/groups/${groupId.value}/ingests`) : [],
     api<ApiResponse<'/api/admin/groups/{id}/discord'>>(`/admin/groups/${groupId.value}/discord`),
-    isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
-    api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
+    isAdmin.value ? api<ApiResponse<'/api/admin/groups/{id}/fleet-attacks'>>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
+    api<ApiResponse<'/api/admin/groups/{id}/candidates'>>(`/admin/groups/${groupId.value}/candidates`),
     api<GoalSettings>(`/admin/groups/${groupId.value}/goals`),
   ]);
   if (id !== groupLoad) return;
@@ -391,8 +381,8 @@ const renameUser = (m: any) => run(async () => {
 }, 'account.usernameChanged');
 const addMember = () =>
   run(async () => {
-    const res = await api<{ id: number; token: string }>(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
-    freshInvites.value = { ...freshInvites.value, [res.id]: res.token };
+    const res = await api<ApiResponse<'/api/admin/groups/{id}/members', 'post'>>(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    if (res.token) freshInvites.value = { ...freshInvites.value, [res.id]: res.token };
     newMemberName.value = '';
     await loadGroup();
   }, 'deck.saved');
@@ -409,7 +399,7 @@ const assignMember = () =>
 const freshInvites = ref<Record<number, string>>({});
 const memberInvite = (m: any) =>
   run(async () => {
-    const res = await api<{ token: string }>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
+    const res = await api<ApiResponse<'/api/admin/groups/{id}/members/{userId}/invite', 'post'>>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
     freshInvites.value = { ...freshInvites.value, [m.id]: res.token };
     copy(inviteUrl(res.token));
     await loadGroup();
@@ -426,11 +416,6 @@ const removeMember = (m: any) => {
   });
 };
 /** access requests from the login page (global admins) and the players without an account to assign them to */
-type AccessRequests = {
-  /** placeholder: the player without an account whose login name the request carries (the only one it can go to) */
-  requests: { id: number; username: string; message: string; created_at: number; placeholder: number | null }[];
-  placeholders: { id: number; name: string; group: string; universe: string }[];
-};
 const access = ref<AccessRequests>({ requests: [], placeholders: [] });
 const accessTarget = ref<Record<number, number | ''>>({});
 /** alliance admins assign requests to players of their alliances; rejecting is up to global admins */
@@ -500,14 +485,11 @@ const ingestSorts = ['time', 'user', 'content'] as const;
 const ingestLabel = (k: string) => t(k === 'time' ? 'common.time' : k === 'user' ? 'nav.user' : 'admin.content');
 
 /** dry run of taking a sync back, shown under its row until confirmed */
-type Undo = {
-  id: number; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[];
-  empires: number; overviews: number; fleets: number; spyReports: number; skipped: string[];
-};
+type Undo = ApiResponse<'/api/admin/ingests/{id}/delete', 'post'> & { id: number };
 const undo = ref<Undo | null>(null);
 const previewUndo = (id: number) =>
   run(async () => {
-    undo.value = { ...(await api<Omit<Undo, 'id'>>(`/admin/ingests/${id}/delete`, { body: { dryRun: true } })), id };
+    undo.value = { ...(await api<ApiResponse<'/api/admin/ingests/{id}/delete', 'post'>>(`/admin/ingests/${id}/delete`, { body: { dryRun: true } })), id };
   });
 const runUndo = () =>
   run(async () => {

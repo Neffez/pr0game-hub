@@ -83,3 +83,8 @@ export type MarketRate = Schema<'MarketRate'>;
 export type UniContext = Omit<Schema<'Context'>, 'universe'> & {
   universe: Omit<Schema<'Universe'>, 'settings' | 'units'> & { settings: UniverseSettings; units: UnitOverrides };
 };
+
+export type Imperium = ApiResponse<'/api/{uni}/imperium'>;
+
+/** Ships, defense and missiles of a universe for the admin (`overrides` takes the core's type, looser in the spec). */
+export type UnitsAdmin = Omit<Schema<'UnitsAdmin'>, 'overrides'> & { overrides: UnitOverrides };

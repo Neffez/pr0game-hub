@@ -5,6 +5,7 @@ import { DEFAULT_UNIT_DEFS, emptyUnit, isUnitId, unitCatalog, unitPatch, type Sh
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, readError } from '../api';
+import type { ApiResponse, UnitsAdmin } from '../apiTypes';
 import { fmt } from '../format';
 import Icon from './Icon.vue';
 
@@ -16,27 +17,8 @@ const props = defineProps<{ slug: string }>();
 const { t, locale } = useI18n();
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'));
 
-interface ParsedUnit {
-  id: number;
-  name?: string;
-  cost?: [number, number, number];
-  req?: Record<string, number>;
-  one?: boolean;
-  structure?: number;
-  attack?: number;
-  shield?: number;
-  capacity?: number;
-  drives?: ShipDrives | null;
-  rapidfire?: Record<string, number>;
-  rapidfireFrom?: Record<string, number>;
-}
-interface UnitPage {
-  kind: 'shipyard' | 'techtree' | 'info';
-  lang: 'de' | 'en';
-  units: ParsedUnit[];
-  unknown: string[];
-  mode?: 'fleet' | 'defense';
-}
+type UnitPage = ApiResponse<'/api/admin/universes/{slug}/units/parse', 'post'>;
+type ParsedUnit = UnitPage['units'][number];
 
 const saved = ref<UnitOverrides>({});
 const overrides = ref<UnitOverrides>({});
@@ -46,7 +28,7 @@ const error = ref('');
 async function load() {
   loading.value = true;
   try {
-    const res = await api<{ overrides: UnitOverrides }>(`/admin/universes/${props.slug}/units`);
+    const res = await api<UnitsAdmin>(`/admin/universes/${props.slug}/units`);
     saved.value = res.overrides;
     overrides.value = structuredClone(res.overrides);
   } catch (e) {
@@ -180,7 +162,7 @@ async function parse() {
   parsing.value = true;
   error.value = '';
   try {
-    const page = await api<UnitPage>(`/admin/universes/${props.slug}/units/parse`, { body: { html: pasteHtml.value, names: pastedNames.value } });
+    const page = await api<ApiResponse<'/api/admin/universes/{slug}/units/parse', 'post'>>(`/admin/universes/${props.slug}/units/parse`, { body: { html: pasteHtml.value, names: pastedNames.value } });
     for (const u of page.units) {
       if (u.name) pastedNames.value[u.name] = u.id;
       const { rapidfireFrom, ...rest } = u;
@@ -296,7 +278,7 @@ function clearPaste() {
 }
 
 async function save() {
-  const res = await api<{ overrides: UnitOverrides }>(`/admin/universes/${props.slug}/units`, { method: 'PUT', body: { units: overrides.value } });
+  const res = await api<UnitsAdmin>(`/admin/universes/${props.slug}/units`, { method: 'PUT', body: { units: overrides.value } });
   saved.value = res.overrides;
   overrides.value = structuredClone(res.overrides);
 }

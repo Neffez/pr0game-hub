@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { Schema } from '../apiTypes';
 import { useClock } from '../clock';
 import { addToBuildOrder } from '../buildOrderAdd';
 import { useStored, useUni } from '../composables';
@@ -17,40 +18,12 @@ import StatusBadges from './StatusBadges.vue';
  * the defense that turns every chosen attack into a loss. Building is done in the game; the units can go into the
  * build order.
  */
-interface C3 { g: number; s: number; p: number }
-type Res = { metal: number; crystal: number; deuterium: number };
-type Reason = 'spied' | 'attacked' | 'incoming' | 'nearby';
-interface Threat {
-  key: string;
-  player: { id: number | null; name: string; status: string[]; allyTag: string | null };
-  reasons: { kind: Reason; count: number; last: number | null }[];
-  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming' | 'battles'; time: number; from: C3 | null };
-  fleetPoints: { points: number; time: number } | null;
-  research: { values: Record<string, number>; known: boolean; time: number | null };
-  flight: Flight | null;
-  heavy: { units: Record<string, number>; points: number; flight: Flight | null } | null;
-}
-type Flight = { from: C3; distance: number; duration: number; fuel: number };
-interface Outcome { key: string; profit: number; loot: Res; debris: { metal: number; crystal: number }; lost: Res; defenderLost: Res; fuel: number; wins: number }
-interface Advice {
-  error: string | null;
-  status: 'safe' | 'found' | 'limit' | 'budget';
-  before: Outcome[];
-  after: Outcome[] | null;
-  add: Record<string, number>;
-  cost: Res;
-  costValue: number;
-  battles: number;
-  runs: number;
-}
-interface Data {
-  planet: { key: string; name: string; coords: C3; type: 'planet' | 'moon'; time: number; units: Record<string, number>; research: Record<string, number>; resources: Res; defenseValue: number };
-  rate: { m: number; k: number; source: 'market' | 'default' };
-  candidates: number[];
-  threats: Threat[];
-  simulated: string[];
-  advice: Advice | null;
-}
+type Data = Schema<'DefenseAdvice'>;
+type Threat = Schema<'DefenseThreat'>;
+type Outcome = Schema<'ThreatOutcome'>;
+type Res = Schema<'RiskResources'>;
+/** the search result, or `{ error }` when the simulator is busy or missing */
+type Advice = NonNullable<Data['advice']>;
 interface HubPlanet { key: string; type: 'planet' | 'moon'; planet: { values: Record<string, number> } }
 
 const props = defineProps<{
@@ -71,6 +44,8 @@ const running = ref(false);
 /** threats left out by the viewer (per planet while the page is open) */
 const off = ref(new Set<string>());
 const advice = ref<Advice | null>(null);
+/** the advice when the search ran */
+const found = computed(() => (advice.value && advice.value.error === null ? advice.value : null));
 
 const query = (sim: boolean) => {
   const q = new URLSearchParams({ planet: props.planetKey, ships: ships.value ? '1' : '0', debris: debris.value ? '1' : '0', loot: loot.value });
@@ -90,7 +65,7 @@ async function load() {
   error.value = null;
   advice.value = null;
   try {
-    const d = await uniApi<Data>(uni.value, query(false));
+    const d = await uniApi<Schema<'DefenseAdvice'>>(uni.value, query(false));
     if (id === latest) data.value = d;
   } catch (e) {
     if (id !== latest) return;
@@ -119,7 +94,7 @@ async function calculate() {
   error.value = null;
   added.value = false;
   try {
-    const d = await uniApi<Data>(uni.value, query(true));
+    const d = await uniApi<Schema<'DefenseAdvice'>>(uni.value, query(true));
     if (id !== latest) return;
     data.value = d;
     advice.value = d.advice;
@@ -148,7 +123,7 @@ const HEAVY = ':heavy';
 /** the ways a threat attacks: full fleet, and heavy ships only when it has others too */
 const variants = (x: Threat) => [{ key: x.key, heavy: false }, ...(x.heavy ? [{ key: `${x.key}${HEAVY}`, heavy: true }] : [])];
 /** the result shows a variant (it was calculated) */
-const shown = (key: string) => !!outcomeOf(advice.value?.before, key);
+const shown = (key: string) => !!outcomeOf(found.value?.before, key);
 const profitText = (o: Outcome | null) => (o ? `${o.profit > 0 ? '+' : ''}${short(Math.round(o.profit))} ${t('common.deutShort')}` : '–');
 const profitTitle = (o: Outcome | null) =>
   o
@@ -162,20 +137,20 @@ const profitTitle = (o: Outcome | null) =>
       ].join('\n')
     : '';
 const rateText = computed(() => (data.value ? `${fmt(data.value.rate.m, 2)} : ${fmt(data.value.rate.k, 2)} : 1` : ''));
-const addList = computed(() => Object.entries(advice.value?.add ?? {}).filter(([, n]) => n > 0).map(([id, n]) => ({ id: Number(id), n })));
+const addList = computed(() => Object.entries(found.value?.add ?? {}).filter(([, n]) => n > 0).map(([id, n]) => ({ id: Number(id), n })));
 const lootSum = computed(() => (data.value ? data.value.planet.resources.metal + data.value.planet.resources.crystal + data.value.planet.resources.deuterium : 0));
 
 /** the strongest chosen attacker against the planet with the advice, in the battle simulator */
 const simLink = computed(() => {
   const d = data.value;
   if (!d || !ctx.value) return null;
-  const key = [...(advice.value?.after ?? advice.value?.before ?? [])].sort((a, b) => b.profit - a.profit)[0]?.key;
+  const key = [...(found.value?.after ?? found.value?.before ?? [])].sort((a, b) => b.profit - a.profit)[0]?.key;
   const heavy = !!key?.endsWith(HEAVY);
   const x = d.threats.find((th) => th.key === key?.replace(HEAVY, '')) ?? chosen.value[0];
   if (!x) return null;
   const ships = heavy && x.heavy ? x.heavy.units : x.fleet.units;
   const values: Record<string, number> = { ...d.planet.units, ...d.planet.research, 901: d.planet.resources.metal, 902: d.planet.resources.crystal, 903: d.planet.resources.deuterium };
-  for (const [id, n] of Object.entries(advice.value?.add ?? {})) values[id] = (values[id] ?? 0) + n;
+  for (const [id, n] of Object.entries(found.value?.add ?? {})) values[id] = (values[id] ?? 0) + n;
   const from = x.flight?.from ?? x.fleet.from;
   return battleSimLink(
     ctx.value.universe.settings, values, [{ ships, research: x.research.values, from: from ? [from.g, from.s, from.p] : null, name: x.player.name }],
@@ -253,9 +228,9 @@ async function addToOrder() {
           <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-line">
             <span class="muted">{{ v.heavy ? t('defense.heavyOnly') : t('defense.fullFleet') }}</span>
             <b>
-              <span :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</span>
-              <template v-if="advice?.after">
-                → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice.after, v.key))">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
+              <span :class="outcomeOf(found?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(found?.before, v.key))">{{ profitText(outcomeOf(found?.before, v.key)) }}</span>
+              <template v-if="found?.after">
+                → <span :class="(outcomeOf(found.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(found.after, v.key))">{{ profitText(outcomeOf(found.after, v.key)) }}</span>
               </template>
             </b>
           </div>
@@ -300,10 +275,10 @@ async function addToOrder() {
                   <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-profit">
                     <div>
                       <span v-if="x.heavy" class="faint small">{{ v.heavy ? t('defense.heavyShort') : t('defense.fullShort') }} </span>
-                      <b :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</b>
+                      <b :class="outcomeOf(found?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(found?.before, v.key))">{{ profitText(outcomeOf(found?.before, v.key)) }}</b>
                     </div>
-                    <div v-if="advice?.after" class="small" :title="profitTitle(outcomeOf(advice.after, v.key))">
-                      → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
+                    <div v-if="found?.after" class="small" :title="profitTitle(outcomeOf(found.after, v.key))">
+                      → <span :class="(outcomeOf(found.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(found.after, v.key)) }}</span>
                     </div>
                   </div>
                 </template>
@@ -342,8 +317,8 @@ async function addToOrder() {
       <!-- result -->
       <div v-if="advice" class="def-result" data-tour="build-defense-result">
         <p v-if="advice.error" class="error small">{{ t('defense.error', { code: advice.error }) }}</p>
-        <template v-else>
-          <p class="small" :class="advice.status === 'safe' || advice.status === 'found' ? 'pos' : 'warn'">{{ t(`defense.status.${advice.status}`) }}</p>
+        <template v-else-if="found">
+          <p class="small" :class="found.status === 'safe' || found.status === 'found' ? 'pos' : 'warn'">{{ t(`defense.status.${found.status}`) }}</p>
           <template v-if="addList.length">
             <div class="def-build">
               <div v-for="a in addList" :key="a.id" class="def-unit">
@@ -351,8 +326,8 @@ async function addToOrder() {
               </div>
             </div>
             <p class="small">
-              {{ t('defense.cost') }}: <b :title="resTitle(advice.cost)">{{ short(advice.cost.metal) }} / {{ short(advice.cost.crystal) }} / {{ short(advice.cost.deuterium) }}</b>
-              <span class="muted"> · {{ short(Math.round(advice.costValue)) }} {{ t('common.deutShort') }}</span>
+              {{ t('defense.cost') }}: <b :title="resTitle(found.cost)">{{ short(found.cost.metal) }} / {{ short(found.cost.crystal) }} / {{ short(found.cost.deuterium) }}</b>
+              <span class="muted"> · {{ short(Math.round(found.costValue)) }} {{ t('common.deutShort') }}</span>
             </p>
             <div class="row small">
               <template v-if="data.planet.type === 'planet'">
@@ -362,7 +337,7 @@ async function addToOrder() {
               <a v-if="simLink" :href="simLink" target="_blank" rel="noopener">{{ t('attack.openSim') }}</a>
             </div>
           </template>
-          <p class="faint small m-0">{{ t('defense.basis', { battles: fmt(advice.battles), runs: advice.runs }) }}</p>
+          <p class="faint small m-0">{{ t('defense.basis', { battles: fmt(found.battles), runs: found.runs }) }}</p>
         </template>
       </div>
     </template>

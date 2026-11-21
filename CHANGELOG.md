@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
+  buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
+  check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;
+  only the loot settlement view is left (`MAX_HAND_WRITTEN` 5). The spec describes these answers completely now: new
+  schemas `AttackAssist` (its attack is the new `IncomingAttack`, `HostileAttack` adds the plans and hidden mark),
+  `Imperium` with `EmpirePage` and `OverviewPage`, `BuildPlanet` and `ShownLevels` for the buildings page,
+  `DefenseAdvice` with `DefenseThreat` and `ThreatOutcome`, `SpyHistoryReport` and `SpySections`, `PhalanxThreat`,
+  `UnitDrives` (drive and cost triples as tuples) and the parsed units of the unit editor, plus `required` fields for
+  debris, moon chances, search, hostile spying, galaxy, fleet and building alerts, parser samples and more.
 - Web API types, first part: the notifications, plans (with their enemy fleet, guests and member drives), own and
   hostile attacks, universe context, market, comments, push and account settings, tours and presence take their
   answer types from the OpenAPI spec (34 hand-written types fewer, `MAX_HAND_WRITTEN` 48). For that the spec now

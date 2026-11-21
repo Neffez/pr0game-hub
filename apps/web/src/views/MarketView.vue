@@ -25,7 +25,7 @@ const RES_ID: Record<Res, number> = { m: 901, k: 902, d: 903 };
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const { data, error, load } = useLoader(() =>
-  uniApi<Market>(uni.value, '/market'),
+  uniApi<ApiResponse<'/api/{uni}/market'>>(uni.value, '/market'),
 );
 onMounted(load);
 useLiveReload(load, tables('market_rates', 'market_offers', 'market_trades'));

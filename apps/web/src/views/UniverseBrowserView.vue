@@ -11,6 +11,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { downloadUniverseJson, uniApi } from '../api';
+import type { ApiResponse, Schema } from '../apiTypes';
 import ActionMenu from '../components/ActionMenu.vue';
 import Hint from '../components/Hint.vue';
 import Section from '../components/Section.vue';
@@ -23,34 +24,9 @@ import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 import { useQuickSyncItem } from '../quickSync';
 
 /** Galaxy view like in the game, from the synced galaxy data (no activity, no deuterium). */
+type Row = Schema<'GalaxySystem'>['rows'][number];
 /** Last spy report of a planet/moon: time and the resources it showed. */
-interface Spy {
-  time: number;
-  res: Record<string, number> | null;
-  resTime: number | null;
-}
-interface Row {
-  p: number;
-  name: string | null;
-  has_moon: number;
-  moon_name: string | null;
-  moon_diameter: number | null;
-  destroyed: number;
-  debris: { metal: string; crystal: string } | null;
-  updated_at: number;
-  player_id: number | null;
-  player_name: string | null;
-  status: string[];
-  note: string | null;
-  ally_name: string | null;
-  ally_tag: string | null;
-  points: number | null;
-  rank: number | null;
-  spy_planet: Spy | null;
-  spy_moon: Spy | null;
-  last_battle: number | null;
-  own: boolean;
-}
+type Spy = NonNullable<Schema<'SpyMark'>>;
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
@@ -65,29 +41,16 @@ const s = ref(clamp(Number(route.query.s ?? last.value.s), settings.value.system
 const jump = ref('');
 
 /** Moon with a sensor phalanx that reaches the shown system. */
-interface Phalanx {
-  g: number;
-  s: number;
-  p: number;
-  level: number;
-  range: number;
-  from: number;
-  to: number;
-  distance: number;
-  time: number;
-  source: 'spy' | 'empire';
-  own: boolean;
-  player: { id: number | null; name: string; ally: string | null; vacation?: boolean } | null;
-}
+type Phalanx = Schema<'GalaxySystem'>['phalanx'][number];
 
 /** reference time of the ages shown (the data's load time) */
 const now = ref(nowSec());
 
 const { data: system, error, load: fetchSystem } = useLoader(() =>
-  uniApi<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] }>(uni.value, `/browse/${g.value}/${s.value}`),
+  uniApi<Schema<'GalaxySystem'>>(uni.value, `/browse/${g.value}/${s.value}`),
 );
 const { data: strip, load: loadStrip } = useLoader(() =>
-  uniApi<{ planets: Record<string, number>; points: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
+  uniApi<ApiResponse<'/api/{uni}/browse/{g}'>>(uni.value, `/browse/${g.value}`),
 );
 function loadSystem() {
   now.value = nowSec();

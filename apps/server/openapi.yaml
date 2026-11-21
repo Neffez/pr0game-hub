@@ -130,6 +130,7 @@ components:
         buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
     FalseAlarmSummary:
       type: object
+      required: [days, positives, players, horizons, bands]
       properties:
         days: { type: integer, description: Days sampled }
         positives: { type: integer, description: Scores of at least likely (player-days) }
@@ -138,6 +139,7 @@ components:
           type: array
           items:
             type: object
+            required: [hours, contradicted, players, rate]
             properties:
               hours: { type: integer, enum: [12, 24, 72] }
               contradicted: { type: integer }
@@ -147,6 +149,7 @@ components:
           type: array
           items:
             type: object
+            required: [band, positives, within]
             properties:
               band: { type: string, enum: ['50-69', '70-84', '85+'] }
               positives: { type: integer }
@@ -1180,11 +1183,11 @@ components:
           type: array
           items:
             type: object
-            required: [key, name, coords, type, source, planet, unitsTime, shown, arrivals, temp]
+            required: [key, name, coords, type, source, planet, unitsTime, shown, shownResearch, arrivals, temp, factors]
             properties:
               key: { type: string, description: '`g:s:p:type`' }
               name: { type: string }
-              coords: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+              coords: { $ref: '#/components/schemas/PageCoords' }
               type: { type: string, enum: [planet, moon] }
               source: { type: string, enum: [empire, buildings, research, shipyard], description: Page the levels and resources come from }
               unitsTime:
@@ -1196,36 +1199,31 @@ components:
                 properties:
                   fleet: { type: [integer, 'null'] }
                   defense: { type: [integer, 'null'] }
-              planet:
-                type: object
-                description: >-
-                  levels (`values`, with the counts of ships, defense and missiles from the empire page or a newer shipyard
-                  page), `shipyard` (units in the shipyard queue, element id -> count; units that left it count as built),
-                  `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
-                  `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
-                  TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or
-                  TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when
-                  unknown) or null when free
-              shown: { type: [object, 'null'], description: 'building id -> `{ next, cost, time }` as the buildings page showed them' }
-              shownResearch: { type: [object, 'null'], description: 'research id -> `{ next, cost, time }` as the research page of this planet showed them' }
-              temp: { type: [integer, 'null'], description: Max temperature of the planet (empire page) }
+              planet: { $ref: '#/components/schemas/BuildPlanet' }
+              shown: { oneOf: [{ $ref: '#/components/schemas/ShownLevels' }, { type: 'null' }], description: Next levels as the buildings page showed them }
+              shownResearch: { oneOf: [{ $ref: '#/components/schemas/ShownLevels' }, { type: 'null' }], description: Next research levels as the research page of this planet showed them }
+              temp: { type: [number, 'null'], description: Max temperature of the planet (empire page) }
+              factors: { type: [object, 'null'], additionalProperties: { type: number }, description: 'Production setting of the mines (resource id -> 0 … 1) from the empire page source; null when unknown' }
               arrivals:
                 type: array
+                description: Fleets landing on the planet with resources
                 items:
                   type: object
+                  required: [at, resources, mission, missionName, back, from]
                   properties:
                     at: { type: integer, description: Unix seconds }
-                    resources: { type: object, description: 901-903 }
+                    resources: { type: object, additionalProperties: { type: number }, description: 901-903 }
                     mission: { type: [integer, 'null'] }
                     missionName: { type: string }
                     back: { type: boolean, description: Return flight }
-                    from: { type: object }
-        research: { type: object, description: 'Research levels of the account (research id -> level), finished queue entries included' }
+                    from: { $ref: '#/components/schemas/PageCoords' }
+        research: { type: object, additionalProperties: { type: number }, description: 'Research levels of the account (research id -> level), finished queue entries included' }
         researchQueue:
           type: array
           description: Account wide research queue, first in progress (from the newest research page, overview or empire page)
           items:
             type: object
+            required: [id, level, end]
             properties:
               id: { type: integer }
               level: { type: integer }
@@ -1239,6 +1237,7 @@ components:
             of the overview, or calculated like the game from newer synced statistics; null when the universe has none
         catchUpFrom:
           type: [object, 'null']
+          required: [source, time]
           properties:
             source: { type: string, enum: [page, research, overview, stats], description: 'page: a buildings page, research: a research page' }
             time: { type: integer, description: Unix seconds of that page or statistics update }
@@ -1456,6 +1455,7 @@ components:
     BattleRange:
       type: object
       description: Average, minimum and maximum over the runs
+      required: [avg, min, max]
       properties: { avg: { type: number }, min: { type: number }, max: { type: number } }
     BattleFleetSummary:
       type: object
@@ -1531,6 +1531,7 @@ components:
         link: { type: string, description: The same battle in the battle simulator page (pr0game-tools) }
     StoredFleetBody:
       type: object
+      required: [g, s, p, type]
       properties:
         g: { type: integer }
         s: { type: integer }
@@ -1538,6 +1539,7 @@ components:
         type: { type: string, enum: [planet, moon] }
     StoredFleetAttack:
       type: object
+      required: [userId, member, key, owner, arrival, from, to, mission, fleets]
       properties:
         userId: { type: integer }
         member: { type: string, description: 'Hub display name, or the username when none is set' }
@@ -1893,6 +1895,424 @@ components:
         updated_by: { type: [string, 'null'] }
         research: { type: [object, 'null'], additionalProperties: { type: integer }, description: 'Hold plans only: research of the attacking player from the newest spy report showing it' }
         research_time: { type: [integer, 'null'], description: Hold plans only }
+    UnitCounts:
+      type: object
+      description: Pieces (or levels) by element id
+      additionalProperties: { type: integer }
+    AttackAssist:
+      type: object
+      description: The incoming attack assistant for one hostile attack (see `getAttackAssist`)
+      required: [attack, member, target, bodies, research, attacker, loot, away, helpers, holds, holdPlan, phalanx, simulated, sim, now]
+      properties:
+        attack: { $ref: '#/components/schemas/IncomingAttack' }
+        member:
+          type: [object, 'null']
+          description: The attacked member
+          required: [id, name]
+          properties: { id: { type: integer }, name: { type: [string, 'null'] } }
+        target:
+          type: [object, 'null']
+          description: The attacked body from the member's newest empire page (null without one)
+          required: [g, s, p, type, name, values, present, resources, empireTime, deuterium, perHour]
+          properties:
+            g: { type: integer }
+            s: { type: integer }
+            p: { type: integer }
+            type: { type: string, enum: [planet, moon] }
+            name: { type: string }
+            values: { $ref: '#/components/schemas/UnitCounts', description: Levels and units of the empire page }
+            present: { $ref: '#/components/schemas/UnitCounts', description: '`values` without the ships of `away`: what defends and can still be saved' }
+            resources: { oneOf: [{ $ref: '#/components/schemas/RiskResources' }, { type: 'null' }], description: Resources projected to the impact (null when the page had none) }
+            empireTime: { type: integer, description: Time of the empire page }
+            deuterium: { type: [number, 'null'], description: Deuterium on the empire page }
+            perHour: { type: [object, 'null'], additionalProperties: { type: number }, description: Production per hour by resource id }
+        bodies:
+          type: array
+          description: The member's planets and moons (fleet save targets)
+          items:
+            type: object
+            required: [g, s, p, type, name]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              type: { type: string, enum: [planet, moon] }
+              name: { type: string }
+        research: { $ref: '#/components/schemas/UnitCounts', description: The member's research levels }
+        attacker:
+          type: object
+          required: [player, research, ships, estimated]
+          properties:
+            player: { $ref: '#/components/schemas/PlayerRef' }
+            research:
+              type: [object, 'null']
+              description: The newest spy report showing the attacker's research
+              required: [values, time]
+              properties: { values: { $ref: '#/components/schemas/UnitCounts' }, time: { type: integer } }
+            ships: { $ref: '#/components/schemas/UnitCounts', description: Ships of all fleets of the attack }
+            estimated:
+              type: [object, 'null']
+              description: 'When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead'
+              required: [time]
+              properties: { time: { type: integer } }
+        loot: { oneOf: [{ $ref: '#/components/schemas/RiskResources' }, { type: 'null' }], description: Resources the surviving attackers could take }
+        away:
+          type: [object, 'null']
+          description: >-
+            Ships of the member that left the attacked body after their newest empire page (newer fleet list,
+            not in a fleet list from up to the empire page) and are not back by the impact; taken off the
+            planet in the simulation. `unknown` when no fleet list from before the empire page exists.
+          required: [ships, fleets, unknown]
+          properties:
+            ships: { $ref: '#/components/schemas/UnitCounts' }
+            fleets: { type: integer }
+            unknown: { type: boolean }
+        helpers:
+          type: array
+          description: Members' bodies with ships that can still land a hold 1 s before the impact, strongest first
+          items:
+            type: object
+            required: [userId, member, from, ships, points, duration, launch]
+            properties:
+              userId: { type: integer }
+              member: { type: string }
+              from:
+                type: object
+                required: [g, s, p, type, name]
+                properties:
+                  g: { type: integer }
+                  s: { type: integer }
+                  p: { type: integer }
+                  type: { type: string, enum: [planet, moon] }
+                  name: { type: string }
+              ships: { $ref: '#/components/schemas/UnitCounts' }
+              points: { type: integer }
+              duration: { type: integer, description: One-way seconds at full speed }
+              launch: { type: integer, description: Latest launch (Unix seconds) }
+        holds:
+          type: array
+          description: Hold fleets at the planet at the impact (they defend in the simulation)
+          items:
+            type: object
+            required: [member, player, from, ships, research, arrival]
+            properties:
+              member: { type: [string, 'null'], description: Member it belongs to (by fleet list or start planet) }
+              player: { type: [string, 'null'] }
+              from:
+                type: object
+                required: [g, s, p, type]
+                properties:
+                  g: { type: integer }
+                  s: { type: integer }
+                  p: { type: integer }
+                  type: { type: [string, 'null'] }
+              ships: { $ref: '#/components/schemas/UnitCounts' }
+              research: { $ref: '#/components/schemas/UnitCounts', description: The member's research (empty for others) }
+              arrival: { type: [integer, 'null'], description: Landing at the planet; null when holding there already }
+        holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
+        phalanx: { type: array, items: { $ref: '#/components/schemas/PhalanxThreat' }, description: Hostile phalanxes reaching the planet }
+        simulated: { type: boolean, description: Ships and planet are known (a simulation is possible) }
+        sim:
+          description: 'Simulation summary of 20 runs, `{ error }` when the simulator is busy or missing, null when skipped'
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [error]
+              properties: { error: { type: string } }
+            - type: object
+              required: [error, runs, wins, rounds, loot, debris, lostResources]
+              properties:
+                error: { type: 'null' }
+                runs: { type: integer }
+                wins:
+                  type: object
+                  description: Share of the runs (0-1)
+                  required: [attacker, defender, draw]
+                  properties: { attacker: { type: number }, defender: { type: number }, draw: { type: number } }
+                rounds: { type: integer, description: Rounds of the typical run }
+                loot: { $ref: '#/components/schemas/RiskResources', description: Average loot over all runs }
+                debris:
+                  type: object
+                  required: [metal, crystal]
+                  properties: { metal: { $ref: '#/components/schemas/BattleRange' }, crystal: { $ref: '#/components/schemas/BattleRange' } }
+                lostResources:
+                  type: object
+                  description: Average costs of what each side lost for good
+                  required: [attacker, defender]
+                  properties:
+                    attacker: { $ref: '#/components/schemas/RiskResources' }
+                    defender: { $ref: '#/components/schemas/RiskResources' }
+        now: { type: integer }
+    PageCoords:
+      type: object
+      required: [g, s, p]
+      properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } }
+    EmpirePage:
+      type: object
+      description: A synced empire page (all planets and moons of the account)
+      required: [kind, planets, research]
+      properties:
+        kind: { type: string, const: empire }
+        planets:
+          type: array
+          items:
+            type: object
+            required: [name, coords, type, values]
+            properties:
+              name: { type: string }
+              coords: { $ref: '#/components/schemas/PageCoords' }
+              type: { type: string, enum: [planet, moon] }
+              values: { type: object, additionalProperties: { type: number }, description: Element id -> level or amount }
+              temp: { type: number, description: Max temperature (°C) }
+              fields: { type: object, required: [used, max], properties: { used: { type: integer }, max: { type: integer } } }
+              resources: { type: object, additionalProperties: { type: number }, description: 'Resources 901-903 and net energy 911 at page time' }
+              perHour: { type: object, additionalProperties: { type: number }, description: 'Production per hour (when the page showed it)' }
+              production: { type: object, additionalProperties: { type: number }, description: Production setting of the mines in percent per resource }
+              building:
+                type: [object, 'null']
+                description: Building in the queue and its target level
+                required: [id, level]
+                properties: { id: { type: integer }, level: { type: integer } }
+              shipyard: { type: object, additionalProperties: { type: number }, description: Ships and defense in the shipyard queue }
+        research: { type: object, additionalProperties: { type: number } }
+        researchQueue:
+          type: [object, 'null']
+          description: Research in progress
+          required: [id, level, coords]
+          properties:
+            id: { type: integer }
+            level: { type: integer }
+            coords: { oneOf: [{ $ref: '#/components/schemas/PageCoords' }, { type: 'null' }] }
+        flying: { type: object, additionalProperties: { type: number }, description: 'Resources on fleets in flight, 901-903' }
+        flyingShips: { type: object, additionalProperties: { type: number }, description: Ships on fleets in flight (missing on pages parsed before it was read) }
+        pageTime: { type: [string, 'null'], description: Server time of the page (local game time) }
+        active:
+          type: [object, 'null']
+          description: Planet selected in the game header with its storage capacity
+          required: [coords, type, storage]
+          properties:
+            coords: { $ref: '#/components/schemas/PageCoords' }
+            type: { type: string, enum: [planet, moon] }
+            storage: { type: object, additionalProperties: { type: number } }
+    OverviewPage:
+      type: object
+      description: A synced game overview page (what is built where and for how long)
+      required: [kind, pageTime, current, queues, catchUp]
+      properties:
+        kind: { type: string, const: overview }
+        pageTime: { type: [string, 'null'] }
+        current:
+          type: [object, 'null']
+          required: [coords, type]
+          properties:
+            coords: { $ref: '#/components/schemas/PageCoords' }
+            type: { type: string, enum: [planet, moon] }
+        queues:
+          type: array
+          items:
+            type: object
+            required: [kind, coords, type, id, level, destroy, seconds]
+            properties:
+              kind: { type: string, enum: [building, research, shipyard] }
+              coords: { $ref: '#/components/schemas/PageCoords' }
+              type: { type: string, enum: [planet, moon] }
+              id: { type: integer }
+              level: { type: integer, description: 'Target level, for the shipyard the amount of the current batch' }
+              destroy: { type: boolean }
+              seconds: { type: integer, description: Remaining seconds at page time }
+        catchUp: { type: [number, 'null'], description: 'Catch-up bonus in percent, null if the universe has none' }
+    BuildPlanet:
+      type: object
+      description: >-
+        A planet or moon of the buildings page: levels (`values`, with the counts of ships, defense and missiles from
+        the empire page or a newer shipyard page), `shipyard` (units in the shipyard queue; units that left it count as
+        built), `resources` at `time`, `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when
+        known) and `busy`: research (account wide, locks research lab and TechnoDome), the planet's shipyard (locks
+        nanite factory and shipyard) and `lab` (a research lab or TechnoDome in any build queue, locks research) in use,
+        each `{ until }` (Unix seconds, null when unknown) or null when free
+      required: [type, values, resources, perHour, time, queue]
+      properties:
+        type: { type: string, enum: [planet, moon] }
+        values: { type: object, additionalProperties: { type: number } }
+        shipyard: { type: object, additionalProperties: { type: number } }
+        resources: { type: object, additionalProperties: { type: number }, description: '901-903 at `time`' }
+        perHour: { type: object, additionalProperties: { type: number } }
+        storage: { type: object, additionalProperties: { type: number } }
+        time: { type: integer }
+        fields: { type: object, required: [used, max], properties: { used: { type: integer }, max: { type: integer } } }
+        queue:
+          type: array
+          items:
+            type: object
+            required: [id, level, destroy]
+            properties:
+              id: { type: integer }
+              level: { type: integer }
+              destroy: { type: boolean }
+              end: { type: [integer, 'null'] }
+        busy:
+          type: object
+          properties:
+            research: { oneOf: [{ $ref: '#/components/schemas/BusyUntil' }, { type: 'null' }] }
+            shipyard: { oneOf: [{ $ref: '#/components/schemas/BusyUntil' }, { type: 'null' }] }
+            lab: { oneOf: [{ $ref: '#/components/schemas/BusyUntil' }, { type: 'null' }] }
+    BusyUntil:
+      type: object
+      required: [until]
+      properties:
+        until: { type: [integer, 'null'] }
+    ShownLevels:
+      type: object
+      description: 'Element id -> the next level with its cost and build time as a game page showed them'
+      additionalProperties:
+        type: object
+        required: [next, cost, time]
+        properties:
+          next: { type: integer }
+          cost: { type: object, additionalProperties: { type: number } }
+          time: { type: [number, 'null'] }
+    SpySections:
+      type: object
+      description: 'Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense), element id -> amount or level'
+      additionalProperties: { type: object, additionalProperties: { type: number } }
+    SpyHistoryReport:
+      type: object
+      description: A spy report of one position
+      required: [id, planet_name, player_name, player_id, report_time, sections, destroy_chance, reporter]
+      properties:
+        id: { type: integer }
+        planet_name: { type: [string, 'null'] }
+        player_name: { type: [string, 'null'] }
+        player_id: { type: [integer, 'null'] }
+        report_time: { type: integer }
+        sections: { $ref: '#/components/schemas/SpySections' }
+        destroy_chance: { type: [number, 'null'], description: Chance the probes were destroyed (percent) }
+        reporter: { type: [string, 'null'], description: Hub name of the member who synced it }
+    DefenseFlight:
+      type: object
+      description: One way at full speed from where the fleet was seen, else the owner's nearest planet
+      required: [from, distance, duration, fuel]
+      properties:
+        from: { $ref: '#/components/schemas/PageCoords' }
+        distance: { type: integer }
+        duration: { type: integer, description: Seconds }
+        fuel: { type: number, description: Deuterium }
+    DefenseThreat:
+      type: object
+      description: An attacker the hub knows for a planet, with the strongest fleet known
+      required: [key, player, reasons, fleet, fleetPoints, research, flight, heavy]
+      properties:
+        key: { type: string, description: 'Id for `threats` (search key; `<key>:heavy` for the heavy variant)' }
+        player:
+          type: object
+          required: [id, name, status, allyTag]
+          properties:
+            id: { type: [integer, 'null'], description: Null when unknown }
+            name: { type: string }
+            status: { type: array, items: { type: string } }
+            allyTag: { type: [string, 'null'] }
+        reasons:
+          type: array
+          items:
+            type: object
+            required: [kind, count, last]
+            properties:
+              kind: { type: string, enum: [spied, attacked, incoming, nearby] }
+              count: { type: integer }
+              last: { type: [integer, 'null'] }
+        fleet:
+          type: object
+          required: [units, points, source, time, from]
+          properties:
+            units: { $ref: '#/components/schemas/UnitCounts' }
+            points: { type: number }
+            source: { type: string, enum: [spy, combat, incoming, battles], description: '`combat`: battle at the caller''s body; `battles`: rebuilt from battle reports elsewhere' }
+            time: { type: integer }
+            from: { oneOf: [{ $ref: '#/components/schemas/PageCoords' }, { type: 'null' }] }
+        fleetPoints:
+          type: [object, 'null']
+          description: Newest fleet points of the statistics
+          required: [points, time]
+          properties: { points: { type: number }, time: { type: integer } }
+        research:
+          type: object
+          description: 'Research of the newest spy report; `known` false: the caller''s own levels stand in'
+          required: [values, known, time]
+          properties:
+            values: { $ref: '#/components/schemas/UnitCounts' }
+            known: { type: boolean }
+            time: { type: [integer, 'null'] }
+        flight: { oneOf: [{ $ref: '#/components/schemas/DefenseFlight' }, { type: 'null' }] }
+        heavy:
+          type: [object, 'null']
+          description: Heavy ships only; null without heavy ships or when the fleet has nothing else
+          required: [units, points, flight]
+          properties:
+            units: { $ref: '#/components/schemas/UnitCounts' }
+            points: { type: number }
+            flight: { oneOf: [{ $ref: '#/components/schemas/DefenseFlight' }, { type: 'null' }] }
+    ThreatOutcome:
+      type: object
+      description: One attack of a threat against the planet
+      required: [key, profit, loot, debris, lost, defenderLost, fuel, wins]
+      properties:
+        key: { type: string }
+        profit: { type: number, description: Expected profit of one attack in deuterium value (negative a loss for the attacker) }
+        loot: { $ref: '#/components/schemas/RiskResources' }
+        debris: { type: object, required: [metal, crystal], properties: { metal: { type: number }, crystal: { type: number } } }
+        lost: { $ref: '#/components/schemas/RiskResources', description: Costs of the attacker's ships lost for good }
+        defenderLost: { $ref: '#/components/schemas/RiskResources', description: Costs of the defender's units lost for good (rebuilt defense not counted) }
+        fuel: { type: number }
+        wins: { type: number, description: Share of the runs (0-1) won by the attacker }
+    DefenseAdvice:
+      type: object
+      description: The defense advisor for one of the caller's planets or moons (see `getDefenseAdvice`)
+      required: [planet, rate, candidates, threats, simulated, advice, now]
+      properties:
+        planet:
+          type: object
+          required: [key, name, coords, type, time, units, research, resources, defenseValue]
+          properties:
+            key: { type: string }
+            name: { type: string }
+            coords: { $ref: '#/components/schemas/PageCoords' }
+            type: { type: string, enum: [planet, moon] }
+            time: { type: integer, description: Time of the state }
+            units: { $ref: '#/components/schemas/UnitCounts', description: 'Units defending (ships with `ships`, defense incl. the shipyard queue, solar satellites)' }
+            research: { $ref: '#/components/schemas/UnitCounts', description: Combat research }
+            resources: { $ref: '#/components/schemas/RiskResources', description: Resources at the attack }
+            defenseValue: { type: number, description: Defense in deuterium by the rate }
+        rate:
+          type: object
+          description: Metal and crystal per deuterium
+          required: [m, k, source]
+          properties:
+            m: { type: number }
+            k: { type: number }
+            source: { type: string, enum: [market, default] }
+        candidates: { type: array, items: { type: integer }, description: Defense units the planet can build (requirements met; shield domes not built yet) }
+        threats: { type: array, items: { $ref: '#/components/schemas/DefenseThreat' } }
+        simulated: { type: array, items: { type: string }, description: 'Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`)' }
+        advice:
+          description: 'The search result, `{ error }` when the simulator is busy or missing, null with `sim=0` or without threats'
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [error]
+              properties: { error: { type: string } }
+            - type: object
+              required: [error, status, before, after, add, cost, costValue, battles, runs]
+              properties:
+                error: { type: 'null' }
+                status: { type: string, enum: [safe, found, limit, budget] }
+                before: { type: array, items: { $ref: '#/components/schemas/ThreatOutcome' } }
+                after: { type: [array, 'null'], items: { $ref: '#/components/schemas/ThreatOutcome' }, description: With the added defense (null when nothing is added) }
+                add: { $ref: '#/components/schemas/UnitCounts', description: Defense units to build }
+                cost: { $ref: '#/components/schemas/RiskResources' }
+                costValue: { type: number, description: Cost in deuterium value }
+                battles: { type: integer }
+                runs: { type: integer, description: Runs per battle }
+        now: { type: integer }
     Enabled:
       type: object
       required: [enabled]
@@ -2022,14 +2442,18 @@ components:
         rapidfire: { type: object, description: Target id -> shots, additionalProperties: { type: integer } }
         capacity: { type: number, description: Cargo capacity }
         drives:
-          type: [object, 'null']
-          description: >-
-            Per drive (combustion, impulse, hyperspace): base speed, research level from which it is used (0 none,
-            1 always) and deuterium consumption; null: does not fly
-          properties:
-            speed: { type: array, items: { type: integer } }
-            tech: { type: array, items: { type: integer } }
-            consumption: { type: array, items: { type: integer } }
+          description: 'Drives of the unit; null: does not fly'
+          oneOf: [{ $ref: '#/components/schemas/UnitDrives' }, { type: 'null' }]
+    UnitDrives:
+      type: object
+      description: >-
+        Per drive (combustion, impulse, hyperspace): base speed, research level from which it is used (0 none,
+        1 always) and deuterium consumption
+      required: [speed, tech, consumption]
+      properties:
+        speed: { type: array, prefixItems: [{ type: integer }, { type: integer }, { type: integer }], minItems: 3, maxItems: 3 }
+        tech: { type: array, prefixItems: [{ type: integer }, { type: integer }, { type: integer }], minItems: 3, maxItems: 3 }
+        consumption: { type: array, prefixItems: [{ type: integer }, { type: integer }, { type: integer }], minItems: 3, maxItems: 3 }
     UnitOverrides:
       type: object
       description: >-
@@ -2279,15 +2703,34 @@ components:
               to: { type: integer }
     Imperium:
       type: object
+      required: [userId, empire, spy, overview, fleets, fleetAlerts, fleetHistory, slots, player, fleetBase, leader, phalanx]
       properties:
         userId: { type: integer }
-        empire: { type: [object, 'null'] }
+        empire:
+          type: [object, 'null']
+          description: The member's newest synced empire page
+          required: [time, data]
+          properties:
+            time: { type: integer }
+            data: { $ref: '#/components/schemas/EmpirePage' }
         spy:
           type: [object, 'null']
           description: Without an empire page, the empire put together from the spy reports of the member's player (planets with buildings, fleet and defense per newest report; research with `researchTime`).
-        overview: { type: [object, 'null'] }
+          required: [time, research, researchTime, planets]
+          properties:
+            time: { type: integer }
+            research: { $ref: '#/components/schemas/UnitCounts' }
+            researchTime: { type: [integer, 'null'] }
+            planets: { type: array, items: { $ref: '#/components/schemas/AllianceEmpirePlanet' } }
+        overview:
+          type: [object, 'null']
+          description: The member's newest synced game overview page
+          required: [time, data]
+          properties:
+            time: { type: integer }
+            data: { $ref: '#/components/schemas/OverviewPage' }
         fleets: { $ref: '#/components/schemas/SharedFleets' }
-        fleetHistory: { type: array, items: { type: object } }
+        fleetHistory: { type: array, items: { $ref: '#/components/schemas/FleetMovement' }, description: 'Fleets of the older lists that arrived in the last 12 hours, oldest first (shared like `fleets`)' }
         slots:
           oneOf: [{ $ref: '#/components/schemas/FleetSlots' }, { type: 'null' }]
           description: Fleet and expedition slots the member's fleets take (for another member by the fleets they share); null without a synced fleet list
@@ -2297,9 +2740,43 @@ components:
           description: >-
             The caller's fleet alerts, only when the member is the caller (null otherwise). Alerts whose fleet is missing
             from a newer fleet list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed.
-        player: { type: [object, 'null'] }
-        fleetBase: { type: [object, 'null'] }
-        leader: { type: [object, 'null'] }
+        player:
+          type: [object, 'null']
+          description: The member's player with the newest synced statistics per category (1 total … 5 defense)
+          required: [id, name, stats]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            stats:
+              type: object
+              additionalProperties:
+                type: object
+                required: [type, points, rank, time]
+                properties:
+                  type: { type: integer }
+                  points: { type: number }
+                  rank: { type: integer }
+                  time: { type: integer }
+        fleetBase:
+          type: [object, 'null']
+          description: >-
+            Ship points on the planets in the first empire page after the newest fleet or total statistics update
+            (`points`) and the statistics fleet of that update (`stat`), for the live fleet points
+          required: [time, points, stat]
+          properties:
+            time: { type: integer }
+            points: { type: number }
+            stat: { type: number }
+        leader:
+          type: [object, 'null']
+          description: Player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the newest statistics
+          required: [name, buildings, research, fleet, weighted]
+          properties:
+            name: { type: string }
+            buildings: { type: [number, 'null'] }
+            research: { type: [number, 'null'] }
+            fleet: { type: [number, 'null'] }
+            weighted: { type: number }
         phalanx:
           type: array
           description: >-
@@ -2326,21 +2803,29 @@ components:
         vacation: { type: boolean, description: In vacation mode (cannot use the phalanx) }
     PhalanxExposure:
       type: object
+      required: [planet, threats]
       properties:
         planet: { $ref: '#/components/schemas/MemberPlanet' }
         threats:
           type: array
-          items:
-            type: object
-            properties:
-              moon: { type: object, description: '`g`, `s`, `p` of the moon' }
-              level: { type: integer }
-              range: { type: integer, description: 'Range in systems (`(level² − 1) × phalanxRangeFactor`, level 1 its own system)' }
-              distance: { type: integer, description: Systems between moon and planet (circular galaxies wrap around) }
-              time: { type: integer, description: Report time of the newest level }
-              since: { type: integer, description: Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) }
-              known: { type: integer, description: When that report reached the hub }
-              player: { $ref: '#/components/schemas/PhalanxOwner' }
+          items: { $ref: '#/components/schemas/PhalanxThreat' }
+    PhalanxThreat:
+      type: object
+      description: A hostile moon whose sensor phalanx reaches a planet
+      required: [moon, level, range, distance, time, since, known, player]
+      properties:
+        moon:
+          type: object
+          description: The moon with the phalanx
+          required: [g, s, p]
+          properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } }
+        level: { type: integer }
+        range: { type: integer, description: 'Range in systems (`(level² − 1) × phalanxRangeFactor`, level 1 its own system)' }
+        distance: { type: integer, description: Systems between moon and planet (circular galaxies wrap around) }
+        time: { type: integer, description: Report time of the newest level }
+        since: { type: integer, description: Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) }
+        known: { type: integer, description: When that report reached the hub }
+        player: { $ref: '#/components/schemas/PhalanxOwner' }
     MemberRow:
       description: A row synced by a member; `user_id` and `username` (hub name) are null when the account is gone.
       type: object
@@ -2623,7 +3108,7 @@ components:
               planet_type: { type: string, enum: [planet, moon] }
               planet_name: { type: [string, 'null'] }
               report_time: { type: integer }
-              sections: { type: object, description: 'Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense)' }
+              sections: { $ref: '#/components/schemas/SpySections' }
         statusLog:
           type: array
           items: { type: object, required: [status, seen_at], properties: { status: { type: string }, seen_at: { type: integer } } }
@@ -2690,7 +3175,7 @@ components:
         player_name: { type: [string, 'null'] }
         player_id: { type: [integer, 'null'] }
         report_time: { type: integer }
-        sections: { type: object, description: 'Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense)' }
+        sections: { $ref: '#/components/schemas/SpySections' }
         reporter: { type: [string, 'null'], description: Hub name of the member who synced it }
     Comment:
       type: object
@@ -2725,9 +3210,21 @@ components:
         p: { type: integer }
         type: { type: string, enum: [planet, moon] }
     HostileAttack:
+      description: A hostile attack with the plans answering it and its hidden mark (`getHostileAttacks`).
+      allOf: [{ $ref: '#/components/schemas/IncomingAttack' }]
+      required: [planId, holdPlanId, hidden]
+      properties:
+        planId: { type: [integer, 'null'], description: Retime plan against it }
+        holdPlanId: { type: [integer, 'null'], description: Hold plan against it }
+        hidden:
+          type: [object, 'null']
+          description: Hidden in the raid planner by a member, until its latest return
+          required: [by, at]
+          properties: { by: { type: [string, 'null'] }, at: { type: integer } }
+    IncomingAttack:
       description: A hostile attack (single fleet or ACS) from the members' overview pastes or a phalanx result.
       type: object
-      required: [key, memberId, member, source, reporter, home, seen, arrival, from, to, fleets, player, drives, until, planId, holdPlanId, hidden]
+      required: [key, memberId, member, source, reporter, home, seen, arrival, from, to, fleets, player, drives, until]
       properties:
         key: { type: string, description: "Stable while the attack lasts: route and the lead fleet's ships" }
         memberId: { type: [integer, 'null'], description: Member it heads for (overview); null when only seen in a phalanx }
@@ -2761,13 +3258,6 @@ components:
             research: { type: object, additionalProperties: { type: integer } }
             time: { type: [integer, 'null'] }
         until: { type: integer, description: 'Latest possible return: slowest speed without any drive research' }
-        planId: { type: [integer, 'null'], description: Retime plan against it }
-        holdPlanId: { type: [integer, 'null'], description: Hold plan against it }
-        hidden:
-          type: [object, 'null']
-          description: Hidden in the raid planner by a member, until its latest return
-          required: [by, at]
-          properties: { by: { type: [string, 'null'] }, at: { type: integer } }
     BattleHallEntry:
       type: object
       required: [id, report_id, time, attackers, defenders, winner, units, created_at, report_status, report_tries, memorial, archived, moon_destruction]
@@ -2778,7 +3268,7 @@ components:
         time: { type: [integer, 'null'] }
         attackers: { type: array, items: { type: string } }
         defenders: { type: array, items: { type: string } }
-        winner: { type: [string, 'null'] }
+        winner: { type: [string, 'null'], enum: [attacker, defender, draw, null] }
         units: { type: integer }
         created_at: { type: integer }
         report_status: { type: [string, 'null'], description: State of the crawler fetching the full report }
@@ -3062,7 +3552,7 @@ components:
               time: { type: integer }
               source: { type: string, enum: [spy, empire] }
               own: { type: boolean }
-              player: { type: [object, 'null'] }
+              player: { $ref: '#/components/schemas/PhalanxOwner' }
         rows:
           type: array
           items:
@@ -3075,7 +3565,11 @@ components:
               moon_name: { type: [string, 'null'] }
               moon_diameter: { type: [integer, 'null'] }
               destroyed: { type: integer, enum: [0, 1] }
-              debris: { type: [object, 'null'], description: 'Debris field (metal, crystal)' }
+              debris:
+                type: [object, 'null']
+                description: Debris field as the galaxy shows it (amounts as text)
+                required: [metal, crystal]
+                properties: { metal: { type: string }, crystal: { type: string } }
               updated_at: { type: [integer, 'null'] }
               player_id: { type: [integer, 'null'] }
               ingame_id: { type: [integer, 'null'] }
@@ -4179,11 +4673,23 @@ paths:
                     type: array
                     items:
                       type: object
-                      description: >-
-                        `id` plus what the page shows: `name` (page language), `cost`, `req`, `one`, `structure`,
-                        `attack`, `shield`, `capacity`, `drives`, `rapidfire` (target -> shots) and `rapidfireFrom`
-                        (shooter -> shots against this unit)
+                      description: '`id` plus what the page shows'
+                      required: [id]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string, description: Name in the page's language }
+                        cost: { type: array, prefixItems: [{ type: integer }, { type: integer }, { type: integer }], minItems: 3, maxItems: 3, description: 'Metal, crystal, deuterium' }
+                        req: { type: object, additionalProperties: { type: integer }, description: 'Requirements, building or research id -> level' }
+                        one: { type: boolean, description: Once per planet }
+                        structure: { type: number, description: Metal + crystal (info page) }
+                        attack: { type: number }
+                        shield: { type: number }
+                        capacity: { type: number }
+                        drives: { oneOf: [{ $ref: '#/components/schemas/UnitDrives' }, { type: 'null' }] }
+                        rapidfire: { type: object, additionalProperties: { type: integer }, description: Target id -> shots }
+                        rapidfireFrom: { type: object, additionalProperties: { type: integer }, description: Shooter id -> shots against this unit }
                   unknown: { type: array, description: Names without a known id, items: { type: string } }
+                  mode: { type: string, enum: [fleet, defense], description: 'Shipyard page: which list it is (units missing on it do not exist in the universe)' }
         '400':
           description: No page source (`units_page_invalid`) or not one of these pages (`units_page_unknown`)
           content:
@@ -5013,6 +5519,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [id, name, status, ally_tag, ally_name, alias]
                       properties:
                         id: { type: integer }
                         name: { type: string }
@@ -5024,6 +5531,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [id, name, tag, players]
                       properties:
                         id: { type: integer }
                         name: { type: string }
@@ -5032,6 +5540,7 @@ paths:
                   planet:
                     type: [object, 'null']
                     description: Only for coordinates; owner fields are missing when the position is unknown
+                    required: [g, s, p]
                     properties:
                       g: { type: integer }
                       s: { type: integer }
@@ -5070,6 +5579,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [generatedAt, weights, events, skipped, narrowed, detection, falseAlarms, endPhase]
                 properties:
                   generatedAt: { type: integer }
                   weights: { type: object, additionalProperties: { type: number } }
@@ -5080,6 +5590,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [hours, n, likely, inactive, median]
                       properties:
                         hours: { type: integer }
                         n: { type: integer }
@@ -5090,6 +5601,7 @@ paths:
                     allOf:
                       - { $ref: '#/components/schemas/FalseAlarmSummary' }
                       - type: object
+                        required: [rate, causes, examples]
                         properties:
                           rate: { type: [number, 'null'], description: 'Share of high scores disproved within 24 hours (the false alarm rate)' }
                           causes: { type: object, additionalProperties: { type: integer }, description: 'Disproved within 72 hours, by what came first: gain or the proof source' }
@@ -5097,6 +5609,7 @@ paths:
                             type: array
                             items:
                               type: object
+                              required: [playerId, name, time, score, hours, activeAt, cause, gain]
                               properties:
                                 playerId: { type: integer }
                                 name: { type: string }
@@ -5107,6 +5620,7 @@ paths:
                                 cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone)' }
                                 gain:
                                   type: [object, 'null']
+                                  required: [size, ratio, categories]
                                   properties:
                                     size: { type: [number, 'null'], description: Points of the gain }
                                     ratio: { type: [number, 'null'], description: Share of the median gain of the active players around the rank }
@@ -5119,6 +5633,7 @@ paths:
                       - allOf:
                           - { $ref: '#/components/schemas/FalseAlarmSummary' }
                           - type: object
+                            required: [ended]
                             properties:
                               ended: { type: integer }
                       - { type: 'null' }
@@ -5166,7 +5681,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [from, events]
+                required: [from, events, scores]
                 properties:
                   from: { type: integer, description: Start of the period (Unix seconds) }
                   events: { type: array, items: { $ref: '#/components/schemas/ActivityEvent' } }
@@ -5177,6 +5692,7 @@ paths:
                       compared with the player's other windows tells how active they were then (coarse, 6-hour blocks).
                     items:
                       type: object
+                      required: [time, points]
                       properties:
                         time: { type: integer, description: Stat time (Unix seconds) }
                         points: { type: integer }
@@ -5260,11 +5776,13 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [fields, recyclers, capacity, days, now]
                 properties:
                   fields:
                     type: array
                     items:
                       type: object
+                      required: [g, s, p, metal, crystal, time, base, battles, owner]
                       properties:
                         g: { type: integer }
                         s: { type: integer }
@@ -5274,6 +5792,7 @@ paths:
                         time: { type: integer }
                         base:
                           type: [object, 'null']
+                          required: [source, time, metal, crystal, by]
                           properties:
                             source: { type: string, enum: [galaxy, recycle] }
                             time: { type: integer }
@@ -5284,10 +5803,12 @@ paths:
                           type: array
                           items:
                             type: object
+                            required: [time, metal, crystal]
                             properties: { time: { type: integer }, metal: { type: integer }, crystal: { type: integer } }
                         owner:
                           type: [object, 'null']
                           description: Owner of the planet at the position; `member` when it is one of the group's members
+                          required: [id, name, ally_tag, member]
                           properties:
                             id: { type: integer }
                             name: { type: string }
@@ -5297,6 +5818,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [userId, member, g, s, p, type, recyclers, speed, time]
                       properties:
                         userId: { type: integer }
                         member: { type: string }
@@ -5381,6 +5903,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [fields, cleanup]
                 properties:
                   fields:
                     type: object
@@ -5388,6 +5911,7 @@ paths:
                       type: array
                       items:
                         type: object
+                        required: [s, p, visible, active, sure, time]
                         properties:
                           s: { type: integer }
                           p: { type: integer }
@@ -5415,6 +5939,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [systems]
                 properties:
                   systems:
                     type: object
@@ -5423,6 +5948,7 @@ paths:
                       type: array
                       items:
                         type: object
+                        required: [s, free, seen]
                         properties:
                           s: { type: integer }
                           free: { type: array, items: { type: integer } }
@@ -5575,63 +6101,7 @@ paths:
         '200':
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  attack: { type: object, description: 'The hostile attack (`key`, `arrival`, `from`, `to`, `fleets`, `player`, `drives`, …)' }
-                  member: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string } } }
-                  target:
-                    type: [object, 'null']
-                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units of the empire page), `present` (`values` without the ships of `away`: what defends in the simulation and can still be saved), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
-                  bodies: { type: array, items: { type: object }, description: 'The member''s planets and moons (`g`, `s`, `p`, `type`, `name`)' }
-                  research: { type: object, description: The member's research levels }
-                  attacker:
-                    type: object
-                    properties:
-                      player: { type: [object, 'null'] }
-                      research: { type: [object, 'null'], description: '`values` and `time` of the newest spy report showing research' }
-                      ships: { type: object, description: Ships of all fleets of the attack }
-                      estimated: { type: [object, 'null'], description: 'When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead' }
-                  loot: { type: [object, 'null'], description: 'Resources the surviving attackers could take (`metal`, `crystal`, `deuterium`)' }
-                  helpers:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        userId: { type: integer }
-                        member: { type: string }
-                        from: { type: object }
-                        ships: { type: object }
-                        points: { type: integer }
-                        duration: { type: integer, description: One-way seconds at full speed }
-                        launch: { type: integer, description: Latest launch (Unix seconds) }
-                  holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
-                  away:
-                    type: [object, 'null']
-                    description: >-
-                      Ships of the member that left the attacked body after their newest empire page (newer fleet list,
-                      not in a fleet list from up to the empire page) and are not back by the impact; taken off the
-                      planet in the simulation. `unknown` when no fleet list from before the empire page exists.
-                    properties:
-                      ships: { type: object }
-                      fleets: { type: integer }
-                      unknown: { type: boolean }
-                  holds:
-                    type: array
-                    description: Hold fleets at the planet at the impact (they defend in the simulation)
-                    items:
-                      type: object
-                      properties:
-                        member: { type: [string, 'null'], description: Member it belongs to (by fleet list or start planet) }
-                        player: { type: [string, 'null'] }
-                        from: { type: object }
-                        ships: { type: object }
-                        research: { type: object, description: The member's research (empty for others) }
-                        arrival: { type: [integer, 'null'], description: Landing at the planet; null when holding there already }
-                  phalanx: { type: array, items: { type: object }, description: Hostile phalanxes reaching the planet (like `PhalanxExposure.threats`) }
-                  simulated: { type: boolean, description: Ships and planet are known (a simulation is possible) }
-                  sim: { type: [object, 'null'], description: 'Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }`' }
-                  now: { type: integer }
+              schema: { $ref: '#/components/schemas/AttackAssist' }
         '404': { description: 'No such hostile attack (`attack_not_found`)' }
   /api/{uni}/defense-advice:
     get:
@@ -5671,46 +6141,7 @@ paths:
         '200':
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  planet:
-                    type: object
-                    description: >-
-                      `key`, `name`, `coords`, `type`, `time` of the state, `units` defending (ships with `ships`,
-                      defense incl. the shipyard queue, solar satellites), combat `research`, `resources` at the attack,
-                      `defenseValue` (defense in deuterium by the rate)
-                  rate: { type: object, description: '`m` and `k` (metal and crystal per deuterium) and `source` (`market` or `default`)' }
-                  candidates: { type: array, items: { type: integer }, description: Defense units the planet can build (requirements met; shield domes not built yet) }
-                  threats:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        key: { type: string, description: Id for `threats` }
-                        player: { type: object, description: '`id` (null when unknown), `name`, `status`, `allyTag`' }
-                        reasons:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              kind: { type: string, enum: [spied, attacked, incoming, nearby] }
-                              count: { type: integer }
-                              last: { type: [integer, 'null'] }
-                        fleet: { type: object, description: '`units`, `points`, `source` (`spy`, `combat`: battle at the caller''s body, `incoming`, `battles`: rebuilt from battle reports elsewhere), `time`, `from` (null when unknown)' }
-                        fleetPoints: { type: [object, 'null'], description: '`points` and `time` of the newest fleet statistics' }
-                        research: { type: object, description: '`values`, `known` (from a spy report), `time`' }
-                        flight: { type: [object, 'null'], description: '`from`, `distance`, `duration` (seconds), `fuel` (deuterium)' }
-                        heavy: { type: [object, 'null'], description: 'Heavy ships only: `units`, `points`, `flight`; null without heavy ships or when the fleet has nothing else' }
-                  simulated: { type: array, items: { type: string }, description: 'Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`)' }
-                  advice:
-                    type: [object, 'null']
-                    description: >-
-                      `status` (`safe`, `found`, `limit`, `budget`), `before` and `after` (per threat `key`, `profit` in
-                      deuterium, average `loot`, `debris`, `lost` and `defenderLost` resources, `fuel`, `wins` share of
-                      the attacker), `add` (defense units to build), `cost`, `costValue`, `battles` and `runs` per
-                      battle; or `{ error }`
-                  now: { type: integer }
+              schema: { $ref: '#/components/schemas/DefenseAdvice' }
         '400': { description: 'Invalid `planet` (`planet_invalid`)' }
         '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
   /api/{uni}/threats:
@@ -5883,6 +6314,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [alerts]
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/FleetAlert' } }
         '400': { description: 'Invalid body (`alert_invalid`)' }
@@ -5944,6 +6376,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [alerts]
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/FleetAlert' } }
         '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
@@ -6046,6 +6479,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [alerts]
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         '400': { description: 'Invalid body or no such building on that planet type (`alert_invalid`, `building_unknown`)' }
@@ -6074,6 +6508,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [hidden]
                 properties:
                   hidden: { type: array, items: { type: integer } }
         '400': { description: 'Not a list of building or research ids (`hidden_invalid`)' }
@@ -6095,6 +6530,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [alerts]
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
@@ -6558,6 +6994,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [planets, points, seen, own]
                 properties:
                   planets: { type: object, additionalProperties: { type: integer } }
                   points: { type: object, additionalProperties: { type: number } }
@@ -6680,9 +7117,10 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [reports, total]
                 properties:
-                  reports: { type: array, items: { type: object } }
-                  total: { type: integer }
+                  reports: { type: array, items: { $ref: '#/components/schemas/SpyHistoryReport' }, description: Newest first }
+                  total: { type: integer, description: Reports of the position }
   /api/{uni}/spy-reports:
     get:
       tags: [Intelligence]
@@ -6790,6 +7228,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [from, to, list, bySpy]
                 properties:
                   from: { type: integer }
                   to: { type: integer }
@@ -6798,14 +7237,30 @@ paths:
                     description: Newest hostile espionage events (up to 1000)
                     items:
                       type: object
+                      required: [id, user_id, username, time, from_player, from_player_id, from_planet, from_g, from_s, from_p, from_type, target_planet, target_g, target_s, target_p, target_type]
                       properties:
+                        id: { type: integer }
+                        user_id: { type: [integer, 'null'], description: The spied member }
+                        username: { type: [string, 'null'], description: Hub name of the member who synced it }
+                        time: { type: [integer, 'null'] }
                         from_player: { type: string }
                         from_player_id: { type: [integer, 'null'], description: Hub player id of the spy when known }
+                        from_planet: { type: [string, 'null'] }
+                        from_g: { type: integer }
+                        from_s: { type: integer }
+                        from_p: { type: integer }
+                        from_type: { type: string, enum: [planet, moon] }
+                        target_planet: { type: [string, 'null'] }
+                        target_g: { type: integer }
+                        target_s: { type: integer }
+                        target_p: { type: integer }
+                        target_type: { type: string, enum: [planet, moon] }
                   bySpy:
                     type: array
                     description: Aggregated by spy name
                     items:
                       type: object
+                      required: [from_player, from_player_id, count, victims, last]
                       properties:
                         from_player: { type: string }
                         from_player_id: { type: [integer, 'null'] }
@@ -7606,11 +8061,13 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [battles, members, newMoons, days]
                 properties:
                   battles:
                     type: array
                     items:
                       type: object
+                      required: [reportId, time, g, s, p, chance, extra, created, attackers, defenders, memberSide, moon]
                       properties:
                         reportId: { type: string }
                         time: { type: integer }
@@ -7623,11 +8080,12 @@ paths:
                         attackers: { type: array, items: { type: string } }
                         defenders: { type: array, items: { type: string } }
                         memberSide: { type: [string, 'null'], enum: [attacker, defender, null] }
-                        moon: { type: [object, 'null'], properties: { diameter: { type: [integer, 'null'] } } }
+                        moon: { type: [object, 'null'], required: [diameter], properties: { diameter: { type: [integer, 'null'] } } }
                   members:
                     type: array
                     items:
                       type: object
+                      required: [name, battles, expected, created]
                       properties:
                         name: { type: string }
                         battles: { type: integer }
@@ -7637,6 +8095,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [time, g, s, p, player, diameter]
                       properties:
                         time: { type: integer }
                         g: { type: integer }
@@ -8199,7 +8658,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object, properties: { token: { type: string } } }
+              schema: { type: object, required: [token], properties: { token: { type: string } } }
         '403':
           description: >-
             Not an admin of the alliance, a member with an account and no global admin, or a placeholder also in an
@@ -8234,6 +8693,7 @@ paths:
                 type: array
                 items:
                   type: object
+                  required: [id, group_id, group_name, universe, username, code, page, note, created_at, html_size, text_size]
                   properties:
                     id: { type: integer }
                     group_id: { type: integer }
