@@ -1724,7 +1724,7 @@ const de = {
     collector: { name: 'Geldeintreiber', what: '{n} AKS-Abrechnungen', how: 'AKS-Beuteabrechnungen abschließen' },
     forist: { name: 'Forist', what: '{n} Kommentare', how: 'Kommentare in Spielerprofilen schreiben' },
     miner: { name: 'Miner', what: 'Bauliste plant 5 Tage voraus', how: 'Mit der Bauliste mindestens 5 Tage im Voraus planen' },
-    livingLegend: { name: 'Lebende Legende', what: 'Von den Hub-Admins für besondere Verdienste verliehen', how: 'Wird nur von den Hub-Admins verliehen' },
+    livingLegend: { name: 'Lebende Legende', what: 'Sonderachievement', how: 'Wird nur von den Hub-Admins verliehen' },
   },
   recap: {
     since: 'Seit Start',
