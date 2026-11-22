@@ -599,8 +599,8 @@ function onDrop(i: number) {
       <p v-if="!stored" class="faint" style="margin: 0">{{ t('buildOrder.addStarts') }}</p>
     </form>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
-    <p v-if="otherPlanets.length" class="small muted" style="margin: 8px 0 0">
-      {{ t('buildOrder.otherPlanets') }}
+    <p v-if="otherPlanets.length" class="small muted bo-others">
+      <span>{{ t('buildOrder.otherPlanets') }}</span>
       <span v-for="o in otherPlanets" :key="o.key" class="bo-other">{{ planetLabel(o.key) }} ({{ t('buildOrder.open', { n: o.open }) }})</span>
     </p>
   </div>
@@ -725,7 +725,8 @@ function onDrop(i: number) {
 <style scoped>
 .bo-warn { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn, #c90); border-radius: 8px; }
 .bo-diff { white-space: nowrap; }
-.bo-other { margin-left: 8px; white-space: nowrap; }
+.bo-others { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.bo-other { white-space: nowrap; }
 .bo-planned { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .bo-planned-row { gap: 6px; flex-wrap: wrap; }
 .bo-unscheduled { margin: 0; }

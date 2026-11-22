@@ -16,6 +16,21 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-22',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Bauliste: Die Zeile „Weitere Planeten der Bauliste“ bricht auf dem Handy um und läuft nicht mehr über den Bildschirmrand.',
+        en: 'Build order: the line "Other planets of the build order" wraps on phones and no longer runs off the screen.',
+      },
+      {
+        kind: 'fix',
+        de: 'Bauliste: Ein Transport mit fester Abflug- oder Ankunftszeit wird nicht mehr sofort abgehakt, wenn er dran ist. Nur eine Flotte, die zur geplanten Zeit fliegt, hakt ihn ab – frühere Flüge auf derselben Strecke zählen nicht mehr.',
+        en: 'Build order: a transport with a set departure or arrival time is no longer checked off right away when it is next. Only a fleet flying at the planned time checks it off; earlier flights on the same route no longer count.',
+      },
+    ],
+  },
+  {
     date: '2026-11-21',
     items: [
       {
