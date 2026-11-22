@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-22
 
+- Build order: the list of the other planets of the build order wraps on narrow screens instead of running past the
+  edge on phones.
 - Build order: a transport with a set departure or arrival time is no longer checked off by an earlier own fleet on
   the same route as soon as it is the next step. A fleet counts only when it lands after the set departure, or at most
   15 minutes before the wanted arrival (`detectDone` in `@pr0hub/planner`).
