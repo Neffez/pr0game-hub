@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-22',
     items: [
       {
+        kind: 'fix',
+        de: 'pr0game-Tools, Auto-Plan: Schritte, die ein Ziel erreichen, stehen in der Liste wieder in einer Zeile, statt ihre Spalten untereinander zu zeigen.',
+        en: 'pr0game tools, auto-plan: steps that reach a target sit on one line of the list again instead of showing their columns stacked.',
+      },
+      {
         kind: 'new',
         de: 'Inaktivität: Aktivitätsmarken in der Galaxie senken den Inaktivitäts-Wert nicht mehr – gefarmte Spieler bekommen sie auch durch Angriffe anderer. Wiederholte erfolgreiche Farm-Angriffe von Hub-Mitgliedern auf einen Spieler erhöhen ihn dagegen.',
         en: 'Inactivity: galaxy activity marks no longer lower the inactivity score, farmed players get them from others\' attacks too. Repeated successful farm raids of hub members on a player raise it instead.',

@@ -262,7 +262,7 @@ function renderResult() {
   $('#planTable thead').innerHTML = '<tr><th>#</th><th class="col-step">' + esc(t('colStep')) + '</th><th class="col-start">' + esc(t('colStart')) + '</th><th class="col-end">' + esc(t('colEnd')) + '</th><th class="col-dur">' + esc(t('colDuration')) + '</th></tr>';
   $('#planTable tbody').innerHTML = rows.map(function (x, i) {
     var isTarget = x.step.element != null && targetIds[x.step.element] != null && (x.level == null ? true : x.level === targetIds[x.step.element]);
-    var cls = x.step.kind === 'prod' ? 'prod' : isTarget ? 'target' : '';
+    var cls = x.step.kind === 'prod' ? 'prod' : isTarget ? 'goal' : '';
     return '<tr class="' + cls + '"><td class="idx">' + (i + 1) + '</td><td class="name">' + esc(stepTitle(x)) + '</td>'
       + '<td class="col-start">' + esc(clock(x.start)) + '</td><td>' + esc(clock(x.end)) + '</td>'
       + '<td class="dim col-dur">' + (x.start != null && x.end != null && x.end > x.start ? esc(span(x.end - x.start)) : '–') + '</td></tr>';

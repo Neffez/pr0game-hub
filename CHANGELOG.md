@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-22
 
+- pr0game tools, auto-plan: steps that reach a target (e.g. "Astrophysik 1" or a colony ship) are shown as a normal
+  row of the plan again instead of their cells stacked on separate lines; the row class clashed with the layout of
+  the target editor.
 - Inactivity score: galaxy activity marks no longer lower the score (a player farmed by other alliances gets them
   from those raids); they stay in the tooltip as information. Repeated successful raids of members (battles won with
   loot at the player's planets and moons, synced battle reports; battles within an hour are one wave) raise it: from
