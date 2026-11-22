@@ -326,6 +326,19 @@ describe('detectDone', () => {
     expect(detectDone(order, hub, [fleet({ mission: 1 })], 0)).toEqual([]);
   });
 
+  it('checks off a transport with a set time only by a fleet that left then, not by an earlier one', () => {
+    const timed = (tr: Partial<Step['transport']>): BuildOrder => ({
+      base: { planets: {}, research: {} }, planets: { [HOME]: [{ ...transport('t1'), transport: { ...transport('t1').transport!, ...tr } }] },
+    });
+    const hub = hubOf([planet(HOME), planet(COLONY)]);
+    // departure at 10000: a fleet landing at 5000 left before it
+    expect(detectDone(timed({ notBefore: 10000 }), hub, [fleet()], 0)).toEqual([]);
+    expect(detectDone(timed({ notBefore: 10000 }), hub, [fleet({ arrival: 13600 })], 0)).toEqual(['t1']);
+    // wanted arrival at 20000: a little early still counts, hours early does not
+    expect(detectDone(timed({ arriveAt: 20000 }), hub, [fleet({ arrival: 12000 })], 0)).toEqual([]);
+    expect(detectDone(timed({ arriveAt: 20000 }), hub, [fleet({ arrival: 19700 })], 0)).toEqual(['t1']);
+  });
+
   it('plans with the production setting of the empire page', () => {
     const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [{ id: 'b', kind: 'building', element: 22 }] } };
     const poor = (factors: Record<string, number> | null) => ({ ...planet(HOME, { 1: 5, 4: 5 }, { resources: { 901: 0, 902: 0, 903: 0 }, perHour: { 901: 1800 } }), factors });
