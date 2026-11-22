@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-22',
     items: [
       {
+        kind: 'new',
+        de: 'Inaktivität: Aktivitätsmarken in der Galaxie senken den Inaktivitäts-Wert nicht mehr – gefarmte Spieler bekommen sie auch durch Angriffe anderer. Wiederholte erfolgreiche Farm-Angriffe von Hub-Mitgliedern auf einen Spieler erhöhen ihn dagegen.',
+        en: 'Inactivity: galaxy activity marks no longer lower the inactivity score, farmed players get them from others\' attacks too. Repeated successful farm raids of hub members on a player raise it instead.',
+      },
+      {
         kind: 'fix',
         de: 'Bauliste: Ein neu hinzugefügter Transport wird nicht mehr sofort abgehakt, nur weil schon früher eine Flotte zum selben Ziel geflogen ist. Er gilt erst als erledigt, wenn danach eine passende Flotte losfliegt.',
         en: 'Build order: a newly added transport is no longer checked off right away just because a fleet flew to the same target before. It only counts as done once a matching fleet leaves after it was added.',

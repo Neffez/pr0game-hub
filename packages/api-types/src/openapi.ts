@@ -3075,6 +3075,11 @@ export type components = {
                 n: number;
             } | {
                 /** @constant */
+                code: "raids";
+                n: number;
+                time: number;
+            } | {
+                /** @constant */
                 code: "losses";
             })[];
         } | null;

@@ -23,6 +23,7 @@ export type InactivityReason =
   | { code: 'weakGains'; n: number }
   | { code: 'galaxy'; n: number; time: number }
   | { code: 'idleSpy'; n: number }
+  | { code: 'raids'; n: number; time: number }
   | { code: 'losses' };
 
 /**
@@ -53,6 +54,7 @@ function reasonText(r: InactivityReason): string {
     case 'weakGains': return t('inactivity.weakGains', { n: r.n }, r.n);
     case 'galaxy': return t('inactivity.galaxy', { n: r.n, time: dateTime(r.time) }, r.n);
     case 'idleSpy': return t('inactivity.idleSpy', { n: r.n }, r.n);
+    case 'raids': return t('inactivity.raids', { n: r.n, time: dateTime(r.time) }, r.n);
     case 'losses': return t('inactivity.losses');
   }
 }

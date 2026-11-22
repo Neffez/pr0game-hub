@@ -17,9 +17,9 @@ import { SHARED } from './messages.js';
  * - a relevant points gain: total points grew in a statistics update by more than a small share of what the active
  *   players around the same rank gained (smaller gains are builds finishing from a queue, not activity).
  * Signs of absence since `t0`: the time without either (scored on a curve), spy reports whose resources match the
- * projection of the report before (nobody spent or looted), fleet or defense points lost and not rebuilt. Galaxy
- * activity marks after `t0` lower the score but don't reset it: the game also sets them when others spy on or
- * attack the planet, and other alliances farm the same targets.
+ * projection of the report before (nobody spent or looted), fleet or defense points lost and not rebuilt, repeated
+ * successful raids of members on the player's planets (farmed without reacting). Galaxy activity marks are only shown:
+ * the game also sets them when others spy on or attack the planet, so a player farmed by other alliances has them.
  */
 export interface Inactivity {
   /** 0 (active) … 100 (inactive for sure) */
@@ -47,8 +47,11 @@ export type InactivityReason =
   | { code: 'gain'; time: number; size?: number; ratio?: number | null }
   | { code: 'noGain'; since: number; atLeast: boolean }
   | { code: 'weakGains'; n: number }
+  /** shown only, they don't change the score */
   | { code: 'galaxy'; n: number; time: number }
   | { code: 'idleSpy'; n: number }
+  /** raid waves of members with loot since t0, `time` of the newest */
+  | { code: 'raids'; n: number; time: number }
   | { code: 'losses' };
 
 /** Tunable weights (the admin panel's check measures how well they fit). */
@@ -60,14 +63,17 @@ export const INACTIVITY = {
   /** a gain below this share of the median gain of active players ±`rankWindow` ranks counts as a queue finishing */
   weakGain: 0.15,
   rankWindow: 25,
-  /** each galaxy activity mark after t0 multiplies the score by this, down to `galaxyFloor` */
-  galaxyFactor: 0.7,
-  galaxyFloor: 0.35,
   /** per spy interval without spending or loot after t0, at most `idleSpyMax` */
   idleSpyBonus: 4,
   idleSpyMax: 12,
   /** fleet or defense points lost since t0 and not rebuilt */
   lossBonus: 5,
+  /** successful raids of members since t0: battles within `raidWave` count as one wave; from `raidMin` waves on,
+   * `raidBonus` per wave, at most `raidMax` */
+  raidWave: 3600,
+  raidMin: 2,
+  raidBonus: 4,
+  raidMax: 12,
   /** resources match the projection within this share of the production between two reports, plus `spyAbsolute` */
   spyTolerance: 0.05,
   spyAbsolute: 2000,
@@ -99,8 +105,10 @@ export interface InactivitySignals {
   /** gains after `lastGain` too small to count */
   weakGains: number;
   proven: { time: number; source: ProofSource } | null;
-  /** galaxy activity marks of the player's planets, times */
+  /** galaxy activity marks of the player's planets, times (shown, not scored) */
   galaxy: number[];
+  /** battles members won with loot at the player's planets and moons, times */
+  raids?: number[];
   /** spy intervals without spending or loot: their end times */
   idleSpy: number[];
   /** fleet or defense points lower now than at the time given (losses since then not rebuilt) */
@@ -144,14 +152,29 @@ export function inactivityOf(s: InactivitySignals, asOf: number): Inactivity {
     score += W.lossBonus;
     reasons.push({ code: 'losses' });
   }
-  const marks = s.galaxy.filter((t) => t > t0 && t <= asOf);
-  if (marks.length) {
-    score *= Math.max(W.galaxyFloor, W.galaxyFactor ** marks.length);
-    reasons.push({ code: 'galaxy', n: marks.length, time: Math.max(...marks) });
+  const waves = raidWaves((s.raids ?? []).filter((t) => t > t0 && t <= asOf));
+  if (idle > 0 && waves.length >= W.raidMin) {
+    score += Math.min(W.raidMax, waves.length * W.raidBonus);
+    reasons.push({ code: 'raids', n: waves.length, time: waves[waves.length - 1] });
   }
+  const marks = s.galaxy.filter((t) => t > t0 && t <= asOf);
+  if (marks.length) reasons.push({ code: 'galaxy', n: marks.length, time: Math.max(...marks) });
   score = Math.round(Math.min(W.max, Math.max(0, score)));
   const level = inactivityLevel(score);
   return { ...base, score, level, status: null, since: level === 'active' ? null : t0, atLeast: level !== 'active' && atLeast, reasons };
+}
+
+/** Raid times grouped into waves (battles within `raidWave` of the wave's first): the newest time of each wave. */
+function raidWaves(times: number[]): number[] {
+  const out: number[] = [];
+  let start = -Infinity;
+  for (const t of [...times].sort((a, b) => a - b)) {
+    if (t - start > INACTIVITY.raidWave) {
+      start = t;
+      out.push(t);
+    } else out[out.length - 1] = t;
+  }
+  return out;
 }
 
 export type Names = Map<string, number>;
@@ -231,6 +254,26 @@ function galaxyMarks(db: DB, groupId: number, from: number, asOf: number): Map<n
   const out = new Map<number, number[]>();
   for (const r of db
     .prepare("SELECT player_id, time FROM player_activity WHERE group_id = ? AND source = 'galaxy' AND time BETWEEN ? AND ?")
+    .all(groupId, from, asOf) as { player_id: number; time: number }[]) {
+    if (!out.has(r.player_id)) out.set(r.player_id, []);
+    out.get(r.player_id)!.push(r.time);
+  }
+  return out;
+}
+
+/**
+ * Battles members synced that they won with loot at a planet or moon of the player (the attacker loots, so a member
+ * who defended has none): times per player.
+ */
+function memberRaids(db: DB, groupId: number, from: number, asOf: number): Map<number, number[]> {
+  const out = new Map<number, number[]>();
+  for (const r of db
+    .prepare(
+      `SELECT DISTINCT pl.player_id, COALESCE(b.time, b.created_at) AS time FROM battle_reports b
+       JOIN planets pl ON pl.group_id = b.group_id AND pl.g = b.g AND pl.s = b.s AND pl.p = b.p
+       WHERE b.group_id = ? AND b.user_id IS NOT NULL AND b.outcome = 'win' AND b.loot_metal + b.loot_crystal + b.loot_deuterium > 0
+         AND pl.player_id IS NOT NULL AND COALESCE(b.time, b.created_at) BETWEEN ? AND ?`,
+    )
     .all(groupId, from, asOf) as { player_id: number; time: number }[]) {
     if (!out.has(r.player_id)) out.set(r.player_id, []);
     out.get(r.player_id)!.push(r.time);
@@ -433,6 +476,7 @@ function compute(db: DB, ctx: GroupContext, asOf: number): Map<number, Inactivit
   const stats = statSeries(db, g, from, asOf);
   const proven = provenActivity(db, ctx, names, from, asOf);
   const galaxy = galaxyMarks(db, g, from, asOf);
+  const raids = memberRaids(db, g, from, asOf);
   const losses = lossesSince(db, g, from, asOf);
   const spy = spyHistory(db, ctx, economyOf(db, ctx), from, asOf);
   const live = asOf >= ctx.now;
@@ -466,6 +510,7 @@ function compute(db: DB, ctx: GroupContext, asOf: number): Map<number, Inactivit
           weakGains: st?.weakGains ?? 0,
           proven: best,
           galaxy: galaxy.get(p.id) ?? [],
+          raids: raids.get(p.id) ?? [],
           idleSpy: spy.idle.get(p.id) ?? [],
           lossesSince: losses.get(p.id) ?? null,
         },

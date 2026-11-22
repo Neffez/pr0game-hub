@@ -240,7 +240,7 @@ components:
                   code: { const: weakGains }
                   n: { type: integer }
               - type: object
-                description: Galaxy activity marks, `time` of the newest
+                description: Galaxy activity marks, `time` of the newest; shown only, they don't change the score (others' raids set them too)
                 required: [code, n, time]
                 properties:
                   code: { const: galaxy }
@@ -252,6 +252,13 @@ components:
                 properties:
                   code: { const: idleSpy }
                   n: { type: integer }
+              - type: object
+                description: Waves of successful raids (won with loot) of members on the player's planets, `time` of the newest
+                required: [code, n, time]
+                properties:
+                  code: { const: raids }
+                  n: { type: integer }
+                  time: { type: integer }
               - type: object
                 description: Fleet or defense points lost and not rebuilt
                 required: [code]
