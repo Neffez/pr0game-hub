@@ -86,7 +86,7 @@ beforeAll(async () => {
   const empire = {
     kind: 'empire', research, planets: [
       {
-        name: 'Home', coords: { g: 1, s: 100, p: 8 }, type: 'planet', values: { 1: 20, 2: 18, 3: 15, 21: 8, 22: 8, 23: 8, 24: 8, 202: 20, 401: 20, 408: 1 },
+        name: 'Home', coords: { g: 1, s: 100, p: 8 }, type: 'planet', values: { 1: 20, 2: 18, 3: 15, 21: 8, 22: 8, 23: 8, 24: 8, 31: 10, 202: 20, 401: 20, 408: 1 },
         resources: { 901: 2_000_000, 902: 1_000_000, 903: 500_000 }, perHour: { 901: 0, 902: 0, 903: 0 },
       },
       { name: 'Colony', coords: { g: 1, s: 140, p: 6 }, type: 'planet', values: {} },
@@ -131,6 +131,18 @@ describe('defense advisor', () => {
     expect(a.advice).toBeNull();
   });
 
+  it('lists the next combat research levels for a research comparison', async () => {
+    const a = (await get(`/defense-advice?planet=${HOME}&sim=0`)).json();
+    expect(a.research.levels).toEqual({ 109: 6, 110: 6, 111: 6 });
+    expect(a.research.planets).toBe(2);
+    expect(a.research.steps.map((s: any) => [s.id, s.level])).toEqual([[109, 7], [109, 8], [110, 7], [110, 8], [111, 7], [111, 8]]);
+    // the second step costs both levels: the next one and twice that
+    const [w7, w8] = a.research.steps;
+    expect(w7.cost.metal).toBeGreaterThan(0);
+    expect(w8.cost.metal).toBeCloseTo(w7.cost.metal * 3);
+    expect(a.researchAdvice).toBeNull();
+  });
+
   it('leaves out the ships when they are saved and can count full storages', async () => {
     const a = (await get(`/defense-advice?planet=${HOME}&ships=0&loot=full&sim=0`)).json();
     expect(a.planet.units).toEqual({ 401: 20, 408: 1 });
@@ -156,6 +168,25 @@ describe('defense advisor', () => {
     expect(b.advice.status).toBe('found');
     expect(b.advice.after[0].profit).toBeLessThanOrEqual(0);
     expect(b.advice.costValue).toBeGreaterThan(0);
+  });
+
+  it.skipIf(!wasm)('compares research steps with defense only', async () => {
+    const a = (await get(`/defense-advice?planet=${HOME}&sim=0`)).json();
+    const raiderKey = a.threats.find((x: any) => x.player.name === 'Raider').key;
+    const r = (await get(`/defense-advice?planet=${HOME}&threats=${raiderKey}&research=1`)).json();
+    expect(r.advice).toBeNull();
+    expect(r.researchAdvice.error).toBeNull();
+    // split over both planets by default
+    expect(r.researchAdvice.share).toBe(0.5);
+    const options = r.researchAdvice.options;
+    expect(options).toHaveLength(7);
+    expect(options[0].step).toBeNull();
+    expect(options[0].counted).toBe(0);
+    expect(options[1].step).toMatchObject({ id: 109, level: 7 });
+    expect(options[1].counted).toBeCloseTo(options[1].researchValue / 2);
+    for (const o of options) expect(o.total).toBeCloseTo(o.counted + o.advice.costValue);
+    const full = (await get(`/defense-advice?planet=${HOME}&threats=${raiderKey}&research=1&share=0`)).json();
+    expect(full.researchAdvice.share).toBe(1);
   });
 
   it.skipIf(!wasm)('scores the raid risk of every body and caches it while nothing changes', async () => {

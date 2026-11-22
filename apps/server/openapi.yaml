@@ -1005,7 +1005,7 @@ components:
             from: { type: string }
             to: { type: string }
         members: { type: integer, description: Members of the alliance }
-        syncs: { $ref: '#/components/schemas/RecapCompare', description: Syncs of pages with data }
+        syncs: { $ref: '#/components/schemas/RecapCompare', description: 'Syncs of pages with something new, by page type: the overview at most every 15 minutes, empire, buildings, research, shipyard and fleets every hour, the marketplace once a day, a player card once per player, galaxy only when a system changed; reports every time' }
         active: { $ref: '#/components/schemas/RecapCompare', description: Members with points or syncs }
         points: { $ref: '#/components/schemas/RecapCompare', description: Sync points of all members }
         newBadges: { type: integer, description: Badges a member reached a new level of in the period }
@@ -1053,7 +1053,7 @@ components:
             properties:
               userId: { type: integer }
               name: { type: string }
-              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner, livingLegend] }
               level: { type: integer }
         rows:
           type: array
@@ -2319,7 +2319,7 @@ components:
     DefenseAdvice:
       type: object
       description: The defense advisor for one of the caller's planets or moons (see `getDefenseAdvice`)
-      required: [planet, rate, candidates, threats, simulated, advice, now]
+      required: [planet, rate, candidates, threats, research, simulated, advice, researchAdvice, now]
       properties:
         planet:
           type: object
@@ -2344,27 +2344,72 @@ components:
             source: { type: string, enum: [market, default] }
         candidates: { type: array, items: { type: integer }, description: Defense units the planet can build (requirements met; shield domes not built yet) }
         threats: { type: array, items: { $ref: '#/components/schemas/DefenseThreat' } }
+        research:
+          type: object
+          description: Combat research of a research comparison
+          required: [levels, steps, planets]
+          properties:
+            levels: { $ref: '#/components/schemas/UnitCounts', description: Combat research after the research queue }
+            steps: { type: array, items: { $ref: '#/components/schemas/ResearchStep' }, description: The next and second-next level of each combat research that can be researched }
+            planets: { type: integer, description: 'The caller''s planets (`share=1` splits the research costs over them)' }
         simulated: { type: array, items: { type: string }, description: 'Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`)' }
         advice:
-          description: 'The search result, `{ error }` when the simulator is busy or missing, null with `sim=0` or without threats'
+          description: 'The search result, `{ error }` when the simulator is busy or missing, null with `sim=0`, `research=1` or without threats'
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [error]
+              properties: { error: { type: string } }
+            - allOf:
+                - { $ref: '#/components/schemas/DefenseSearchResult' }
+                - type: object
+                  required: [error]
+                  properties: { error: { type: 'null' } }
+        researchAdvice:
+          description: 'With `research=1`: research steps against defense only; `{ error }` when the simulator is busy or missing; null otherwise, without threats or without research steps'
           oneOf:
             - type: 'null'
             - type: object
               required: [error]
               properties: { error: { type: string } }
             - type: object
-              required: [error, status, before, after, add, cost, costValue, battles, runs]
+              required: [error, options, best, share]
               properties:
                 error: { type: 'null' }
-                status: { type: string, enum: [safe, found, limit, budget] }
-                before: { type: array, items: { $ref: '#/components/schemas/ThreatOutcome' } }
-                after: { type: [array, 'null'], items: { $ref: '#/components/schemas/ThreatOutcome' }, description: With the added defense (null when nothing is added) }
-                add: { $ref: '#/components/schemas/UnitCounts', description: Defense units to build }
-                cost: { $ref: '#/components/schemas/RiskResources' }
-                costValue: { type: number, description: Cost in deuterium value }
-                battles: { type: integer }
-                runs: { type: integer, description: Runs per battle }
+                options: { type: array, items: { $ref: '#/components/schemas/ResearchOption' }, description: Defense only first, then one per research step }
+                best: { type: [integer, 'null'], description: Index of the cheapest option that stops every attacker }
+                share: { type: number, description: Share of the research costs counted }
         now: { type: integer }
+    DefenseSearchResult:
+      type: object
+      description: The defense search for the chosen threats
+      required: [status, before, after, add, cost, costValue, battles, runs]
+      properties:
+        status: { type: string, enum: [safe, found, limit, budget] }
+        before: { type: array, items: { $ref: '#/components/schemas/ThreatOutcome' } }
+        after: { type: [array, 'null'], items: { $ref: '#/components/schemas/ThreatOutcome' }, description: With the added defense (null when nothing is added) }
+        add: { $ref: '#/components/schemas/UnitCounts', description: Defense units to build }
+        cost: { $ref: '#/components/schemas/RiskResources' }
+        costValue: { type: number, description: Cost in deuterium value }
+        battles: { type: integer }
+        runs: { type: integer, description: Runs per battle }
+    ResearchStep:
+      type: object
+      required: [id, level, cost, time]
+      properties:
+        id: { type: integer, description: '109 weapons, 110 shields, 111 armour' }
+        level: { type: integer, description: The level researched }
+        cost: { $ref: '#/components/schemas/RiskResources', description: Costs of the levels up to it still to be researched }
+        time: { type: [integer, 'null'], description: 'Research time of those levels in seconds, null when unknown' }
+    ResearchOption:
+      type: object
+      required: [step, researchValue, counted, advice, total]
+      properties:
+        step: { oneOf: [{ $ref: '#/components/schemas/ResearchStep' }, { type: 'null' }], description: 'Null: defense only' }
+        researchValue: { type: number, description: Research costs in deuterium value }
+        counted: { type: number, description: '`researchValue` × `share`' }
+        advice: { $ref: '#/components/schemas/DefenseSearchResult' }
+        total: { type: number, description: '`counted` + the defense''s cost value' }
     Enabled:
       type: object
       required: [enabled]
@@ -4380,6 +4425,10 @@ paths:
                       type: array
                       items: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
                       description: Onboarding steps the member has done (first sync of each kind of page)
+                    awards:
+                      type: array
+                      items: { type: string, enum: [livingLegend] }
+                      description: Badges awarded to the member by hand (`awardMemberBadge`)
                     invite_expires_at:
                       type: [integer, 'null']
                       description: >-
@@ -5209,7 +5258,8 @@ paths:
         `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer`
         player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more,
         `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments
-        on players, `miner` a build order planning 5 days ahead. The streak counts days in the universe's time zone
+        on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin
+        (`awardMemberBadge`). The streak counts days in the universe's time zone
         with a sync only the member can make (own empire, overview, buildings or research page, own reports and
         messages); a day in vacation mode pauses it.
       parameters:
@@ -5246,7 +5296,7 @@ paths:
                             type: object
                             required: [key, count, level, levels, next, steps]
                             properties:
-                              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+                              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner, livingLegend] }
                               count: { type: integer }
                               level: { type: integer, description: 'Reached level, 0: not yet' }
                               levels: { type: integer }
@@ -6179,6 +6229,11 @@ paths:
         already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles
         are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as
         built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing.
+        With `research=1` the search runs as `researchAdvice` instead (one simulation as well, `advice` is null): with
+        the combat research after the research queue, once for defense only and once per next and second-next level of
+        weapons, shields and armour (requirements met; costs and the time on the planet with the fastest lab); each
+        option's `total` is the research costs × `share` (1, or 1 / the caller's planets with `share=1`) + the defense
+        still needed, `best` the cheapest option that stops every chosen attacker.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -6189,6 +6244,8 @@ paths:
         - { name: loot, in: query, schema: { type: string, enum: [now, full] }, description: 'Resources at the attack: projected to now (default) or full storages' }
         - { name: threats, in: query, schema: { type: string }, description: 'Comma-separated `key`s of the threats to simulate (default: all listed)' }
         - { name: sim, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0` lists the threats without the search' }
+        - { name: research, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`1`: `researchAdvice` (combat research against defense) instead of `advice`' }
+        - { name: share, in: query, schema: { type: string, enum: ['0', '1'] }, description: 'With `research=1`: `0` counts the full research costs against the planet; default `1` (split over the caller''s planets)' }
       responses:
         '200':
           content:
@@ -8696,6 +8753,58 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
+  /api/admin/groups/{id}/members/{userId}/awards/{key}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+      - { name: userId, in: path, required: true, schema: { type: integer } }
+      - { name: key, in: path, required: true, schema: { type: string, enum: [livingLegend] }, description: Badge awarded by hand }
+    put:
+      tags: [Admin]
+      operationId: awardMemberBadge
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Awards a badge that is only given by hand (`livingLegend`: "Living legend") to a member of the alliance; global
+        admins. It counts in the achievements from now on; awarding it again keeps the first date.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400':
+          description: Not a badge awarded by hand (`badge_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not a member of the alliance (`member_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Admin]
+      operationId: revokeMemberBadge
+      security: [{ sessionCookie: [] }]
+      description: Takes back a badge awarded by hand; global admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not a member of the alliance (`member_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/admin/groups/{id}/members/{userId}/invite:
     post:
       tags: [Admin]

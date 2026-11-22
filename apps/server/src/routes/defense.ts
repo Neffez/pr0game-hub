@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
-import { defenseAdvice, defenseInput, HEAVY, raidRiskInput, raidRiskOf } from '../repo/defense.js';
+import { defenseAdvice, defenseInput, HEAVY, raidRiskInput, raidRiskOf, researchAdvice, researchSearch } from '../repo/defense.js';
 import { threatsOf } from '../repo/threats.js';
 import { clampInt, contextOf } from './util.js';
 
@@ -14,7 +14,7 @@ export function defenseRoutes(app: FastifyInstance, db: DB) {
     return threatsOf(db, ctxOf(req), clampInt(req.query.days, 30, 1, 3650));
   });
 
-  app.get<{ Params: { uni: string }; Querystring: { planet?: string; ships?: string; debris?: string; loot?: string; threats?: string; sim?: string } }>(
+  app.get<{ Params: { uni: string }; Querystring: { planet?: string; ships?: string; debris?: string; loot?: string; threats?: string; sim?: string; research?: string; share?: string } }>(
     '/api/:uni/defense-advice',
     async (req) => {
       const ctx = ctxOf(req);
@@ -29,8 +29,11 @@ export function defenseRoutes(app: FastifyInstance, db: DB) {
         threats,
       });
       const { search, ...rest } = input;
-      const advice = q.sim === '0' ? null : await defenseAdvice(ctx, search);
-      return { ...rest, simulated: search.threats.map((t) => t.key), advice, now: ctx.now };
+      // research=1: research steps against defense instead of the defense advice
+      const compare = q.sim !== '0' && q.research === '1';
+      const advice = q.sim === '0' || compare ? null : await defenseAdvice(ctx, search);
+      const researchCompare = compare ? await researchAdvice(ctx, researchSearch(input, q.share !== '0')) : null;
+      return { ...rest, simulated: search.threats.map((t) => t.key), advice, researchAdvice: researchCompare, now: ctx.now };
     },
   );
 

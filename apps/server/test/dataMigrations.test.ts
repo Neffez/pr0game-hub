@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterAll, describe, expect, it } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -28,7 +29,7 @@ describe('data migrations', () => {
     db.close();
   });
 
-  it('rebuilds the syncs from the raw syncs, only those that brought something new', () => {
+  it('rebuilds the syncs from the raw syncs: only those that brought something new, own state pages throttled', () => {
     const file = join(dir, 'syncs.db');
     let db = openDb(file);
     db.prepare("INSERT INTO universes (slug, name, settings) VALUES ('u1', 'U1', '{}')").run();
@@ -50,19 +51,42 @@ describe('data migrations', () => {
     raw('galaxy', {}, at - 3600);
     raw('empire', { empire: { new: 1, duplicate: 0 } }, at + 60);
     credit('2026-11-19', 'empire', 1);
-    db.prepare("DELETE FROM schema_migrations WHERE name = 'js:sync_counts_new_only'").run();
+    // the Imperium once an hour, the overview every 15 minutes, messages with new reports every time
+    raw('empire', { empire: { new: 1, duplicate: 0 } }, at + 600);
+    raw('empire', { empire: { new: 1, duplicate: 0 } }, at + 3660);
+    raw('overview', { overview: { new: 1, duplicate: 0 } }, at + 100);
+    raw('overview', { overview: { new: 1, duplicate: 0 } }, at + 500);
+    raw('overview', { overview: { new: 1, duplicate: 0 } }, at + 1000);
+    raw('messages', { spy: { new: 1, duplicate: 0 } }, at + 120);
+    raw('messages', { battle_reports: { new: 1, duplicate: 0 } }, at + 130);
+    // a galaxy page counts when the system changed, a player card once per player, the marketplace once a day
+    const fixture = (name: string) => gzipSync(readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url)));
+    const page = (type: string, html: Buffer, counts: object, t: number) =>
+      db.prepare('INSERT INTO raw_ingests (group_id, user_id, source, page_type, html_gz, summary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(group, user, 'paste', type, html, JSON.stringify({ counts }), t);
+    page('galaxy', fixture('galaxy.html'), { galaxy_systems: { new: 1, duplicate: 0 } }, at + 200);
+    page('galaxy', fixture('galaxy.html'), { galaxy_systems: { new: 1, duplicate: 0 } }, at + 300);
+    page('playerCard', fixture('playercard.html'), { player_cards: { new: 1, duplicate: 0 } }, at + 400);
+    page('playerCard', fixture('playercard.html'), { player_cards: { new: 1, duplicate: 0 } }, at + 500);
+    raw('marketplace', { market_rates: { new: 1, duplicate: 0 } }, at + 600);
+    raw('marketplace', { market_rates: { new: 1, duplicate: 0 } }, at + 7200);
+    db.prepare("DELETE FROM schema_migrations WHERE name = 'js:sync_counts_throttled'").run();
     db.close();
     const expected = [
       { day: '2026-11-16', key: 'galaxy', count: 4 },
       { day: '2026-11-17', key: 'messages', count: 5 },
       { day: '2026-11-18', key: 'messages', count: 1 },
-      { day: '2026-11-19', key: 'empire', count: 1 },
+      { day: '2026-11-19', key: 'empire', count: 2 },
+      { day: '2026-11-19', key: 'galaxy', count: 1 },
+      { day: '2026-11-19', key: 'marketplace', count: 1 },
+      { day: '2026-11-19', key: 'messages', count: 2 },
+      { day: '2026-11-19', key: 'overview', count: 2 },
+      { day: '2026-11-19', key: expect.stringMatching(/^playerCard:./), count: 1 },
     ];
     db = openDb(file);
-    expect(db.prepare("SELECT day, key, count FROM sync_credits WHERE kind = 'sync' ORDER BY day").all()).toEqual(expected);
+    expect(db.prepare("SELECT day, key, count FROM sync_credits WHERE kind = 'sync' ORDER BY day, key").all()).toEqual(expected);
     db.close();
     db = openDb(file);
-    expect(db.prepare("SELECT day, key, count FROM sync_credits WHERE kind = 'sync' ORDER BY day").all()).toEqual(expected);
+    expect(db.prepare("SELECT day, key, count FROM sync_credits WHERE kind = 'sync' ORDER BY day, key").all()).toEqual(expected);
     db.close();
   });
 

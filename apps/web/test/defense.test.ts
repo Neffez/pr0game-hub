@@ -22,9 +22,18 @@ const threat = (key: string, name: string, kind: string) => ({
 const outcome = (key: string, profit: number) => ({ key, profit, loot: { metal: 1, crystal: 1, deuterium: 1 }, debris: { metal: 0, crystal: 0 }, lost: { metal: 0, crystal: 0, deuterium: 0 }, defenderLost: { metal: 0, crystal: 0, deuterium: 0 }, fuel: 1200, wins: 1 });
 const base = {
   planet: { key: KEY, name: 'Home', coords: { g: 1, s: 100, p: 8 }, type: 'planet', time: 1000, units: { 401: 20 }, research: { 109: 6, 110: 6, 111: 6 }, resources: { metal: 2e6, crystal: 1e6, deuterium: 5e5 }, defenseValue: 13333 },
-  rate: { m: 3, k: 2, source: 'default' }, candidates: [401, 402], threats: [threat('p1', 'Raider', 'spied'), threat('p2', 'Basher', 'attacked')], simulated: [], advice: null,
+  rate: { m: 3, k: 2, source: 'default' }, candidates: [401, 402], threats: [threat('p1', 'Raider', 'spied'), threat('p2', 'Basher', 'attacked')], simulated: [], advice: null, researchAdvice: null,
+  research: { levels: { 109: 6, 110: 6, 111: 6 }, steps: [{ id: 110, level: 7, cost: { metal: 12_800, crystal: 38_400, deuterium: 0 }, time: 3600 }], planets: 2 },
 };
 const advice = { error: null, status: 'found', before: [outcome('p2', 800_000), outcome('p2:heavy', 300_000)], after: [outcome('p2', -20_000), outcome('p2:heavy', -90_000)], add: { 402: 139, 403: 35 }, cost: { metal: 418_500, crystal: 139_500, deuterium: 0 }, costValue: 209_250, battles: 120, runs: 8 };
+const shieldsAdvice = { ...advice, add: { 402: 60 }, cost: { metal: 90_000, crystal: 30_000, deuterium: 0 }, costValue: 45_000 };
+const researchAdvice = {
+  error: null, best: 1, share: 0.5,
+  options: [
+    { step: null, researchValue: 0, counted: 0, advice, total: 209_250 },
+    { step: base.research.steps[0], researchValue: 23_466, counted: 11_733, advice: shieldsAdvice, total: 56_733 },
+  ],
+};
 const calls: { url: string; method: string; body: any }[] = [];
 const settle = async () => {
   for (let i = 0; i < 6; i++) {
@@ -48,7 +57,7 @@ describe('defense advisor', () => {
           ], unknown: [{ key: 'p7', player: { id: 7, name: 'Ghost', status: [], allyTag: null }, reasons: [{ kind: 'spied', count: 3, last: 1 }] }],
           runs: 4, battles: 16, cached: false, error: null }
         : url.includes('/defense-advice')
-        ? { ...base, ...(url.includes('sim=0') ? {} : { simulated: ['p2'], advice }) }
+        ? { ...base, ...(url.includes('sim=0') ? {} : url.includes('research=1') ? { simulated: ['p2'], researchAdvice } : { simulated: ['p2'], advice }) }
         : url.endsWith('/build-order') && method === 'GET' ? { buildOrder: null } : { buildOrder: {} };
       return new Response(JSON.stringify(json), { headers: { 'content-type': 'application/json' } });
     });
@@ -109,5 +118,26 @@ describe('defense advisor', () => {
     expect(put.body.order.planets[KEY].map((s: any) => [s.kind, s.element, s.count])).toEqual([['ship', 402, 139], ['ship', 403, 35]]);
     expect(put.body.order.base.planets[KEY]).toEqual({ 21: 8, 401: 20 });
     expect(root.textContent).toContain('in der Bauliste');
+  });
+
+  it('compares research with defense and takes an option into the result', async () => {
+    const button = [...root.querySelectorAll('.def-actions button')].find((b) => b.textContent!.includes('Mit Forschung vergleichen')) as HTMLButtonElement;
+    button.click();
+    await settle();
+    const q = new URL(calls.find((c) => c.url.includes('research=1'))!.url, 'http://x').searchParams;
+    expect(q.get('share')).toBe('1');
+    expect(q.get('threats')).toBe('p2');
+    const table = root.querySelector('[data-tour="build-defense-research-result"]')!;
+    const rows = [...table.querySelectorAll('tbody tr')];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('nur Verteidigung');
+    expect(rows[1].textContent).toContain('Schildtechnik 7');
+    expect(rows[1].textContent).toContain('günstigste');
+    expect(rows[1].textContent).toContain('Anteil 50 %');
+    (rows[1].querySelector('button') as HTMLButtonElement).click();
+    await settle();
+    const result = root.querySelector('[data-tour="build-defense-result"]')!;
+    expect(result.textContent).toContain('Schildtechnik 7 +');
+    expect(result.textContent).toContain('60×');
   });
 });

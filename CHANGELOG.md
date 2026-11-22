@@ -2,13 +2,50 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
-## 2026-11-21
+## 2026-11-22
 
 - Build order: a transport step was checked off as soon as it was added when an earlier own fleet to the same target
   existed (any fleet since the import counted, also one that had already checked off an earlier transport). Transport
   steps now record when the server first stored them (`added`, set on PATCH, a sent value is ignored; described in the
   OpenAPI spec) and only fleets arriving after that count; transports already checked off keep the earliest fleet
   that fits them, so it cannot check off a second step.
+- Build order: the list of the other planets of the build order wraps on narrow screens instead of running past the
+  edge on phones.
+- Build order: a transport with a set departure or arrival time is no longer checked off by an earlier own fleet on
+  the same route as soon as it is the next step. A fleet counts only when it lands after the set departure, or at most
+  15 minutes before the wanted arrival (`detectDone` in `@pr0hub/planner`).
+
+## 2026-11-21
+
+- Badges explain themselves on phones and tablets: a long press on a badge (online list, player profile, streaks &
+  badges, recap) shows its tooltip as a sheet above the tab bar, which closes with the next touch; the press no
+  longer opens the link around the badge or the browser's menu (`useLongPress` in `composables.ts`).
+- Recap: the number of syncs follows a rule per page type, so a script or a busy tab that syncs the same pages many
+  times an hour no longer inflates it. Every sync is still stored and used as before; only the count skips it.
+  - The overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an
+    hour, the marketplace once a day, a player card once per player.
+  - A galaxy page counts only when a system is new or changed for the group (planets, owners, names, moons, debris,
+    destroyed planets, player status; not the activity marks): the group's last view of each system keeps a
+    fingerprint (`galaxy_views.fingerprint`).
+  - Messages with spy, battle, transport and other reports, statistics with a stand the hub did not have yet and the
+    battle hall with new entries count every time, as before.
+  - The counts of the days the stored raw syncs still cover are rebuilt with these rules, galaxy and player card
+    pages parsed again (migration `099_sync_credits_last_at`, data migration `js:sync_counts_throttled`).
+- New badge "Living legend" (eagle icon) that only global admins award or take back by hand, per alliance member, in
+  the admin page's member list. It has one level, shows in gold next to the counted badges (online list, player
+  profile, streaks & badges, recap) with the plain description "Special achievement" and is stored in
+  `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`, the member list returns `awards`.
+- Defense advisor: "Compare with research" weighs combat research against defense. The search runs once with the
+  combat research after the research queue and once per next and second-next level of weapons, shielding and armour
+  technology (requirements met, costs and research time on the planet with the fastest lab), and shows per option
+  the research costs, the defense still needed and the total; the cheapest option that stops every chosen attacker
+  is marked and can be taken into the result (build order, battle simulator link with the raised research). The
+  research costs can be split over the member's planets (on by default), since research strengthens every body.
+  - API: `GET /api/{uni}/defense-advice` takes `research=1` and `share` and answers `research` (levels after the
+    queue, steps, planets) and `researchAdvice` (new schemas `DefenseSearchResult`, `ResearchStep`,
+    `ResearchOption`; the search result of `advice` is `DefenseSearchResult` now).
+  - `@pr0hub/battle`: `researchComparison` (the defense search per research step within one engine budget), run in
+    the battle worker as job `research` with a 45 s limit.
 - Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
   buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
   check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;

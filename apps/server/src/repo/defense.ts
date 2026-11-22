@@ -1,15 +1,18 @@
 import { createHash } from 'node:crypto';
-import { defenseIds, heavyShips, valueIn, type DefenseAdvice, type DefenseSearch, type DefenseThreat, type RiskResult } from '@pr0hub/battle';
+import {
+  COMBAT_RESEARCH, defenseIds, heavyShips, valueIn,
+  type DefenseAdvice, type DefenseSearch, type DefenseThreat, type ResearchComparison, type ResearchSearch, type ResearchStep, type RiskResult,
+} from '@pr0hub/battle';
 import { DEFAULT_RATE } from '@pr0hub/core/advisor';
 import { capacityOf, resourceAt } from '@pr0hub/core/buildings';
-import { CLASS_FLEET, elementPoints } from '@pr0hub/core/tech';
+import { CLASS_FLEET, costOf, elementPoints } from '@pr0hub/core/tech';
 import { unitCost, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { HttpError } from '../auth.js';
-import { runDefenseInWorker, runRiskInWorker, simSettingsOf, throttle } from '../battle.js';
+import { runDefenseInWorker, runResearchInWorker, runRiskInWorker, simSettingsOf, throttle } from '../battle.js';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { buildingsState, planetShips, type BuildingPlanet, type BuildingsState } from './buildings.js';
+import { buildingsState, planetResearch, planetShips, type BuildingPlanet, type BuildingsState } from './buildings.js';
 import { spyEmpire } from './empire.js';
 import { hostileAttacks } from './hostile.js';
 import { battleFleet } from './threats.js';
@@ -317,6 +320,43 @@ function planetSetup(state: BuildingsState, bp: BuildingPlanet, o: Options, t: n
   return { ids, units, combat, resources, candidates };
 }
 
+/** Levels a research comparison tries per combat research: the next one and the one after. */
+const RESEARCH_LEVELS = 2;
+/** Runs per battle and engine budget of a research comparison, shared by its searches (about 15 s). */
+const RESEARCH_RUNS = 4;
+const RESEARCH_WORK = 60_000_000;
+
+/**
+ * The combat research for a comparison: the levels after the research queue (queued levels count as researched, like
+ * the shipyard queue as built) and per combat research the next `RESEARCH_LEVELS` levels with their costs and the
+ * research time on the planet with the fastest lab (requirements met, below the maximum).
+ */
+export function combatResearch(state: BuildingsState, t: number): { levels: Record<string, number>; steps: ResearchStep[] } {
+  const levels: Record<string, number> = {};
+  const steps: ResearchStep[] = [];
+  const planets = state.planets.filter((p) => p.type === 'planet');
+  for (const id of COMBAT_RESEARCH) {
+    const infos = planets.map((bp) => planetResearch(state, bp, t).find((r) => r.id === id)).filter((r) => r != null);
+    const any = infos[0];
+    levels[id] = any ? any.next - 1 : (state.research[id] ?? 0);
+    const usable = infos.filter((r) => r.state !== 'nolab' && r.state !== 'requirements' && r.state !== 'max');
+    const info = usable.sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity))[0];
+    if (!info) continue;
+    const factor = costOf(id)?.[3] ?? 2;
+    const cost = { metal: 0, crystal: 0, deuterium: 0 };
+    let time: number | null = 0;
+    for (let k = 0; k < RESEARCH_LEVELS && info.next + k <= info.max; k++) {
+      const scale = Math.pow(factor, k);
+      cost.metal += (info.cost[901] ?? 0) * scale;
+      cost.crystal += (info.cost[902] ?? 0) * scale;
+      cost.deuterium += (info.cost[903] ?? 0) * scale;
+      time = info.time != null && time != null ? time + Math.round(info.time * scale) : null;
+      steps.push({ id, level: info.next + k, cost: { ...cost }, time });
+    }
+  }
+  return { levels, steps };
+}
+
 export function rateOf(db: DB, ctx: GroupContext) {
   const rate = latestMarketRate(db, ctx.groupId);
   const value = rate && rate.m > 0 && rate.k > 0 ? { m: rate.m, k: rate.k } : DEFAULT_RATE;
@@ -332,6 +372,7 @@ export function defenseInput(db: DB, ctx: GroupContext, o: DefenseOptions) {
     const { threats } = defenseThreats(db, ctx, bp, { coords: state.planets.map((x) => x.coords), research: state.research });
     const rate = rateOf(db, ctx);
     const chosen = threats.filter((x) => (o.threats ? o.threats.includes(x.key) : true));
+    const research = combatResearch(state, ctx.now);
     const search: DefenseSearch = {
       planet: { units, research: combat },
       resources,
@@ -356,6 +397,7 @@ export function defenseInput(db: DB, ctx: GroupContext, o: DefenseOptions) {
       candidates: candidates.map((c) => c.id),
       threats,
       search,
+      research: { ...research, planets: state.planets.filter((p) => p.type === 'planet').length },
     };
   });
 }
@@ -420,6 +462,34 @@ export async function defenseAdvice(ctx: GroupContext, search: DefenseSearch): P
     throttle(ctx.user.id);
     const settings = simSettingsOf(ctx.universe.settings, {});
     return { ...(await runDefenseInWorker(search, settings, ctx.universe.units)), error: null };
+  } catch (err) {
+    return { error: (err as { code?: string }).code ?? 'sim_failed' };
+  }
+}
+
+/**
+ * Research instead of defense: the search of `defenseInput` with the combat research after the queue, once for
+ * defense only and once per research step; with `share` the research costs are split over the viewer's planets.
+ */
+export function researchSearch(input: ReturnType<typeof defenseInput>, share: boolean): ResearchSearch {
+  const { search, research } = input;
+  return {
+    ...search,
+    planet: { units: search.planet.units, research: { ...search.planet.research, ...research.levels } },
+    runs: RESEARCH_RUNS,
+    work: RESEARCH_WORK,
+    steps: research.steps,
+    share: share ? 1 / Math.max(1, research.planets) : 1,
+  };
+}
+
+/** The research comparison for the chosen threats (null without threats or research steps), in the battle worker. */
+export async function researchAdvice(ctx: GroupContext, search: ResearchSearch): Promise<(ResearchComparison & { error: null }) | { error: string } | null> {
+  if (!search.threats.length || !search.steps.length) return null;
+  try {
+    throttle(ctx.user.id);
+    const settings = simSettingsOf(ctx.universe.settings, {});
+    return { ...(await runResearchInWorker(search, settings, ctx.universe.units)), error: null };
   } catch (err) {
     return { error: (err as { code?: string }).code ?? 'sim_failed' };
   }

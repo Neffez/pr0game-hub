@@ -179,6 +179,77 @@ export function defenseAdvice(fight: Fight, search: DefenseSearch, settings: Sim
   return withUnits(units, () => adviceOf(fight, search, settings, units));
 }
 
+/** Combat research levels a research option raises (weapons, shields, armour). */
+export const COMBAT_RESEARCH = [109, 110, 111] as const;
+
+/** One combat research raised to `level` instead of (part of) the defense. */
+export interface ResearchStep {
+  /** 109 weapons, 110 shields, 111 armour */
+  id: number;
+  /** the level researched (the planet's research in the search is below it) */
+  level: number;
+  /** costs of all levels up to `level` that are still to be researched */
+  cost: Resources;
+  /** research time of those levels in seconds, null when unknown */
+  time: number | null;
+}
+
+export interface ResearchSearch extends DefenseSearch {
+  steps: ResearchStep[];
+  /**
+   * Share of the research costs counted against this planet (1: all; 1/n when it is shared by n bodies): research
+   * strengthens the defense and ships of every body, defense only the one it is built on.
+   */
+  share: number;
+}
+
+export interface ResearchOption {
+  /** null: defense only, the planet's research as it is */
+  step: ResearchStep | null;
+  /** research costs in deuterium value (all of them) */
+  researchValue: number;
+  /** `researchValue` × the share */
+  counted: number;
+  /** the defense search with the research raised */
+  advice: DefenseAdvice;
+  /** `counted` + the defense's cost value: what this option costs the planet */
+  total: number;
+}
+
+export interface ResearchComparison {
+  /** defense only first, then one per step; the cheapest one that stops every attacker is `best` */
+  options: ResearchOption[];
+  /** index into `options`, null when no option stops every attacker */
+  best: number | null;
+  share: number;
+}
+
+/**
+ * Defense only against research steps plus defense: runs the defense search once with the planet's research and once
+ * per step with that combat research raised (each a share of the engine budget), and compares what each costs the
+ * planet: the research share plus the defense still needed.
+ */
+export function researchComparison(fight: Fight, search: ResearchSearch, settings: SimSettings = DEFAULT_SIM_SETTINGS, units?: UnitCatalog): ResearchComparison {
+  return withUnits(units, () => {
+    const share = Math.min(1, Math.max(0, Number.isFinite(search.share) ? search.share : 1));
+    const variants: (ResearchStep | null)[] = [null, ...search.steps];
+    const work = search.work / variants.length;
+    const options = variants.map((step): ResearchOption => {
+      const research = step ? { ...search.planet.research, [step.id]: step.level } : search.planet.research;
+      const advice = adviceOf(fight, { ...search, planet: { units: search.planet.units, research }, work }, settings, units);
+      const researchValue = step ? valueIn(step.cost, search.rate) : 0;
+      const counted = researchValue * share;
+      return { step, researchValue, counted, advice, total: counted + advice.costValue };
+    });
+    let best: number | null = null;
+    options.forEach((o, i) => {
+      if (o.advice.status !== 'safe' && o.advice.status !== 'found') return;
+      if (best == null || o.total < options[best]!.total) best = i;
+    });
+    return { options, best, share };
+  });
+}
+
 function adviceOf(fight: Fight, s: DefenseSearch, settings: SimSettings, units?: UnitCatalog): DefenseAdvice {
   let battles = 0;
   let work = 0;

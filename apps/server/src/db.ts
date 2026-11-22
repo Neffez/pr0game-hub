@@ -3,8 +3,11 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
+import { parsePage, type HubRecord } from '@pr0hub/core';
 import { SETTING_KEYS } from '@pr0hub/core/universe';
 import { backfillDisplayNamesFromIngame } from './displayName.js';
+import { countSync, galaxyFingerprint } from './repo/syncCount.js';
 
 export { backfillDisplayNamesFromIngame } from './displayName.js';
 
@@ -129,9 +132,14 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
   'js:sync_counts_from_raw_ingests': () => {},
   // superseded by the next one (it also counted syncs that brought nothing new)
   'js:sync_counts_from_raw_ingests_2': () => {},
-  // the recap counts syncs that brought something new (sync_credits kind 'sync'): rebuilt from the raw syncs for the
-  // whole days they still cover (a record of the summary new or changed), the days before them stay as they are
-  'js:sync_counts_new_only': (db) => {
+  // superseded by the next one (it counted every sync with something new, also the same page many times an hour)
+  'js:sync_counts_new_only': () => {},
+  // the recap counts syncs that brought something new (sync_credits kind 'sync') within the rule of their page type
+  // (repo/syncCount.ts): rebuilt from the raw syncs for the whole days they still cover (a record of the summary new
+  // or changed), the days before them stay as they are. Galaxy and player card pages are parsed again: a galaxy page
+  // counts when a system's fingerprint differs from the group's view before it in the raw syncs (the first one in
+  // them counts), a card once per player; the fingerprints become the systems' current ones.
+  'js:sync_counts_throttled': (db) => {
     const zones = new Map<number, Intl.DateTimeFormat>();
     const dayOf = (groupId: number, settings: string, epoch: number) => {
       let f = zones.get(groupId);
@@ -143,11 +151,26 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
     };
     const rows = db
       .prepare(
-        `SELECT r.group_id, COALESCE(r.synced_by, r.user_id) AS user_id, r.page_type, r.summary, r.created_at, u.settings
+        `SELECT r.id, r.group_id, COALESCE(r.synced_by, r.user_id) AS user_id, r.page_type, r.summary, r.created_at, u.settings
          FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id
-         ORDER BY r.created_at`,
+         ORDER BY r.created_at, r.id`,
       )
-      .all() as { group_id: number; user_id: number | null; page_type: string; summary: string | null; created_at: number; settings: string }[];
+      .all() as { id: number; group_id: number; user_id: number | null; page_type: string; summary: string | null; created_at: number; settings: string }[];
+    const page = db.prepare('SELECT url, html_gz, text_gz FROM raw_ingests WHERE id = ?');
+    const parse = (id: number): HubRecord[] => {
+      const raw = page.get(id) as { url: string | null; html_gz: Buffer | null; text_gz: Buffer | null };
+      try {
+        return parsePage({
+          html: raw.html_gz ? gunzipSync(raw.html_gz).toString('utf8') : null,
+          text: raw.text_gz ? gunzipSync(raw.text_gz).toString('utf8') : null,
+          url: raw.url,
+        }).records;
+      } catch {
+        return [];
+      }
+    };
+    // group:g:s -> fingerprint of the last view in the raw syncs
+    const fingerprints = new Map<string, string>();
     // per group the first day the raw syncs cover whole: the day after their earliest one (older ones are deleted)
     const firstDay = new Map<number, string>();
     for (const r of rows) {
@@ -158,20 +181,42 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
     }
     const clear = db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND day >= ?");
     for (const [group, day] of firstDay) clear.run(group, day);
-    const put = db.prepare(
-      "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
-    );
     for (const r of rows) {
-      if (r.user_id == null || r.page_type === 'unknown') continue;
+      if (r.page_type === 'unknown') continue;
       const day = dayOf(r.group_id, r.settings, r.created_at);
-      if (day < firstDay.get(r.group_id)!) continue;
+      const counting = r.user_id != null && day >= firstDay.get(r.group_id)!;
+      if (r.page_type === 'galaxy') {
+        // every galaxy page moves the fingerprints on, also those before the first whole day
+        let news = false;
+        for (const rec of parse(r.id)) {
+          if (rec.kind !== 'galaxy') continue;
+          const key = `${r.group_id}:${rec.g}:${rec.s}`;
+          const fp = galaxyFingerprint(rec);
+          if (fingerprints.get(key) !== fp) news = true;
+          fingerprints.set(key, fp);
+        }
+        if (counting && news) countSync(db, r.group_id, r.user_id!, day, r.page_type, r.created_at);
+        continue;
+      }
+      if (!counting) continue;
       let counts: Record<string, { new?: number }> = {};
       try {
         counts = (JSON.parse(r.summary ?? '{}') as { counts?: typeof counts }).counts ?? {};
       } catch {
         /* no summary */
       }
-      if (Object.values(counts).some((c) => (c?.new ?? 0) > 0)) put.run(r.group_id, r.user_id, day, r.page_type);
+      if (!Object.values(counts).some((c) => (c?.new ?? 0) > 0)) continue;
+      let unit: string | null = null;
+      if (r.page_type === 'playerCard') {
+        const card = parse(r.id).find((x) => x.kind === 'playerCard');
+        unit = card ? String(card.ingameId ?? card.name) : null;
+      }
+      countSync(db, r.group_id, r.user_id!, day, r.page_type, r.created_at, unit);
+    }
+    const setFingerprint = db.prepare('UPDATE galaxy_views SET fingerprint = ? WHERE group_id = ? AND g = ? AND s = ?');
+    for (const [key, fp] of fingerprints) {
+      const [group, g, s] = key.split(':').map(Number);
+      setFingerprint.run(fp, group, g, s);
     }
   },
 };

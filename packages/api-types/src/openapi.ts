@@ -742,7 +742,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead. The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
+        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin (`awardMemberBadge`). The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
         get: operations["getAchievements"];
         put?: never;
         post?: never;
@@ -1149,7 +1149,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Defense advisor for one of the caller's planets or moons (from the buildings page state: levels, units and resources of the newest empire, buildings or overview page). Lists the attackers the hub knows for it (at most 8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy; members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle report at the caller's bodies, fleet movement, or rebuilt from the player's battle reports of the last 14 days anywhere: the most of each ship type they fought with; spy probes and solar satellites left out), the newest fleet points of the statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar satellites; each threat is searched in both variants (search key `<key>:heavy` for the heavy one). `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per resource are mixed and scaled until no chosen attacker profits (status `found`), `safe` when none profits already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing. */
+        /** @description Defense advisor for one of the caller's planets or moons (from the buildings page state: levels, units and resources of the newest empire, buildings or overview page). Lists the attackers the hub knows for it (at most 8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy; members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle report at the caller's bodies, fleet movement, or rebuilt from the player's battle reports of the last 14 days anywhere: the most of each ship type they fought with; spy probes and solar satellites left out), the newest fleet points of the statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar satellites; each threat is searched in both variants (search key `<key>:heavy` for the heavy one). `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per resource are mixed and scaled until no chosen attacker profits (status `found`), `safe` when none profits already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing. With `research=1` the search runs as `researchAdvice` instead (one simulation as well, `advice` is null): with the combat research after the research queue, once for defense only and once per next and second-next level of weapons, shields and armour (requirements met; costs and the time on the planet with the fastest lab); each option's `total` is the research costs × `share` (1, or 1 / the caller's planets with `share=1`) + the defense still needed, `best` the cheapest option that stops every chosen attacker. */
         get: operations["getDefenseAdvice"];
         put?: never;
         post?: never;
@@ -2441,6 +2441,30 @@ export type paths = {
         post?: never;
         /** @description Removes a member; alliance admins. */
         delete: operations["removeGroupMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups/{id}/members/{userId}/awards/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Awards a badge that is only given by hand (`livingLegend`: "Living legend") to a member of the alliance; global admins. It counts in the achievements from now on; awarding it again keeps the first date. */
+        put: operations["awardMemberBadge"];
+        post?: never;
+        /** @description Takes back a badge awarded by hand; global admins. */
+        delete: operations["revokeMemberBadge"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3859,7 +3883,7 @@ export type components = {
             } | null;
             /** @description Members of the alliance */
             members: number;
-            /** @description Syncs of pages with data */
+            /** @description Syncs of pages with something new, by page type: the overview at most every 15 minutes, empire, buildings, research, shipyard and fleets every hour, the marketplace once a day, a player card once per player, galaxy only when a system changed; reports every time */
             syncs: components["schemas"]["RecapCompare"];
             /** @description Members with points or syncs */
             active: components["schemas"]["RecapCompare"];
@@ -3896,7 +3920,7 @@ export type components = {
                 userId: number;
                 name: string;
                 /** @enum {string} */
-                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner" | "livingLegend";
                 level: number;
             }[];
             /** @description Every member, most points first */
@@ -5212,28 +5236,73 @@ export type components = {
             /** @description Defense units the planet can build (requirements met; shield domes not built yet) */
             candidates: number[];
             threats: components["schemas"]["DefenseThreat"][];
+            /** @description Combat research of a research comparison */
+            research: {
+                /** @description Combat research after the research queue */
+                levels: components["schemas"]["UnitCounts"];
+                /** @description The next and second-next level of each combat research that can be researched */
+                steps: components["schemas"]["ResearchStep"][];
+                /** @description The caller's planets (`share=1` splits the research costs over them) */
+                planets: number;
+            };
             /** @description Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`) */
             simulated: string[];
-            /** @description The search result, `{ error }` when the simulator is busy or missing, null with `sim=0` or without threats */
+            /** @description The search result, `{ error }` when the simulator is busy or missing, null with `sim=0`, `research=1` or without threats */
             advice: null | {
+                error: string;
+            } | (components["schemas"]["DefenseSearchResult"] & {
+                error: null;
+            });
+            /** @description With `research=1`: research steps against defense only; `{ error }` when the simulator is busy or missing; null otherwise, without threats or without research steps */
+            researchAdvice: null | {
                 error: string;
             } | {
                 error: null;
-                /** @enum {string} */
-                status: "safe" | "found" | "limit" | "budget";
-                before: components["schemas"]["ThreatOutcome"][];
-                /** @description With the added defense (null when nothing is added) */
-                after: components["schemas"]["ThreatOutcome"][] | null;
-                /** @description Defense units to build */
-                add: components["schemas"]["UnitCounts"];
-                cost: components["schemas"]["RiskResources"];
-                /** @description Cost in deuterium value */
-                costValue: number;
-                battles: number;
-                /** @description Runs per battle */
-                runs: number;
+                /** @description Defense only first */
+                options: components["schemas"]["ResearchOption"][];
+                /** @description Index of the cheapest option that stops every attacker */
+                best: number | null;
+                /** @description Share of the research costs counted */
+                share: number;
             };
             now: number;
+        };
+        /** @description The defense search for the chosen threats */
+        DefenseSearchResult: {
+            /** @enum {string} */
+            status: "safe" | "found" | "limit" | "budget";
+            before: components["schemas"]["ThreatOutcome"][];
+            /** @description With the added defense (null when nothing is added) */
+            after: components["schemas"]["ThreatOutcome"][] | null;
+            /** @description Defense units to build */
+            add: components["schemas"]["UnitCounts"];
+            cost: components["schemas"]["RiskResources"];
+            /** @description Cost in deuterium value */
+            costValue: number;
+            battles: number;
+            /** @description Runs per battle */
+            runs: number;
+        };
+        ResearchStep: {
+            /** @description 109 weapons, 110 shields, 111 armour */
+            id: number;
+            /** @description The level researched */
+            level: number;
+            /** @description Costs of the levels up to it still to be researched */
+            cost: components["schemas"]["RiskResources"];
+            /** @description Research time of those levels in seconds, null when unknown */
+            time: number | null;
+        };
+        ResearchOption: {
+            /** @description Null: defense only */
+            step: components["schemas"]["ResearchStep"] | null;
+            /** @description Research costs in deuterium value */
+            researchValue: number;
+            /** @description `researchValue` × `share` */
+            counted: number;
+            advice: components["schemas"]["DefenseSearchResult"];
+            /** @description `counted` + the defense's cost value */
+            total: number;
         };
         Enabled: {
             enabled: boolean;
@@ -7473,6 +7542,8 @@ export interface operations {
                         account?: boolean;
                         /** @description Onboarding steps the member has done (first sync of each kind of page) */
                         onboarding?: ("empire" | "stats" | "overview" | "research" | "galaxy" | "messages" | "buildings")[];
+                        /** @description Badges awarded to the member by hand (`awardMemberBadge`) */
+                        awards?: "livingLegend"[];
                         /** @description Expiry of the member's open claim or recovery link, null without one (recovery links only for global admins). Links are stored as their hash: the link itself is only returned when created (`addGroupMember`, `createMemberInvite`). */
                         invite_expires_at?: number | null;
                     }[];
@@ -8710,7 +8781,7 @@ export interface operations {
                             };
                             badges: {
                                 /** @enum {string} */
-                                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner" | "livingLegend";
                                 count: number;
                                 /** @description Reached level, 0: not yet */
                                 level: number;
@@ -9931,6 +10002,10 @@ export interface operations {
                 threats?: string;
                 /** @description `0` lists the threats without the search */
                 sim?: "0" | "1";
+                /** @description `1`: `researchAdvice` (combat research against defense) instead of `advice` */
+                research?: "0" | "1";
+                /** @description With `research=1`: `0` counts the full research costs against the planet; default `1` (split over the caller's planets) */
+                share?: "0" | "1";
             };
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
@@ -13490,6 +13565,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Ok"];
+                };
+            };
+        };
+    };
+    awardMemberBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Not a badge awarded by hand (`badge_invalid`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a global admin (`admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a member of the alliance (`member_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeMemberBadge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+                userId: number;
+                /** @description Badge awarded by hand */
+                key: "livingLegend";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Not a global admin (`admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a member of the alliance (`member_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

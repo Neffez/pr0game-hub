@@ -4,7 +4,7 @@ import Icon from './Icon.vue';
 import Section from './Section.vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { achievements } from '../achievements';
+import { achievements, isManualBadge } from '../achievements';
 import type { Badge } from '../apiTypes';
 import { useUni } from '../composables';
 import { fmt } from '../format';
@@ -47,7 +47,7 @@ const sample = (b: Badge): Badge => ({ ...b, count: 0, level: 1, next: null });
           <BadgeIcon :badge="sample(x)" :size="16" />
           <div>
             <b>{{ t(`badges.${x.key}.name`) }}</b> <span class="muted small">{{ t(`badges.${x.key}.how`) }}</span>
-            <div class="small muted">{{ t('badges.levels') }} {{ x.steps.map((n) => fmt(n)).join(' / ') }}</div>
+            <div v-if="!isManualBadge(x.key)" class="small muted">{{ t('badges.levels') }} {{ x.steps.map((n) => fmt(n)).join(' / ') }}</div>
           </div>
         </li>
       </ul>

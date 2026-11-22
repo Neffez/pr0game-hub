@@ -16,12 +16,47 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
-    date: '2026-11-21',
+    date: '2026-11-22',
     items: [
       {
         kind: 'fix',
         de: 'Bauliste: Ein neu hinzugefügter Transport wird nicht mehr sofort abgehakt, nur weil schon früher eine Flotte zum selben Ziel geflogen ist. Er gilt erst als erledigt, wenn danach eine passende Flotte losfliegt.',
         en: 'Build order: a newly added transport is no longer checked off right away just because a fleet flew to the same target before. It only counts as done once a matching fleet leaves after it was added.',
+      },
+      {
+        kind: 'fix',
+        de: 'Bauliste: Die Zeile „Weitere Planeten der Bauliste“ bricht auf dem Handy um und läuft nicht mehr über den Bildschirmrand.',
+        en: 'Build order: the line "Other planets of the build order" wraps on phones and no longer runs off the screen.',
+      },
+      {
+        kind: 'fix',
+        de: 'Bauliste: Ein Transport mit fester Abflug- oder Ankunftszeit wird nicht mehr sofort abgehakt, wenn er dran ist. Nur eine Flotte, die zur geplanten Zeit fliegt, hakt ihn ab – frühere Flüge auf derselben Strecke zählen nicht mehr.',
+        en: 'Build order: a transport with a set departure or arrival time is no longer checked off right away when it is next. Only a fleet flying at the planned time checks it off; earlier flights on the same route no longer count.',
+      },
+    ],
+  },
+  {
+    date: '2026-11-21',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Rückblick: Syncs zählen nicht mehr bei jedem Neuladen. Die eigene Übersicht zählt höchstens alle 15 Minuten, Imperium, Gebäude, Forschung, Werft und Flotten höchstens einmal pro Stunde, der Markt einmal am Tag, eine Spielerkarte einmal pro Spieler und die Galaxie nur, wenn sich im System etwas geändert hat. Neue Spionage-, Kampf- und Transportberichte zählen weiter jedes Mal; synchronisiert wird weiterhin alles.',
+        en: 'Recap: syncs no longer count on every reload. Your own overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an hour, the marketplace once a day, a player card once per player and the galaxy only when something in the system changed. New spy, battle and transport reports still count every time; everything is still synced.',
+      },
+      {
+        kind: 'new',
+        de: 'Abzeichen auf dem Handy: Lange auf ein Abzeichen drücken zeigt, wofür es steht, welche Stufe erreicht ist und was zur nächsten fehlt.',
+        en: 'Badges on phones: press and hold a badge to see what it stands for, the level reached and what the next one needs.',
+      },
+      {
+        kind: 'new',
+        de: 'Neues Abzeichen „Lebende Legende“ mit Adler: ein Sonderachievement, das nicht erspielt, sondern nur von den Hub-Admins verliehen wird.',
+        en: 'New badge "Living legend" with an eagle: a special achievement that cannot be earned, only the hub admins award it.',
+      },
+      {
+        kind: 'new',
+        de: 'Verteidigungsberater: „Mit Forschung vergleichen“ zeigt, ob es günstiger ist, einen Teil der Rohstoffe in Waffen-, Schild- oder Raumschiffpanzerungstechnik statt in Verteidigung zu stecken – mit Forschungskosten, Forschungszeit, der dann noch nötigen Verteidigung und den Gesamtkosten.',
+        en: 'Defense advisor: "Compare with research" shows whether it is cheaper to put part of the resources into weapons, shielding or armour technology instead of defense – with research costs, research time, the defense still needed and the total costs.',
       },
     ],
   },
