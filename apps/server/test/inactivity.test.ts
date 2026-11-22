@@ -46,7 +46,7 @@ beforeAll(async () => {
   db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Carol')").run(group, carolId);
   carol = { cookie: await login('carol', 'carolpass'), 'x-hub-group': String(group) };
 
-  for (const n of ['Busy1', 'Busy2', 'Busy3', 'Queue', 'Farmed', 'Attacker', 'Idle', 'Mover', 'Galaxy']) player(n);
+  for (const n of ['Busy1', 'Busy2', 'Busy3', 'Queue', 'Farmed', 'Attacker', 'Idle', 'Mover', 'Galaxy', 'Raided']) player(n);
   // 13 updates over three days; the busy players gain 1000 per update
   for (let k = 12; k >= 0; k--) {
     const time = T - k * 6 * H;
@@ -55,7 +55,7 @@ beforeAll(async () => {
     // a big gain in the first interval, then only builds finishing from the queue (+2)
     score(ids.Queue, 1, time, 40_000 + (i >= 1 ? 1000 : 0) + Math.max(0, i - 1) * 2, 4);
     // the rest: no gain at all
-    for (const [r, n] of ['Farmed', 'Attacker', 'Idle', 'Mover', 'Galaxy'].entries()) score(ids[n], 1, time, 30_000, 5 + r);
+    for (const [r, n] of ['Farmed', 'Attacker', 'Idle', 'Mover', 'Galaxy', 'Raided'].entries()) score(ids[n], 1, time, 30_000, 5 + r);
     // Farmed loses defense half way and does not rebuild it
     score(ids.Farmed, 5, time, k > 6 ? 5000 : 2000, 1);
   }
@@ -66,6 +66,15 @@ beforeAll(async () => {
   // Galaxy: two activity marks, Farmed none
   for (const [i, time] of [T - 20 * H, T - 10 * H].entries()) {
     db.prepare("INSERT INTO player_activity (group_id, player_id, time, source, dedupe_key) VALUES (?, ?, ?, 'galaxy', ?)").run(group, ids.Galaxy, time, `g${i}`);
+  }
+  // Raided: a member won with loot three times at its planet, two of them in one wave; a won defense without loot
+  // (the member's own planet would be the target) and a lost attack don't count
+  db.prepare('INSERT INTO planets (group_id, g, s, p, player_id) VALUES (?, 3, 30, 3, ?)').run(group, ids.Raided);
+  for (const [i, [time, outcome, loot]] of ([[T - 30 * H, 'win', 5000], [T - 30 * H + 600, 'win', 3000], [T - 12 * H, 'win', 4000], [T - 8 * H, 'win', 0], [T - 6 * H, 'lose', 0]] as const).entries()) {
+    db.prepare(
+      `INSERT INTO battle_reports (group_id, user_id, dedupe_key, time, g, s, p, planet_type, outcome, lost_attacker, lost_defender, loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal)
+       VALUES (?, ?, ?, ?, 3, 30, 3, 'planet', ?, 0, 0, ?, 0, 0, 0, 0)`,
+    ).run(group, carolId, `b${i}`, time, outcome, loot);
   }
   // Idle: two reports 10 hours apart, the later one exactly the projection of the earlier one
   const res = { 901: 100_000, 902: 50_000, 903: 10_000 };
@@ -99,12 +108,16 @@ describe('inactivity score', () => {
     expect(at({ lastGain: 28 * H, proven: { time: 99 * H, source: 'attack' } })).toMatchObject({ score: 3, level: 'active', lastActive: 99 * H });
   });
 
-  it('counts galaxy marks only as a weak sign and confirms absence by spy reports and losses', () => {
-    const one = at({ lastGain: 52 * H, galaxy: [60 * H] });
-    expect(one.score).toBe(Math.round(69.2 * 0.7));
-    expect(one.reasons).toContainEqual({ code: 'galaxy', n: 1, time: 60 * H });
-    // marks before the last gain don't count
-    expect(at({ lastGain: 52 * H, galaxy: [40 * H] }).score).toBe(69);
+  it('shows galaxy marks without scoring them and confirms absence by spy reports, losses and raids', () => {
+    const one = at({ lastGain: 52 * H, galaxy: [60 * H, 70 * H] });
+    expect(one.score).toBe(69);
+    expect(one.reasons).toContainEqual({ code: 'galaxy', n: 2, time: 70 * H });
+    // raids: battles within an hour are one wave, a single wave doesn't count, raids before the last gain neither
+    expect(at({ lastGain: 52 * H, raids: [60 * H, 60 * H + 1800] }).score).toBe(69);
+    const raided = at({ lastGain: 52 * H, raids: [40 * H, 60 * H, 60 * H + 1800, 80 * H] });
+    expect(raided.score).toBe(69 + 2 * INACTIVITY.raidBonus);
+    expect(raided.reasons).toContainEqual({ code: 'raids', n: 2, time: 80 * H });
+    expect(at({ lastGain: 52 * H, raids: [55 * H, 60 * H, 65 * H, 70 * H, 75 * H] }).score).toBe(69 + INACTIVITY.raidMax);
     expect(at({ lastGain: 52 * H, idleSpy: [70 * H, 90 * H] }).score).toBe(69 + 2 * INACTIVITY.idleSpyBonus);
     expect(at({ lastGain: 52 * H, lossesSince: 60 * H }).score).toBe(69 + INACTIVITY.lossBonus);
     expect(at({ status: [], newest: null, proven: { time: 99 * H, source: 'spy' } })).toMatchObject({ level: 'active' });
@@ -128,15 +141,20 @@ describe('inactivity from the hub data', () => {
     expect(mover.since).toBe(T - 40 * H);
   });
 
-  it('lowers the score for galaxy marks and raises it for idle spy reports and lost defense', async () => {
+  it('ignores galaxy marks and raises the score for idle spy reports, lost defense and members\' raids', async () => {
     const plain = (await inactivity('Galaxy')).score;
+    const raided = await inactivity('Raided');
+    // no gain in the whole window (72 h: 81) plus two raid waves
+    expect(plain).toBe(81);
+    expect(raided.reasons).toContainEqual({ code: 'raids', n: 2, time: T - 12 * H });
+    expect(raided.score).toBe(81 + 2 * INACTIVITY.raidBonus);
     const farmed = await inactivity('Farmed');
     const idle = await inactivity('Idle');
     expect(farmed.reasons).toContainEqual({ code: 'losses' });
     // no gain in the whole window (72 h: 81) plus the lost defense
     expect(farmed.score).toBe(81 + INACTIVITY.lossBonus);
     expect(idle.reasons).toContainEqual({ code: 'idleSpy', n: 1 });
-    expect(plain).toBeLessThan(idle.score);
+    expect(plain).toBeLessThanOrEqual(idle.score);
     expect((await inactivity('Galaxy')).reasons).toContainEqual({ code: 'galaxy', n: 2, time: T - 10 * H });
   });
 });

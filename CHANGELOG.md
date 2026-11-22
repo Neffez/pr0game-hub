@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-22
 
+- Inactivity score: galaxy activity marks no longer lower the score (a player farmed by other alliances gets them
+  from those raids); they stay in the tooltip as information. Repeated successful raids of members (battles won with
+  loot at the player's planets and moons, synced battle reports; battles within an hour are one wave) raise it: from
+  two waves since the latest sign of activity +4 per wave, at most +12. New reason `raids` in the OpenAPI spec, the
+  weights `galaxyFactor`/`galaxyFloor` are replaced by `raidWave`, `raidMin`, `raidBonus` and `raidMax`.
 - Build order: a transport step was checked off as soon as it was added when an earlier own fleet to the same target
   existed (any fleet since the import counted, also one that had already checked off an earlier transport). Transport
   steps now record when the server first stored them (`added`, set on PATCH, a sent value is ignored; described in the

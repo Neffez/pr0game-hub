@@ -59,8 +59,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
-  points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
-  game's own flags in the admin panel); a second tab **spy priority** ranks the targets worth a probe now (old
+  points gains against the players around the same rank, spy history, lost fleet or defense, repeated successful
+  raids by members; galaxy activity marks don't count, farmed players get them from others' raids too; checkable
+  against the game's own flags in the admin panel); a second tab **spy priority** ranks the targets worth a probe now (old
   report, fleet or defense built since, a battle at the planet) with the probes a report with buildings needs
 - **Debris finder** (tab of the farm finder): open debris fields with the debris expected now (galaxy view or a member's recycling report plus
   battles since), recyclers needed, the own flight time and the nearest member with enough recyclers; debris fields

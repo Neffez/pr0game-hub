@@ -46,9 +46,9 @@ const weights = computed(() =>
         `max ${data.value.weights.max}`,
         `tau ${Math.round(data.value.weights.tau / 3600)} h`,
         `weakGain ${pct(data.value.weights.weakGain)}`,
-        `galaxy ×${data.value.weights.galaxyFactor}`,
         `idleSpy +${data.value.weights.idleSpyBonus}`,
         `losses +${data.value.weights.lossBonus}`,
+        `raids +${data.value.weights.raidBonus} (≥ ${data.value.weights.raidMin}, max ${data.value.weights.raidMax})`,
       ].join(' · ')
     : '',
 );
