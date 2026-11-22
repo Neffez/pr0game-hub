@@ -59,7 +59,12 @@ export interface DeckState {
   deckSize: number;
   cards: DeckCardState[];
   remainingTotal: number;
+  /** expected drawn cards (uncertain "Nothing" results weighted by probability) */
   drawnInDeck: number;
+  /** drawn cards if no uncertain "Nothing" drew a card */
+  drawnMin: number;
+  /** drawn cards if every uncertain "Nothing" drew a card */
+  drawnMax: number;
   resets: number;
   events: number;
   uncertainNothing: number;
@@ -158,6 +163,8 @@ export function computeDeck(config: DeckCard[], events: DeckEvent[], opts: DeckO
     cards: cardStates,
     remainingTotal: remTotal,
     drawnInDeck: deckSize - remTotal,
+    drawnMin: deckSize - cardStates.reduce((sum, c) => sum + c.remainingMax, 0),
+    drawnMax: deckSize - cardStates.reduce((sum, c) => sum + c.remainingMin, 0),
     resets,
     events: events.length,
     uncertainNothing: uncertain,

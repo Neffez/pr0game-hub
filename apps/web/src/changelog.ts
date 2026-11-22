@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
+        de: 'Expo-Deck: Bei unsicheren „Nichts“-Expos zeigt „Gezogen im aktuellen Deck“ jetzt die Spanne und den erwarteten Wert (z. B. „25–26 (≈ 25,4)“) statt nur einer Kommazahl.',
+        en: 'Expedition deck: with uncertain "Nothing" expeditions, "Drawn in the current deck" now shows the range and the expected value (e.g. "25–26 (≈ 25.4)") instead of a bare decimal.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Die Zeile „Weitere Planeten der Bauliste“ bricht auf dem Handy um und läuft nicht mehr über den Bildschirmrand.',
         en: 'Build order: the line "Other planets of the build order" wraps on phones and no longer runs off the screen.',
       },

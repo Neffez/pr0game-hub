@@ -119,6 +119,13 @@ const cardOptions = computed(() => [{ key: 'card', label: t('deck.card') }, ...c
 /** Bar width: the most likely card fills the column. */
 const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c) => c.nextProbability)));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
+/** "25" when every result is certain, else the range and the expected value: "25–26 (≈ 25,4)" */
+const drawnLabel = computed(() => {
+  const st = data.value?.state;
+  if (!st) return '';
+  if (st.drawnMin === st.drawnMax) return fmt(st.drawnMin);
+  return `${fmt(st.drawnMin)}–${fmt(st.drawnMax)} (≈ ${fmtCount(st.drawnInDeck)})`;
+});
 useAutoTour('expeditions', () => !!data.value, 'deck');
 </script>
 
@@ -132,7 +139,7 @@ useAutoTour('expeditions', () => !!data.value, 'deck');
   <template v-if="data">
     <div class="card summary" data-tour="expo-deck-summary">
       <div class="row">
-        <span>{{ t('deck.drawn') }} <b>{{ fmtCount(data.state.drawnInDeck) }}</b> / {{ data.state.deckSize }}</span>
+        <span>{{ t('deck.drawn') }} <b>{{ drawnLabel }}</b> / {{ data.state.deckSize }}</span>
         <span>{{ t('deck.remaining') }} <b>{{ fmtCount(data.state.remainingTotal) }}</b></span>
         <span class="muted small">{{ t('deck.counts', { resets: data.state.resets, events: data.state.events, uncertain: data.state.uncertainNothing }) }}</span>
         <span class="grow" />

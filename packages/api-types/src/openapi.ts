@@ -6010,7 +6010,12 @@ export type components = {
                     nextProbability: number;
                 }[];
                 remainingTotal: number;
+                /** @description Expected drawn cards; uncertain "Nothing" results count with the probability that they drew a card. */
                 drawnInDeck: number;
+                /** @description Drawn cards if no uncertain "Nothing" result drew a card. */
+                drawnMin: number;
+                /** @description Drawn cards if every uncertain "Nothing" result drew a card. */
+                drawnMax: number;
                 resets: number;
                 events: number;
                 uncertainNothing: number;
