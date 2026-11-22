@@ -593,6 +593,14 @@ export class Store {
     if (!time) return;
     const coords = (c: { g: number; s: number; p: number } | null) => (c ? `${c.g}:${c.s}:${c.p}` : null);
     const to = r.to.map((p) => ({ name: p.name, coords: coords(p.coords) }));
+    // the game hides the recipient line when the viewer is the only recipient: that is the member who synced it
+    if (!to.length) {
+      const self = this.db
+        .prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?')
+        .pluck()
+        .get(this.t.groupId, this.t.userId) as string | null | undefined;
+      if (self) to.push({ name: self, coords: null });
+    }
     // whitespace differs between an HTML and a plain text copy
     const key = fnv1a(JSON.stringify([time, r.from.name, to.map((p) => p.name), r.subject, r.body.replace(/\s+/g, ' ')]));
     const exists = this.db

@@ -514,6 +514,28 @@ describe('api', () => {
     db.prepare('UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = 1').run(groupA);
   });
 
+  it('takes the syncing member as recipient when the game hides the recipient line', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const received = (id: number, date: string, body: string) =>
+      `<div id="message_${id}" class="message-item"><div class="message-actions"><span>Spieler Nachrichten</span>
+       <a href="#" onclick="return Dialog.PM([4799], Message.CreateAnswer('Kein Betreff'), '', 'u_${id}');"></a></div>
+       <div class="message-details"><div class="message-from">Trent [4:21:7]</div><div class="message-subject">Kein Betreff</div>
+       <div class="message-date">${date}</div></div><div class="message-content">${body}</div></div>`;
+    const list = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/messages', headers })).json().messages;
+    const recipients = (m: any) => m.recipients.map(({ name, coords }: any) => ({ name, coords }));
+
+    db.prepare("UPDATE group_members SET ingame_name = 'Admin' WHERE group_id = ? AND user_id = 1").run(groupA);
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: received(61, '23. Okt 2026, 08:00:00', 'Nur an dich') } });
+    expect(res.json().counts.player_messages).toEqual({ new: 1, duplicate: 0 });
+    expect(recipients((await list()).find((m: any) => m.body === 'Nur an dich'))).toEqual([{ name: 'Admin', coords: null }]);
+
+    // without a known in-game name the message is kept without recipients
+    db.prepare('UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = 1').run(groupA);
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: received(62, '23. Okt 2026, 09:00:00', 'Noch einmal') } });
+    expect(res.json().counts.player_messages).toEqual({ new: 1, duplicate: 0 });
+    expect(recipients((await list()).find((m: any) => m.body === 'Noch einmal'))).toEqual([]);
+  });
+
   it('groups player messages into conversations per partner', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const pm = (id: number, from: string, to: string, date: string, body: string, thread: string, partner = 4711) =>

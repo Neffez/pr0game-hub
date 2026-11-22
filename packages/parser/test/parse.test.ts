@@ -210,6 +210,49 @@ describe('messages', () => {
     ]);
   });
 
+  it('parses received player messages without recipient line from HTML', () => {
+    // the game hides the recipient line when the viewer is the only recipient
+    const html = `<div class="messages-container"><div class="message-group" id="group_u_7_1">
+      <div id="message_8" class="message-item">
+        <div class="message-actions"><span>Spieler Nachrichten</span><a href="#" onclick="return Dialog.PM([1003464], Message.CreateAnswer('Re[2]: Kein Betreff'), '', 'u_7');"></a></div>
+        <div class="message-details" id="msgdetails_8">
+          <div class="message-from">Bob [1:310:6]</div><div class="message-subject">Re[2]: Kein Betreff</div><div class="message-date">22. Nov 2026, 23:43:50</div>
+          <div class="message-break"></div>
+        </div>
+        <div class="message-content" id="msgcontent_8">Schlaf ist wunderbar</div>
+      </div>
+      <div id="message_9" class="message-item">
+        <div class="message-actions"><span>Systemnachrichten</span></div>
+        <div class="message-details"><div class="message-from">System</div><div class="message-subject">Info</div><div class="message-date">22. Nov 2026, 23:00:00</div></div>
+        <div class="message-content">Keine Spielernachricht</div>
+      </div>
+    </div></div>`;
+    const res = parsePage({ html, url: 'game.php?page=messages&category=1' });
+    expect(res.records.filter((r) => r.kind === 'playerMessage')).toEqual([
+      {
+        kind: 'playerMessage', msgId: 8, time: '2026-11-22 23:43:50', from: { name: 'Bob', coords: { g: 1, s: 310, p: 6 } }, to: [],
+        subject: 'Re[2]: Kein Betreff', body: 'Schlaf ist wunderbar', thread: 'u_7', partnerId: 1003464,
+      },
+    ]);
+  });
+
+  it('parses received player messages without recipient line from plain text', () => {
+    const text = [
+      'Favorite', 'Reply', 'Forward', 'Spieler Nachrichten', 'Delete', 'Bob [1:310:6]', 'Re[2]: Kein Betreff', '22. Nov 2026, 23:43:50',
+      'Das kennen wir, Schlaf ist einfach wunderbar',
+      'Favorite', 'Reply', 'Forward', 'Spieler Nachrichten', 'Delete', 'Alice [1:194:11]', 'Re: Kein Betreff', '22. Nov 2026, 23:40:10',
+      'An:  Bob [1:310:6];', 'Die Def ist nachts um 4 neu entstanden',
+      'Spieler Nachrichten', 'Bob [1:310:6]', 'Kein Betreff', '22. Nov 2026, 23:34:11',
+      'Bewerben Sie sich doch bei uns.', '', 'Einen schönen Guten Tag.',
+    ].join('\n');
+    const res = parsePage({ text });
+    expect(res.records.map((r: any) => [r.kind, r.from.name, r.to.map((p: any) => p.name), r.subject, r.body])).toEqual([
+      ['playerMessage', 'Bob', [], 'Re[2]: Kein Betreff', 'Das kennen wir, Schlaf ist einfach wunderbar'],
+      ['playerMessage', 'Alice', ['Bob'], 'Re: Kein Betreff', 'Die Def ist nachts um 4 neu entstanden'],
+      ['playerMessage', 'Bob', [], 'Kein Betreff', 'Bewerben Sie sich doch bei uns.\nEinen schönen Guten Tag.'],
+    ]);
+  });
+
   it('parses player messages from plain text', () => {
     const text = [
       'Spieler Nachrichten', '0/72',

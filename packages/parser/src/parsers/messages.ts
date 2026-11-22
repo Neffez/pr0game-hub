@@ -320,21 +320,24 @@ function messageBody(text: string): string {
     .trim();
 }
 
-/** Only player messages list their recipients (`.message-receiver`). */
+/**
+ * Only player messages have a reply link (`Dialog.PM`) and list their recipients (`.message-receiver`). The game hides
+ * the recipient line when the viewer is the only recipient, so a received message may have no recipients (`to` empty).
+ */
 function parsePlayerMessageHtml($: CheerioAPI, item: Element, msgId: number | null, time: LocalDateTime | null): PlayerMessageRecord | null {
   const root = $(item);
   const receiver = root.find('.message-receiver').first();
   const from = party(root.find('.message-from').first().text());
-  if (!receiver.length || !from) return null;
   // reply link: Dialog.PM([partner id], Message.CreateAnswer('Re: …'), '', 'u_<thread>')
-  const reply = root.find('a[onclick*="Dialog.PM"]').first().attr('onclick') ?? '';
+  const reply = root.find('.message-actions a[onclick*="Dialog.PM"]').first().attr('onclick') ?? '';
+  if ((!receiver.length && !reply) || !from) return null;
   const group = root.closest('.message-group').attr('id')?.match(/^group_(u_\d+)_\d+$/)?.[1];
   return {
     kind: 'playerMessage',
     msgId,
     time,
     from,
-    to: parties(normalizeText(receiver.text()).replace(RECEIVER_RE, '$1')),
+    to: receiver.length ? parties(normalizeText(receiver.text()).replace(RECEIVER_RE, '$1')) : [],
     subject: normalizeText(root.find('.message-subject').first().text()),
     body: messageBody(nodeToText(root.find('.message-content').first().toArray())),
     thread: reply.match(/'(u_\d+)'\s*\)/)?.[1] ?? group ?? null,
@@ -346,10 +349,15 @@ function parsePlayerMessageHtml($: CheerioAPI, item: Element, msgId: number | nu
 const DATE_LINE_RE = /^\d{1,2}\.?\s*[A-Za-zäÄ]{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2}$/;
 /** Page parts after the last message: buttons like "[Nur Favoriten anzeigen]" and the page links. */
 const FOOTER_RE = /^(\[[^\]\d:]{6,}\]|(Seite|Page)\s*:)/;
+/** Category of a player message ("Spieler Nachrichten"). */
+const PLAYER_CATEGORY_RE = /^(Spieler Nachrichten|Player messages)$/i;
+/** Alt texts of the action icons around the category, copied by some browsers. */
+const ICON_RE = /^(Favorite|Reply|Forward|Delete|Toggle)$/;
 
 /**
- * Player messages in a plain text copy: a date line followed by the recipient line. Also returns the text range of
- * each message, so the report parsers skip it (players paste reports into their messages).
+ * Player messages in a plain text copy: a date line followed by the recipient line or, since the game hides the
+ * recipient line when the viewer is the only recipient, a head with the player message category (`to` empty). Also
+ * returns the text range of each message, so the report parsers skip it (players paste reports into their messages).
  */
 function parsePlayerMessagesText(text: string): { records: PlayerMessageRecord[]; ranges: [number, number][] } {
   const lines = text.split('\n');
@@ -360,18 +368,35 @@ function parsePlayerMessagesText(text: string): { records: PlayerMessageRecord[]
     pos += l.length + 1;
   }
   const dates = lines.flatMap((l, i) => (DATE_LINE_RE.test(l) ? [i] : []));
+  /** Head of the message dated in line d: icons, the player message category and icons before sender and subject. */
+  const head = (d: number) => {
+    let start = d - 2;
+    const icons = () => {
+      while (start > 0 && ICON_RE.test(lines[start - 1].trim())) start--;
+    };
+    icons();
+    const player = start > 0 && PLAYER_CATEGORY_RE.test(lines[start - 1].trim());
+    if (player) {
+      start--;
+      icons();
+    }
+    return { start, player };
+  };
   const records: PlayerMessageRecord[] = [];
   const ranges: [number, number][] = [];
   dates.forEach((d, k) => {
+    if (d < 2) return;
     const to = lines[d + 1]?.match(RECEIVER_RE);
     const from = party(lines[d - 2]);
-    if (!to || !from || d < 2) return;
-    let first = d + 2;
-    let receivers = to[1];
-    if (!receivers.trim() && first < lines.length) receivers = lines[first++];
-    // the next message's category, sender and subject precede its date
+    const h = head(d);
+    if ((!to && !h.player) || !from) return;
+    let first = to ? d + 2 : d + 1;
+    let receivers = to?.[1] ?? '';
+    if (to && !receivers.trim() && first < lines.length) receivers = lines[first++];
+    // the next message's head (category, sender, subject) precedes its date
     const last = k + 1 === dates.length;
     let end = Math.max(first, last ? lines.length : dates[k + 1] - 3);
+    if (!last && head(dates[k + 1]).player) end = Math.max(first, head(dates[k + 1]).start);
     if (last) {
       const footer = lines.slice(first, end).findIndex((l) => FOOTER_RE.test(l));
       if (footer >= 0) end = first + footer;
@@ -387,7 +412,7 @@ function parsePlayerMessagesText(text: string): { records: PlayerMessageRecord[]
       thread: null,
       partnerId: null,
     });
-    ranges.push([starts[d - 2], end < lines.length ? starts[end] : text.length]);
+    ranges.push([starts[h.start], end < lines.length ? starts[end] : text.length]);
   });
   return { records, ranges };
 }

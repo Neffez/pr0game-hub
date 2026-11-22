@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- In-game messages: received player messages sync again. Since its latest release the game hides the "An:"/"To:" line
+  when the viewer is the only recipient, and the parser, which recognized player messages by that line, dropped them.
+  - HTML: a message with the reply link (`Dialog.PM`) is a player message even without recipient line (`to` empty).
+  - Plain text: the "Spieler Nachrichten"/"Player messages" category before sender and subject marks one; the alt
+    texts of the action icons (Favorite, Reply, Forward, Delete) some browsers copy no longer end up in the previous
+    message's text.
+  - The server stores the syncing member (in-game name) as recipient of a message without recipients, so it joins the
+    right conversation and matches the sender's copy.
 - Recycling reports without the field totals: game versions since September 2026 write "von insgesamt  Metall und
   Kristall" with empty numbers, so these reports were not recognized at all and the debris finder never learned the
   rest of a recycled field. The parser now accepts empty totals and reads the following line (recyclers still

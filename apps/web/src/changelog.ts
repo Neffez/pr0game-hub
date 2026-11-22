@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ingame-Nachrichten: Empfangene Spielernachrichten werden wieder synchronisiert. Seit dem letzten pr0game-Update fehlt bei Nachrichten, die nur an dich gingen, die „An:“-Zeile, deshalb kamen bisher nur deine gesendeten Nachrichten an. Synchronisiere die Nachrichtenseite einfach noch einmal.',
+        en: 'In-game messages: received player messages sync again. Since the latest pr0game update, messages sent only to you lack the "To:" line, so only your sent messages arrived. Just sync the messages page once more.',
+      },
+      {
+        kind: 'fix',
         de: 'Trümmerfeld-Finder: Recyclerberichte neuerer Spielversionen, in denen die Größe des Trümmerfelds fehlt, werden wieder erkannt. Der Rest eines Feldes ergibt sich aus den noch benötigten Recyclern.',
         en: 'Debris finder: recycling reports of newer game versions that leave out the size of the debris field are recognized again. The rest of a field follows from the recyclers still needed.',
       },
