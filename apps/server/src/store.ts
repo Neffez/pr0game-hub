@@ -30,12 +30,28 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets, type CombatFrom } from './battleParticipants.js';
 import { now, type DB } from './db.js';
+import { catalogOfGroup } from './context.js';
+import { RECYCLER } from './repo/debris.js';
 import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players, scoreKey } from './repo/players.js';
 import { galaxyFingerprint } from './repo/syncCount.js';
+
+/**
+ * A recycling report with the field's totals: a report without them (game versions since September 2026) tells the
+ * recyclers still needed for the rest, so the rest is taken as that many full recyclers (`capacity()` each, at most
+ * one recycler too much), split like the collected debris (the game collects both by the same share). Enough for the
+ * debris finder, which needs the recyclers to send.
+ */
+export function withRecycleTotals(r: RecycleRecord, capacity: () => number): RecycleRecord & { totalMetal: number; totalCrystal: number } {
+  if (r.totalMetal != null && r.totalCrystal != null) return { ...r, totalMetal: r.totalMetal, totalCrystal: r.totalCrystal };
+  const rest = (r.recyclersNeeded ?? 0) * capacity();
+  const collected = r.metal + r.crystal;
+  const restMetal = collected > 0 ? Math.round((rest * r.metal) / collected) : rest;
+  return { ...r, totalMetal: r.metal + restMetal, totalCrystal: r.crystal + rest - restMetal };
+}
 
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
 const EMPIRE_KEEP = 7 * 86400;
@@ -597,7 +613,8 @@ export class Store {
     this.count('player_messages', !exists);
   }
 
-  private recycle(r: RecycleRecord) {
+  private recycle(rec: RecycleRecord) {
+    const r = withRecycleTotals(rec, () => catalogOfGroup(this.db, this.t.groupId).capacity[RECYCLER] ?? 0);
     const key = r.msgId ? `m${r.msgId}` : `r${fnv1a(JSON.stringify([r.time, r.coords, r.metal, r.crystal, r.totalMetal, r.totalCrystal]))}`;
     const time = this.epoch(r.time);
     const content = {
@@ -680,7 +697,7 @@ export class Store {
   }
 
   /** Debris reduced/cleared by a member's recyclers (exact amounts), also used by the backfill. */
-  recycleEvent(r: RecycleRecord, time: number, userId: number | null, key: string) {
+  recycleEvent(r: RecycleRecord & { totalMetal: number; totalCrystal: number }, time: number, userId: number | null, key: string) {
     const left = { metal: Math.max(0, r.totalMetal - r.metal), crystal: Math.max(0, r.totalCrystal - r.crystal) };
     const by = this.db
       .prepare(`SELECT ${DISPLAY} FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? AND m.user_id = ?`)

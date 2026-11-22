@@ -111,9 +111,14 @@ export interface RecycleRecord {
   coords: Coords;
   metal: number;
   crystal: number;
-  /** debris field before collecting */
-  totalMetal: number;
-  totalCrystal: number;
+  /**
+   * debris field before collecting; null when the report leaves it out (game versions since September 2026) and
+   * recyclers are still needed (the server estimates it from `recyclersNeeded`)
+   */
+  totalMetal: number | null;
+  totalCrystal: number | null;
+  /** recyclers still needed for the rest of the field (the line after the report), when it was found */
+  recyclersNeeded?: number;
 }
 
 /**

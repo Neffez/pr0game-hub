@@ -102,6 +102,36 @@ describe('debris finder', () => {
     expect(res.recyclers[0].speed).toBeGreaterThan(2000);
   });
 
+  it('takes recycling reports without the field totals by the recyclers still needed', async () => {
+    galaxy(1, 50, t - 10 * 3600, [{ p: 1, debris: ['100K', '50K'] }, { p: 2, debris: ['200K', '100K'] }]);
+    // game date in the member's time zone, three hours ago (after the galaxy view)
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+        .formatToParts(new Date((t - 3 * 3600) * 1000))
+        .map((x) => [x.type, x.value]),
+    );
+    const month = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][Number(parts.month) - 1];
+    const date = `${Number(parts.day)}. ${month} ${parts.year}, ${parts.hour}:${parts.minute}:${parts.second}`;
+    const text = [
+      'Recyclerbericht', date,
+      'Deine Recycler haben an den Koordinaten [1:50:1] 60.000 Metall und 30.000 Kristall von insgesamt  Metall und  Kristall gesammelt.',
+      'Es werden 3 Recycler für das Trümmerfeld benötigt.',
+      'Recyclerbericht', date,
+      'Deine Recycler haben an den Koordinaten [1:50:2] 200.000 Metall und 100.000 Kristall von insgesamt  Metall und  Kristall gesammelt.',
+      'Es werden 0 Recycler für das Trümmerfeld benötigt.',
+    ].join('\n');
+    const res = await call('POST', '/ingest', { text });
+    expect(res.json().counts.recycle_reports).toEqual({ new: 2, duplicate: 0 });
+    // the estimated field is stored, so a rebuild from the reports gives the same
+    expect(db.prepare('SELECT g, s, p, total_metal, total_crystal FROM recycle_reports WHERE group_id = ? AND s = 50 ORDER BY p').all(group)).toEqual([
+      { g: 1, s: 50, p: 1, total_metal: 100_000, total_crystal: 50_000 },
+      { g: 1, s: 50, p: 2, total_metal: 200_000, total_crystal: 100_000 },
+    ]);
+    const fields = (await call('GET', '/debris')).json().fields.filter((f: any) => f.s === 50);
+    // 3 recyclers still needed: 60,000 left, split like the collected debris; 1:50:2 emptied
+    expect(fields).toEqual([expect.objectContaining({ g: 1, s: 50, p: 1, metal: 40_000, crystal: 20_000, base: expect.objectContaining({ source: 'recycle', by: 'carol' }) })]);
+  });
+
   it('claims a debris field for recycling apart from the planet', async () => {
     const debris = await call('POST', '/claims', { g: 1, s: 10, p: 5, type: 'debris', kind: 'farm' });
     expect(debris.statusCode).toBe(200);

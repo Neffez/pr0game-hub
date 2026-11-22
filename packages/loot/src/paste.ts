@@ -339,7 +339,7 @@ export function applyPaste(state: LootState, sync: PasteSync, text: string, opts
         res.unassigned++;
         continue;
       }
-      const row = { by: id, m: r.metal, k: r.crystal, time: t, ...(r.totalMetal || r.totalCrystal ? { field: { m: r.totalMetal, k: r.totalCrystal } } : {}) };
+      const row = { by: id, m: r.metal, k: r.crystal, time: t, ...(r.totalMetal != null && r.totalCrystal != null && (r.totalMetal || r.totalCrystal) ? { field: { m: r.totalMetal, k: r.totalCrystal } } : {}) };
       if (state.recycling.some((x) => sameRecycling(x, row))) continue;
       const rk = `r${t ?? 0}:${r.metal}:${r.crystal}`;
       state.recycling.push({ key: rk, ...row });

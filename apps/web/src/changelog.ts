@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-23',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Trümmerfeld-Finder: Recyclerberichte neuerer Spielversionen, in denen die Größe des Trümmerfelds fehlt, werden wieder erkannt. Der Rest eines Feldes ergibt sich aus den noch benötigten Recyclern.',
+        en: 'Debris finder: recycling reports of newer game versions that leave out the size of the debris field are recognized again. The rest of a field follows from the recyclers still needed.',
+      },
+    ],
+  },
+  {
     date: '2026-11-22',
     items: [
       {

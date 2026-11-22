@@ -161,7 +161,7 @@ describe('messages', () => {
     expect(slow).toMatchObject({ event: 'Slow', size: 'Medium', factor: 3 });
     expect(res.records[6]).toEqual({
       kind: 'recycle', msgId: 107, time: '2026-10-21 16:00:00', coords: { g: 1, s: 234, p: 5 },
-      metal: 80000, crystal: 25000, totalMetal: 3000000, totalCrystal: 1000000,
+      metal: 80000, crystal: 25000, totalMetal: 3000000, totalCrystal: 1000000, recyclersNeeded: 116000,
     });
   });
 
@@ -511,6 +511,30 @@ describe('recycling', () => {
       { time: '2026-10-24 13:04:12', metal: 40219074, crystal: 19280927, totalMetal: 142823000, totalCrystal: 68469000 },
       { time: '2026-10-24 14:00:00', metal: 1000, crystal: 0, totalMetal: 1000 },
     ]);
+  });
+
+  it('reads reports without the field totals (game versions since September 2026) by the recyclers still needed', () => {
+    const text = [
+      'Recyclerbericht', '22. Nov 2026, 23:38:00',
+      'Deine Recycler haben an den Koordinaten [1:101:7] 200.000 Metall und 100.000 Kristall von insgesamt  Metall und  Kristall gesammelt.',
+      'Es werden 0 Recycler für das Trümmerfeld benötigt.',
+      'Recyclerbericht', '22. Nov 2026, 23:42:52',
+      'Deine Recycler haben an den Koordinaten [1:100:3] 100.000 Metall und 50.000 Kristall von insgesamt  Metall und  Kristall gesammelt.',
+      'Es werden 3 Recycler für das Trümmerfeld benötigt.',
+      'Recyclerbericht', '22. Nov 2026, 23:50:00',
+      'Deine Recycler haben an den Koordinaten [1:100:4] 1.000 Metall und 0 Kristall von insgesamt  Metall und  Kristall gesammelt.',
+    ].join('\n');
+    expect(parseRecycleReportsText(text)).toEqual([
+      // nothing left: the field was what they collected
+      { kind: 'recycle', msgId: null, time: '2026-11-22 23:38:00', coords: { g: 1, s: 101, p: 7 }, metal: 200000, crystal: 100000, totalMetal: 200000, totalCrystal: 100000, recyclersNeeded: 0 },
+      // a rest: unknown totals, the server estimates them from the recyclers needed
+      { kind: 'recycle', msgId: null, time: '2026-11-22 23:42:52', coords: { g: 1, s: 100, p: 3 }, metal: 100000, crystal: 50000, totalMetal: null, totalCrystal: null, recyclersNeeded: 3 },
+      // neither totals nor the line after: nothing known about the field
+    ]);
+    const en = parsePage({
+      text: 'Recycling Report\nNov 22 2026, 23:38:00\nYour recyclers have collected 1,000 Metal and 2,000 Crystal from a total of  Metal and  Crystal at coordinates [2:3:4].\nRequired for recycling debris: 0 Recycler.',
+    });
+    expect(en.records[0]).toMatchObject({ kind: 'recycle', coords: { g: 2, s: 3, p: 4 }, totalMetal: 1000, totalCrystal: 2000, recyclersNeeded: 0 });
   });
 
   it('parses english recycling reports', () => {

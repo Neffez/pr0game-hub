@@ -2,6 +2,15 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-23
+
+- Recycling reports without the field totals: game versions since September 2026 write "von insgesamt  Metall und
+  Kristall" with empty numbers, so these reports were not recognized at all and the debris finder never learned the
+  rest of a recycled field. The parser now accepts empty totals and reads the following line (recyclers still
+  needed, `recyclersNeeded`): none needed means the field was emptied; otherwise the totals stay `null` in the record
+  and the server stores an estimate (that many full recyclers of the universe's capacity, split like the collected
+  debris). The loot calculator only takes a field size from reports that state it.
+
 ## 2026-11-22
 
 - pr0game tools, auto-plan: steps that reach a target (e.g. "Astrophysik 1" or a colony ship) are shown as a normal

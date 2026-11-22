@@ -254,7 +254,7 @@ function applyRecycling() {
     return;
   }
   if (!people.value.some((p) => p.id === who.id)) s.helpers.push({ id: who.id, name: who.name, keepPct: 20, recDeut: 0 });
-  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal }, time: gameEpoch(r.time) });
+  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal, ...(r.totalMetal != null && r.totalCrystal != null ? { field: { m: r.totalMetal, k: r.totalCrystal } } : {}), time: gameEpoch(r.time) });
   recycleText.value = '';
   error.value = '';
 }
