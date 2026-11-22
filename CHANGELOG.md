@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-22
 
+- Expedition deck: the drawn cards show the range and the expected value ("25–26 (≈ 25.4) / 1000") while uncertain
+  "Nothing" results are open, instead of a bare decimal. The deck state has new fields `drawnMin` and `drawnMax`.
 - Build order: the list of the other planets of the build order wraps on narrow screens instead of running past the
   edge on phones.
 - Build order: a transport with a set departure or arrival time is no longer checked off by an earlier own fleet on
