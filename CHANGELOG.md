@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-22
 
+- Build order: a transport step was checked off as soon as it was added when an earlier own fleet to the same target
+  existed (any fleet since the import counted, also one that had already checked off an earlier transport). Transport
+  steps now record when the server first stored them (`added`, set on PATCH, a sent value is ignored; described in the
+  OpenAPI spec) and only fleets arriving after that count; transports already checked off keep the earliest fleet
+  that fits them, so it cannot check off a second step.
 - Expedition deck: the drawn cards show the range and the expected value ("25–26 (≈ 25.4) / 1000") while uncertain
   "Nothing" results are open, instead of a bare decimal. The deck state has new fields `drawnMin` and `drawnMax`.
 - Build order: the list of the other planets of the build order wraps on narrow screens instead of running past the

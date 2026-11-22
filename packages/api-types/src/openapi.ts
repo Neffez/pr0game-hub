@@ -3537,6 +3537,8 @@ export type components = {
             deactivated?: boolean;
             /** @description Checked off by hand */
             done?: boolean;
+            /** @description Transports: when the hub first stored the step (Unix seconds), set by the server (a sent value is ignored). The step is checked off by an own fleet to its target arriving after this, not by one that flew before it was added; steps stored before this was recorded count from the import */
+            added?: number;
         };
         BuildOrder: {
             /** @description Start levels: `planets` (hub planet key `g:s:p:type` -> element id -> level or count) and `research` (id -> level) */

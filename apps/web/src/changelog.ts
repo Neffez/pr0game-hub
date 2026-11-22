@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauliste: Ein neu hinzugefügter Transport wird nicht mehr sofort abgehakt, nur weil schon früher eine Flotte zum selben Ziel geflogen ist. Er gilt erst als erledigt, wenn danach eine passende Flotte losfliegt.',
+        en: 'Build order: a newly added transport is no longer checked off right away just because a fleet flew to the same target before. It only counts as done once a matching fleet leaves after it was added.',
+      },
+      {
+        kind: 'fix',
         de: 'Expo-Deck: Bei unsicheren „Nichts“-Expos zeigt „Gezogen im aktuellen Deck“ jetzt die Spanne und den erwarteten Wert (z. B. „25–26 (≈ 25,4)“) statt nur einer Kommazahl.',
         en: 'Expedition deck: with uncertain "Nothing" expeditions, "Drawn in the current deck" now shows the range and the expected value (e.g. "25–26 (≈ 25.4)") instead of a bare decimal.',
       },

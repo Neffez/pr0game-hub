@@ -128,14 +128,37 @@ function earliestArrival(t: TransportSettings): number {
 /**
  * Production and transport steps the synced pages show as done: the empire page's production setting of the mines
  * equals the step's, an own transport or deployment from the planet to the step's target with (about) its resources
- * arrived or is on its way, after `since` (the import) and not before the step's set time (departure or arrival). Ship, defense and research steps the hub's levels reach are
- * returned too, so they stay done. Only steps whose earlier steps on the planet are all done,
- * queued or skipped count, in list order; each fleet counts once. Returns the ids to check off.
+ * arrived or is on its way, after the step was added (`added`, else `since`: the import) and not before the step's set
+ * time (departure or arrival). Ship, defense and research steps the hub's levels reach are returned too, so they stay
+ * done. Only steps whose earlier steps on the planet are all done, queued or skipped count, in list order; each fleet
+ * counts once, and transports already checked off keep the earliest fleet that fits them, so a transport added later
+ * is not checked off by a fleet that flew before it. Returns the ids to check off.
  */
 export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[], since: number): string[] {
   const targets = targetsOf(order);
+  const sorted = [...fleets].sort((a, b) => a.arrival - b.arrival);
   const used = new Set<OwnFleet>();
   const out: string[] = [];
+  /** the earliest unused fleet that carries out the transport step `s` from the planet `key` */
+  const fleetOf = (key: string, s: Step) => {
+    const t = s.transport!;
+    // a colonization flies to the coordinates the planned planet will have
+    const c = order.planned?.[t.target!]?.coords;
+    const to = c ? `${c.g}:${c.s}:${c.p}:planet` : t.target;
+    const missions = t.mission === 'colonize' ? [MISSION_COLONIZE] : [3, 4];
+    const after = Math.max(since, s.added ?? since, earliestArrival(t));
+    const fleet = sorted.find(
+      (f) =>
+        !used.has(f) && f.from === key && f.to === to && missions.includes(f.mission ?? 0) && f.arrival > after &&
+        Object.entries(fixedOf(t)).every(([r, v]) => (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE),
+    );
+    if (fleet) used.add(fleet);
+    return fleet;
+  };
+  // the fleets of transports already checked off are taken first
+  for (const [key, steps] of Object.entries(order.planets)) {
+    for (const s of steps) if (s.done && !s.deactivated && s.kind === 'transport' && s.transport!.target) fleetOf(key, s);
+  }
   for (const [key, steps] of Object.entries(order.planets)) {
     const planet = hub.planets.find((p) => p.key === key);
     if (!planet) continue;
@@ -153,19 +176,7 @@ export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[],
         continue;
       }
       if (s.kind === 'transport' && s.transport!.target) {
-        const t = s.transport!;
-        // a colonization flies to the coordinates the planned planet will have
-        const c = order.planned?.[t.target!]?.coords;
-        const to = c ? `${c.g}:${c.s}:${c.p}:planet` : t.target;
-        const missions = t.mission === 'colonize' ? [MISSION_COLONIZE] : [3, 4];
-        const after = Math.max(since, earliestArrival(t));
-        const fleet = fleets.find(
-          (f) =>
-            !used.has(f) && f.from === key && f.to === to && missions.includes(f.mission ?? 0) && f.arrival > after &&
-            Object.entries(fixedOf(t)).every(([r, v]) => (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE),
-        );
-        if (!fleet) break;
-        used.add(fleet);
+        if (!fleetOf(key, s)) break;
         out.push(s.id);
         continue;
       }

@@ -32,6 +32,28 @@ export function buildOrderOf(db: DB, ctx: Pick<GroupContext, 'groupId'>, userId:
   };
 }
 
+/**
+ * Sets when the transport steps of `order` were added (`added`, what the fleets checking them off have to arrive
+ * after): those `stored` already has keep its value (none for steps stored before it existed), new ones get `t`;
+ * what the client sent is ignored. Without `stored` (an import) none is set: the import's time counts.
+ */
+export function stampAdded(order: BuildOrder, stored: BuildOrder | null, t: number): BuildOrder {
+  const known = new Map(Object.values(stored?.planets ?? {}).flat().map((s) => [s.id, s]));
+  const planets = Object.fromEntries(
+    Object.entries(order.planets).map(([key, steps]) => [
+      key,
+      steps.map((s): Step => {
+        if (s.kind !== 'transport') return s;
+        const { added: _, ...rest } = s;
+        const old = known.get(s.id);
+        const added = old ? old.added : stored ? t : undefined;
+        return added == null ? rest : { ...rest, added };
+      }),
+    ]),
+  );
+  return { ...order, planets };
+}
+
 /** The member's own fleet movements (newest list and history since `since`), planets by hub key. */
 function ownFleets(db: DB, groupId: number, userId: number, since: number): OwnFleet[] {
   const key = (b: StoredFleet['from']) => `${b.coords.g}:${b.coords.s}:${b.coords.p}:${b.type ?? 'planet'}`;
