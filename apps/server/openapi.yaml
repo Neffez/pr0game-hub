@@ -3102,7 +3102,7 @@ components:
               manual: { type: integer, enum: [0, 1] }
         state:
           type: object
-          required: [deckSize, cards, remainingTotal, drawnInDeck, resets, events, uncertainNothing]
+          required: [deckSize, cards, remainingTotal, drawnInDeck, drawnMin, drawnMax, resets, events, uncertainNothing]
           properties:
             deckSize: { type: integer }
             cards:
@@ -3120,7 +3120,15 @@ components:
                   remainingMax: { type: number }
                   nextProbability: { type: number }
             remainingTotal: { type: number }
-            drawnInDeck: { type: number }
+            drawnInDeck:
+              type: number
+              description: Expected drawn cards; uncertain "Nothing" results count with the probability that they drew a card.
+            drawnMin:
+              type: integer
+              description: Drawn cards if no uncertain "Nothing" result drew a card.
+            drawnMax:
+              type: integer
+              description: Drawn cards if every uncertain "Nothing" result drew a card.
             resets: { type: integer }
             events: { type: integer }
             uncertainNothing: { type: number }

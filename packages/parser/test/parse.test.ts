@@ -1093,6 +1093,9 @@ describe('deck', () => {
     expect(nothing.remainingMin).toBe(189);
     expect(nothing.remainingMax).toBe(190);
     expect(st.uncertainNothing).toBe(1);
+    expect(st.drawnInDeck).toBeCloseTo(p);
+    expect(st.drawnMin).toBe(0);
+    expect(st.drawnMax).toBe(1);
   });
 });
 
