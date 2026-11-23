@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Ranking: a synced player profile earns 1 point, once per player and member and only when it brought something new
+  (the same rule as the recap's sync count). Migration 102 credits the profiles counted before back to their days.
 - Ranking: a universe.json earns one point per percent of the universe's systems it refreshed (a whole fresh
   universe 100, a few systems at least 1) instead of a flat 100; still at most 100 a week, now summed over the uploads
   of the week. The weekly universe credits stored before keep their 100 points (migration 101).

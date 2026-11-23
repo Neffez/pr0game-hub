@@ -45,7 +45,7 @@ const de = {
   } satisfies Record<BadgeKey, string>,
   kind: {
     galaxy: 'Galaxie', spy: 'Spionageberichte', empire: 'Imperium', overview: 'Übersicht/Flotten', hostile: 'Fremdspionage', battle: 'Kampfberichte',
-    buildings: 'Gebäudeseiten', research: 'Forschung', market: 'Marktplatz', expedition: 'Expeditionen', messages: 'Ingame-Nachrichten', stats: 'Statistik', statsFirst: 'Statistik als Erstes', universe: 'universe.json',
+    buildings: 'Gebäudeseiten', research: 'Forschung', market: 'Marktplatz', expedition: 'Expeditionen', messages: 'Ingame-Nachrichten', stats: 'Statistik', statsFirst: 'Statistik als Erstes', universe: 'universe.json', playerCard: 'Spielerprofile',
   } satisfies Record<PointKind, string>,
 };
 
@@ -85,7 +85,7 @@ const en: typeof de = {
   },
   kind: {
     galaxy: 'Galaxy', spy: 'Spy reports', empire: 'Empire', overview: 'Overview/fleets', hostile: 'Foreign espionage', battle: 'Battle reports',
-    buildings: 'Buildings pages', research: 'Research', market: 'Marketplace', expedition: 'Expeditions', messages: 'In-game messages', stats: 'Statistics', statsFirst: 'Statistics first', universe: 'universe.json',
+    buildings: 'Buildings pages', research: 'Research', market: 'Marketplace', expedition: 'Expeditions', messages: 'In-game messages', stats: 'Statistics', statsFirst: 'Statistics first', universe: 'universe.json', playerCard: 'Player profiles',
   },
 };
 

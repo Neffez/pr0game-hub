@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-23',
     items: [
       {
+        kind: 'new',
+        de: 'Rangliste: Ein eingefügtes Spielerprofil bringt 1 Punkt, je Spieler einmal und nur, wenn es etwas Neues enthielt. Profile, die du schon früher eingefügt hast, wurden rückwirkend gutgeschrieben.',
+        en: 'Ranking: a pasted player profile earns 1 point, once per player and only when it held something new. Profiles you pasted before were credited retroactively.',
+      },
+      {
         kind: 'fix',
         de: 'Recap: Im Abschnitt Rangabzeichen kleben Name, Rangwechsel und Wertungen nicht mehr aneinander; jede gewonnene oder verlorene Wertung steht in einer eigenen Zeile.',
         en: 'Recap: in the rank badge section name, rank change and rankings no longer run together; each ranking taken over or lost stands on its own line.',

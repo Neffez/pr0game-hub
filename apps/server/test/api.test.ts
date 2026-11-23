@@ -2017,6 +2017,26 @@ describe('player card ingest', () => {
     expect(rows()).toHaveLength(1);
   });
 
+  it('earns a ranking point for the first new card of a player, also back from the stored sync counts', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardPoints' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    const points = () => db.prepare("SELECT key, count FROM sync_credits WHERE group_id = ? AND kind = 'playerCard' ORDER BY key").all(group);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 1 }]);
+    // the same card again brings nothing new; a card with news about the same player counts once per player
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard-combat.txt') } });
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 1 }]);
+    // another player's card: one more
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard-en.txt') } });
+    expect(points()).toHaveLength(2);
+
+    // the migration credits the cards counted before the points existed
+    db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'playerCard'").run(group);
+    db.exec(readFileSync(new URL('../migrations/102_player_card_points.sql', import.meta.url), 'utf8'));
+    expect(points()).toEqual([{ key: 'Alice', count: 1 }, { key: 'Captain Joe', count: 1 }]);
+  });
+
   it('does not overwrite a planet the galaxy already mapped', async () => {
     const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardGalaxy' }, headers: admin })).json().id;
     const other = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, 'Other').lastInsertRowid);
