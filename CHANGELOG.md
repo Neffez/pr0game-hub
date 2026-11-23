@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Player page: new section "Fleet" with the fleet the player has or last had, ship by ship and including probes,
+  solar satellites and transporters (`GET /api/{uni}/players/{id}/fleet`, `repo/playerFleet.ts`). Sightings without an
+  age limit: per planet or moon the newest spy report with a fleet section, the ships brought into the newest battles
+  (also under earlier names) and the most of each type over the battles of 14 days, fleets on their way to members.
+  Spy reports of several bodies at most 12 hours apart are added up and checked against the fleet points of the nearest
+  statistics update (fits, more: counted twice, less: part unseen); a sum above the statistics is never taken as the
+  fleet. The fleet shown is the strongest sighting of the 14 days up to the newest one; all sightings on request.
 - Ranking: a synced player profile earns 1 point when it brought something new (the home planet, changed fight
   statistics), once a day per player and member; the recap's sync count follows the same rule (it took a player's card
   only once ever). Migration 103 credits the profiles the recap counted before (the

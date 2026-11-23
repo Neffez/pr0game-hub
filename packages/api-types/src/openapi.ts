@@ -954,6 +954,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/players/{id}/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The fleet the player has or last had, with all ships and no age limit: per body the newest spy report with a fleet section, bodies spied on close in time added up and checked against the fleet statistics, the ships of their newest battles (by the current name or an earlier one) and the most of each type over them, and fleets of theirs on their way to members now. */
+        get: operations["getPlayerFleet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/players/{id}/activity": {
         parameters: {
             query?: never;
@@ -5369,6 +5386,54 @@ export type components = {
         Enabled: {
             enabled: boolean;
         };
+        FleetSighting: {
+            /**
+             * @description `spy`: newest spy report with a fleet section of one body (empty: no ships there); `spySum`: those reports of several bodies at most 12 hours apart added up; `battle`: the ships brought into one battle; `battles`: the most of each ship type over the battles of 14 days up to the newest; `incoming`: a fleet on its way to a member now.
+             * @enum {string}
+             */
+            source: "spy" | "spySum" | "battle" | "battles" | "incoming";
+            /** @description Time of the report */
+            time: number;
+            units: components["schemas"]["UnitCounts"];
+            /** @description Points of the ships (like the fleet statistics) */
+            points: number;
+            /** @description spy: the body spied on; battle: where it took place (null in the battle hall); incoming: where the fleet started */
+            body: {
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                type: "planet" | "moon";
+            } | null;
+            /** @description spySum: bodies added up; battles: battles taken into account */
+            count: number | null;
+            /** @description battle: the battle report (`/api/{uni}/combat-reports/{id}`) */
+            reportId: string | null;
+        };
+        PlayerFleet: {
+            /** @description The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics): what the player has at least, unless they lost ships meanwhile. Null without any sighting. */
+            fleet: components["schemas"]["FleetSighting"] | null;
+            /** @description The `spySum` sighting checked against the fleet points of the statistics; null without one. */
+            sum: (components["schemas"]["FleetSighting"] & {
+                /** @description Fleet points of the statistics update nearest to the newest report of the sum */
+                stat: {
+                    points: number;
+                    time: number;
+                } | null;
+                /**
+                 * @description `match`: fits the statistics; `over`: more than them (ships counted twice); `under`: part of the fleet unseen; null without statistics
+                 * @enum {string|null}
+                 */
+                check: "match" | "over" | "under" | null;
+            }) | null;
+            /** @description All sightings */
+            sightings: components["schemas"]["FleetSighting"][];
+            /** @description Newest fleet points of the statistics */
+            fleetPoints: {
+                points: number;
+                time: number;
+            } | null;
+        };
         ActivityEvent: {
             /** @description Best estimate (Unix seconds) */
             time: number;
@@ -9516,6 +9581,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlayerDetails"];
                 };
+            };
+        };
+    };
+    getPlayerFleet: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerFleet"];
+                };
+            };
+            /** @description Not a player of the group (`player_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

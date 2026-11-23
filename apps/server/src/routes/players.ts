@@ -7,6 +7,7 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { ACTIVITY_DAYS, activityScores, addActivity, playerActivity } from '../repo/activity.js';
 import { latestEmpires } from '../repo/empire.js';
+import { playerFleet } from '../repo/playerFleet.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores, pointsStalls, stallSince } from '../repo/stats.js';
 import { inactivities } from '../repo/inactivity.js';
@@ -251,6 +252,15 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     if (!player) throw new HttpError(404, 'player_not_found', 'Player not found');
     return player;
   };
+
+  /** The fleet the player has or last had: spy reports, battles and fleets on their way (repo/playerFleet.ts). */
+  app.get<{ Params: { uni: string; id: string } }>('/api/:uni/players/:id/fleet', async (req) => {
+    const ctx = ctxOf(req);
+    const id = groupPlayer(ctx, req.params.id);
+    const name = db.prepare('SELECT name FROM players WHERE id = ? AND group_id = ?').pluck().get(id, ctx.groupId) as string;
+    const aliases = db.prepare('SELECT name FROM player_aliases WHERE player_id = ?').pluck().all(id) as string[];
+    return playerFleet(db, ctx, id, name, aliases);
+  });
 
   /** Evidence of when the player was online during the last days, for the activity pattern. */
   app.get<{ Params: { uni: string; id: string } }>('/api/:uni/players/:id/activity', async (req) => {
