@@ -1740,6 +1740,7 @@ const en: typeof de = {
     nobody: 'nobody yet',
     you: 'Your value: {v}',
     ranks: 'All ranks',
+    source: { stats: 'from statistics', empire: 'from empire' },
     names: { 1: 'Private', 2: 'Corporal', 3: 'Sergeant', 4: 'Staff sergeant', 5: 'Lieutenant', 6: 'Captain', 7: 'Major', 8: 'Colonel', 9: 'General', 10: 'Marshal' },
     conditions: {
       fleetPoints: 'Most fleet points',
@@ -1754,7 +1755,7 @@ const en: typeof de = {
       playersAttacked: 'Most players attacked',
     },
     how: {
-      fleetPoints: 'From the latest pasted statistics',
+      fleetPoints: 'From the empire sync (with fleets in flight) or the fleet statistics, whichever is newer',
       researchPoints: 'From the latest pasted statistics',
       buildingPoints: 'From the latest pasted statistics',
       totalPoints: 'From the latest pasted statistics',

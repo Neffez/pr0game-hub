@@ -1741,6 +1741,7 @@ const de = {
     nobody: 'noch niemand',
     you: 'Dein Wert: {v}',
     ranks: 'Alle Ränge',
+    source: { stats: 'aus Statistik', empire: 'aus Imperium' },
     names: { 1: 'Gefreiter', 2: 'Korporal', 3: 'Sergeant', 4: 'Feldwebel', 5: 'Leutnant', 6: 'Hauptmann', 7: 'Major', 8: 'Oberst', 9: 'General', 10: 'Marschall' },
     conditions: {
       fleetPoints: 'Meiste Flottenpunkte',
@@ -1755,7 +1756,7 @@ const de = {
       playersAttacked: 'Meiste angegriffene Spieler',
     },
     how: {
-      fleetPoints: 'Aus der zuletzt eingefügten Statistik',
+      fleetPoints: 'Aus Imperium-Sync (mit fliegenden Flotten) oder Flottenstatistik, je nachdem was neuer ist',
       researchPoints: 'Aus der zuletzt eingefügten Statistik',
       buildingPoints: 'Aus der zuletzt eingefügten Statistik',
       totalPoints: 'Aus der zuletzt eingefügten Statistik',
