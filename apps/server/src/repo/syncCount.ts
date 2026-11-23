@@ -21,10 +21,8 @@ export function galaxyFingerprint(r: GalaxyRecord): string {
 export type SyncRule =
   /** at most once in this many seconds (the member's own state pages: every sync stores a new snapshot of them) */
   | { gap: number }
-  /** at most once a day */
-  | { daily: true }
-  /** once per unit, e.g. a player's card once per player (key `<page type>:<unit>`) */
-  | { once: true };
+  /** at most once a day; with a unit once a day per unit, e.g. a player's card (key `<page type>:<unit>`) */
+  | { daily: true };
 
 /**
  * Page types with a rule. Not listed (messages with spy, battle and transport reports, galaxy, statistics, battle
@@ -39,13 +37,13 @@ export const SYNC_RULES: ReadonlyMap<string, SyncRule> = new Map<string, SyncRul
   ['shipyard', { gap: 60 * 60 }],
   ['fleets', { gap: 60 * 60 }],
   ['marketplace', { daily: true }],
-  ['playerCard', { once: true }],
+  ['playerCard', { daily: true }],
 ]);
 
 /**
  * Counts one sync that brought something new for the member who pasted it, unless the page type's rule leaves it out
- * (`unit`: what a `once` page is about, e.g. the player of a card; without one it counts under the page type). The
- * page itself is stored as always, only the count skips it. Returns whether it counted.
+ * (`unit`: what a daily page is about, e.g. the player of a card: once a day per unit; without one it counts under the
+ * page type). The page itself is stored as always, only the count skips it. Returns whether it counted.
  */
 export function countSync(db: DB, groupId: number, userId: number, day: string, pageType: string, at: number, unit?: string | null): boolean {
   const rule = SYNC_RULES.get(pageType);
@@ -58,10 +56,8 @@ export function countSync(db: DB, groupId: number, userId: number, day: string, 
       .get(groupId, userId, pageType) as number | null;
     if (last != null && at - last < rule.gap) return false;
   } else if (rule && 'daily' in rule) {
-    if (has("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'sync' AND key = ? AND day = ?", pageType, day)) return false;
-  } else if (rule && 'once' in rule && unit) {
-    key = `${pageType}:${unit}`;
-    if (has("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'sync' AND key = ?", key)) return false;
+    if (unit) key = `${pageType}:${unit}`;
+    if (has("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'sync' AND key = ? AND day = ?", key, day)) return false;
   }
   db.prepare(
     "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count, last_at) VALUES (?, ?, ?, 'sync', ?, 1, ?) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1, last_at = excluded.last_at",

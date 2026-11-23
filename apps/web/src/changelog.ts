@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Rangliste: Ein eingefügtes Spielerprofil bringt 1 Punkt, wenn es etwas Neues enthielt, zum Beispiel geänderte Kampfwerte, je Spieler höchstens einmal am Tag. Profile, die du schon früher eingefügt hast, wurden rückwirkend gutgeschrieben.',
-        en: 'Ranking: a pasted player profile earns 1 point when it held something new, such as changed fight statistics, at most once a day per player. Profiles you pasted before were credited retroactively.',
+        de: 'Rangliste: Ein eingefügtes Spielerprofil bringt 1 Punkt, wenn es etwas Neues enthielt, zum Beispiel geänderte Kampfwerte, je Spieler höchstens einmal am Tag; im Recap zählt es genauso. Profile, die du schon früher eingefügt hast, wurden rückwirkend gutgeschrieben.',
+        en: 'Ranking: a pasted player profile earns 1 point when it held something new, such as changed fight statistics, at most once a day per player; the recap counts it the same way. Profiles you pasted before were credited retroactively.',
       },
       {
         kind: 'new',

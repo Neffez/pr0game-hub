@@ -216,8 +216,8 @@ describe('recap', () => {
     expect([c(d, 'empire', 1000), c(d, 'empire', 4599), c(d, 'buildings', 4599), c(d, 'empire', 4600)]).toEqual([true, false, true, true]);
     // the marketplace once a day
     expect([c(d, 'marketplace', 1000), c(d, 'marketplace', 80000), c('2030-01-02', 'marketplace', 90000)]).toEqual([true, false, true]);
-    // a player card once per player, on any day
-    expect([c(d, 'playerCard', 1000, '7'), c('2030-01-02', 'playerCard', 90000, '7'), c(d, 'playerCard', 1000, '8')]).toEqual([true, false, true]);
+    // a player card once a day per player
+    expect([c(d, 'playerCard', 1000, '7'), c(d, 'playerCard', 2000, '7'), c('2030-01-02', 'playerCard', 90000, '7'), c(d, 'playerCard', 1000, '8')]).toEqual([true, false, true, true]);
     const rows = db.prepare("SELECT key, SUM(count) AS n FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'sync' GROUP BY key ORDER BY key").all(group, ids.admin);
     expect(rows).toEqual([
       { key: 'buildings', n: 1 },
@@ -225,7 +225,7 @@ describe('recap', () => {
       { key: 'marketplace', n: 2 },
       { key: 'messages', n: 2 },
       { key: 'overview', n: 2 },
-      { key: 'playerCard:7', n: 1 },
+      { key: 'playerCard:7', n: 2 },
       { key: 'playerCard:8', n: 1 },
     ]);
   });

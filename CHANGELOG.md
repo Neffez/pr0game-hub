@@ -5,7 +5,8 @@ Every commit adds its changes here, newest first, grouped by date.
 ## 2026-11-23
 
 - Ranking: a synced player profile earns 1 point when it brought something new (the home planet, changed fight
-  statistics), once a day per player and member. Migration 103 credits the profiles the recap counted before (the
+  statistics), once a day per player and member; the recap's sync count follows the same rule (it took a player's card
+  only once ever). Migration 103 credits the profiles the recap counted before (the
   first new one of each player per member) back to their days.
 - Expeditions: losses are tracked next to the yields. Fights with pirates and aliens store the attacker losses of the
   report's battle summary (`lost_units`); a black hole takes the ships of the own expedition holding at the report's
