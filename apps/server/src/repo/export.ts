@@ -143,14 +143,17 @@ function unfiltered(db: DB, ctx: GroupContext, dataset: Dataset, since: number):
     case 'expeditions': {
       const rows = db
         .prepare(
-          `SELECT COALESCE(e.time, e.created_at) AS time, ${DISPLAY} AS member, e.g, e.s, e.p, e.event, e.size, e.found_resources, e.found_ships
+          `SELECT COALESCE(e.time, e.created_at) AS time, ${DISPLAY} AS member, e.g, e.s, e.p, e.event, e.size, e.found_resources, e.found_ships,
+             e.lost_units, e.lost_ships
            FROM expeditions e LEFT JOIN users u ON u.id = e.user_id
            WHERE e.group_id = ? AND COALESCE(e.time, e.created_at) >= ? ORDER BY 1 DESC`,
         )
-        .all(g, since) as { time: number; member: string | null; g: number; s: number; p: number; event: string; size: string; found_resources: string; found_ships: string }[];
+        .all(g, since) as { time: number; member: string | null; g: number; s: number; p: number; event: string; size: string; found_resources: string; found_ships: string; lost_units: number | null; lost_ships: string | null }[];
       return {
-        columns: ['time', 'member', 'galaxy', 'system', 'position', 'event', 'size', 'metal', 'crystal', 'deuterium', 'ships'],
-        rows: rows.map((r) => [r.time, r.member, r.g, r.s, r.p, r.event, r.size, ...res(r.found_resources), r.found_ships === '{}' ? null : r.found_ships]),
+        columns: ['time', 'member', 'galaxy', 'system', 'position', 'event', 'size', 'metal', 'crystal', 'deuterium', 'ships', 'lost_units', 'lost_ships'],
+        rows: rows.map((r) => [
+          r.time, r.member, r.g, r.s, r.p, r.event, r.size, ...res(r.found_resources), r.found_ships === '{}' ? null : r.found_ships, r.lost_units, r.lost_ships,
+        ]),
       };
     }
     case 'settlements': {

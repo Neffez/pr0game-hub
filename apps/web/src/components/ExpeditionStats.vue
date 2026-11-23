@@ -9,12 +9,15 @@ import RangePicker from './RangePicker.vue';
 import Section from './Section.vue';
 import SortBar from './SortBar.vue';
 import SortMark from './SortMark.vue';
-import { computed, onMounted, watch } from 'vue';
+import Sheet from './Sheet.vue';
+import Hint from './Hint.vue';
+import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useLoader, useLimit, useMobile, useSort, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { CRYSTAL, DEUTERIUM, elementPoints, METAL } from '@pr0hub/core/tech';
+import { activeUnits } from '@pr0hub/core/units';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
 /**
@@ -54,8 +57,13 @@ const posClass = (n: number) => (n > 0 ? 'pos' : 'faint');
 const rangeLabel = (d: number) => (d === 1 ? t('expeditions.last24h') : d >= 3650 ? t('expeditions.allTime') : t('expeditions.lastDays', { n: d }));
 
 // ------------------------------------------- yields: one row per member (like the FF-Hub)
-interface Yield { userId: number; name: string; count: number; metal: number; crystal: number; deut: number; shipPoints: number; points: number; perExpo: number | null }
+interface Yield {
+  userId: number; name: string; count: number; metal: number; crystal: number; deut: number; shipPoints: number; losses: number; unknownLosses: number;
+  points: number; perExpo: number | null;
+}
 const shipPoints = (ships: Record<string, number>) => Object.entries(ships).reduce((sum, [id, n]) => sum + elementPoints(id, n), 0);
+/** Points lost: battle losses (units: metal and crystal of the destroyed ships) / 1000 plus the ships a black hole took. */
+const lossPoints = (units: number | null | undefined, ships: Record<string, number> | null | undefined) => (units ?? 0) / 1000 + shipPoints(ships ?? {});
 const yields = computed<Yield[]>(() => {
   const byUser = new Map<number, ExpeditionsPerUser>((data.value?.perUser ?? []).map((u) => [u.userId, u]));
   return ctx.value!.members.map((m) => {
@@ -65,8 +73,11 @@ const yields = computed<Yield[]>(() => {
     const deut = u?.resources[DEUTERIUM] ?? 0;
     const sp = u ? shipPoints(u.ships) : 0;
     const count = u?.total ?? 0;
-    const points = (metal + crystal + deut) / 1000 + sp;
-    return { userId: m.id, name: m.name, count, metal, crystal, deut, shipPoints: sp, points, perExpo: count ? points / count : null };
+    const losses = u ? lossPoints(u.lostUnits, u.lostShips) : 0;
+    const points = (metal + crystal + deut) / 1000 + sp - losses;
+    return {
+      userId: m.id, name: m.name, count, metal, crystal, deut, shipPoints: sp, losses, unknownLosses: u?.unknownLosses ?? 0, points, perExpo: count ? points / count : null,
+    };
   });
 });
 const yieldSort = useSort(yields, (y, k) => y[k as keyof Yield], 'points');
@@ -76,6 +87,7 @@ const yieldCols = computed(() => [
   { key: 'crystal', label: name(CRYSTAL) },
   { key: 'deut', label: name(DEUTERIUM) },
   { key: 'shipPoints', label: t('game.events.Ships'), title: t('expeditions.shipsTitle') },
+  { key: 'losses', label: t('expeditions.losses'), title: t('expeditions.lossesTitle') },
   { key: 'points', label: t('expeditions.points'), title: t('expeditions.pointsTitle') },
   { key: 'perExpo', label: t('expeditions.perExpo'), title: t('expeditions.perExpoTitle') },
 ]);
@@ -83,8 +95,11 @@ const { key: yieldKey, descending: yieldDesc } = yieldSort;
 const yieldOptions = computed(() => [{ key: 'name', label: t('common.player') }, ...yieldCols.value.map((c) => ({ key: c.key, label: c.label }))]);
 const yieldTotal = computed(() =>
   yields.value.reduce(
-    (s, y) => ({ count: s.count + y.count, metal: s.metal + y.metal, crystal: s.crystal + y.crystal, deut: s.deut + y.deut, shipPoints: s.shipPoints + y.shipPoints, points: s.points + y.points }),
-    { count: 0, metal: 0, crystal: 0, deut: 0, shipPoints: 0, points: 0 },
+    (s, y) => ({
+      count: s.count + y.count, metal: s.metal + y.metal, crystal: s.crystal + y.crystal, deut: s.deut + y.deut, shipPoints: s.shipPoints + y.shipPoints,
+      losses: s.losses + y.losses, points: s.points + y.points,
+    }),
+    { count: 0, metal: 0, crystal: 0, deut: 0, shipPoints: 0, losses: 0, points: 0 },
   ),
 );
 /** A click on a member filters distribution and list to them, a second click shows the whole alliance again. */
@@ -99,12 +114,18 @@ const columns = computed(() => {
   const add = (into: Record<string, number>, from: Record<string, number>) => {
     for (const [k, n] of Object.entries(from)) into[k] = (into[k] ?? 0) + n;
   };
-  const total: ExpeditionsPerUser = { userId: -1, username: t('raids.allianceTotal'), total: 0, events: {}, resources: {}, ships: {} };
+  const total: ExpeditionsPerUser = {
+    userId: -1, username: t('raids.allianceTotal'), total: 0, events: {}, resources: {}, ships: {}, losses: 0, lostUnits: 0, lostShips: {}, unknownLosses: 0,
+  };
   for (const u of list) {
     total.total += u.total;
     add(total.events, u.events);
     add(total.resources, u.resources);
     add(total.ships, u.ships);
+    total.losses += u.losses;
+    total.lostUnits += u.lostUnits;
+    total.unknownLosses += u.unknownLosses;
+    add(total.lostShips, u.lostShips);
   }
   return [...list, total];
 });
@@ -134,7 +155,7 @@ const listSort = useSort(
     if (k === 'player') return e.username;
     if (k === 'target') return e.g ? e.g * 1e6 + (e.s ?? 0) * 100 + (e.p ?? 0) : null;
     if (k === 'event') return cardLabel(`${e.event}:${e.size}`);
-    if (k === 'found') return foundRes(e) / 1000 + shipPoints(e.found_ships ?? {});
+    if (k === 'found') return foundRes(e) / 1000 + shipPoints(e.found_ships ?? {}) - lossPoints(e.lost_units, e.lost_ships);
     return null;
   },
   'time',
@@ -154,6 +175,36 @@ async function removeManual(e: Expedition) {
   if (!confirm(t('expeditions.deleteConfirm', { event: cardLabel(`${e.event}:${e.size}`), time: dateTime(e.time) }))) return;
   await uniApi(uni.value, `/deck/events/${e.id}`, { method: 'DELETE' });
   await load();
+}
+
+// ------------------------------------------- losses entered by hand (own black holes)
+const hasLostShips = (e: Expedition) => !!e.lost_ships && Object.keys(e.lost_ships).length > 0;
+const lostShipsText = (e: Expedition) => Object.entries(e.lost_ships ?? {}).map(([id, n]) => `${name(id)} ${fmt(n)}`).join(', ');
+const canEditLoss =(e: Expedition) => e.event === 'BlackHole' && e.user_id === ctx.value!.me.id;
+const lossForm = reactive<{ open: boolean; id: number | null; ships: Record<number, number | null>; busy: boolean; error: string }>({
+  open: false, id: null, ships: {}, busy: false, error: '',
+});
+const shipIds = computed(() => activeUnits().ships);
+function editLoss(e: Expedition) {
+  lossForm.id = e.id;
+  lossForm.ships = Object.fromEntries(shipIds.value.map((id) => [id, e.lost_ships?.[id] ?? null]));
+  lossForm.error = '';
+  lossForm.open = true;
+}
+async function saveLoss() {
+  if (lossForm.id == null) return;
+  lossForm.busy = true;
+  lossForm.error = '';
+  try {
+    const ships = Object.fromEntries(Object.entries(lossForm.ships).filter(([, n]) => n != null && n > 0).map(([id, n]) => [id, Math.floor(n!)]));
+    await uniApi(uni.value, `/expeditions/${lossForm.id}/loss`, { method: 'PUT', body: { ships } });
+    lossForm.open = false;
+    await load();
+  } catch (err) {
+    lossForm.error = err instanceof Error ? err.message : String(err);
+  } finally {
+    lossForm.busy = false;
+  }
 }
 useAutoTour('expeditions', () => !!data.value, 'stats');
 </script>
@@ -186,7 +237,10 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
               <td class="num" :class="posClass(y.crystal)">{{ fmt(y.crystal) }}</td>
               <td class="num" :class="posClass(y.deut)">{{ fmt(y.deut) }}</td>
               <td class="num" :class="posClass(y.shipPoints)">{{ fmt(y.shipPoints) }}</td>
-              <td class="num strong" :class="posClass(y.points)">{{ fmt(y.points) }}</td>
+              <td class="num" :class="y.losses > 0 ? 'neg' : 'faint'">
+                {{ y.losses > 0 ? `−${fmt(y.losses)}` : fmt(0) }}<span v-if="y.unknownLosses" class="faint" :title="t('expeditions.unknownLosses', { n: y.unknownLosses }, y.unknownLosses)"> +?</span>
+              </td>
+              <td class="num strong" :class="y.points < 0 ? 'neg' : posClass(y.points)">{{ fmt(y.points) }}</td>
               <td class="num muted">{{ y.perExpo != null ? fmt(y.perExpo) : '' }}</td>
             </tr>
           </tbody>
@@ -198,6 +252,7 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
               <th class="num">{{ fmt(yieldTotal.crystal) }}</th>
               <th class="num">{{ fmt(yieldTotal.deut) }}</th>
               <th class="num">{{ fmt(yieldTotal.shipPoints) }}</th>
+              <th class="num">{{ yieldTotal.losses > 0 ? `−${fmt(yieldTotal.losses)}` : fmt(0) }}</th>
               <th class="num">{{ fmt(yieldTotal.points) }}</th>
               <th class="num">{{ yieldTotal.count ? fmt(yieldTotal.points / yieldTotal.count) : '' }}</th>
             </tr>
@@ -249,6 +304,15 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
                 <div v-for="(n, id) in u.ships" :key="id">{{ name(id) }}: {{ fmt(n) }}</div>
               </td>
             </tr>
+            <tr>
+              <td>{{ t('expeditions.losses') }}</td>
+              <td />
+              <td v-for="u in columns" :key="u.username" class="num small">
+                <div v-if="u.lostUnits" class="neg">{{ t('expeditions.lossUnits', { n: fmt(u.lostUnits) }) }}</div>
+                <div v-for="(n, id) in u.lostShips" :key="id" class="neg">{{ name(id) }}: {{ fmt(n) }}</div>
+                <div v-if="u.unknownLosses" class="faint">{{ t('expeditions.unknownLosses', { n: u.unknownLosses }, u.unknownLosses) }}</div>
+              </td>
+            </tr>
           </tfoot>
         </table>
       </div>
@@ -284,8 +348,12 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
                 <td class="small">
                   <span v-for="(n, id) in e.found_resources" :key="'r' + id">{{ name(id) }} {{ fmt(n) }} </span>
                   <span v-for="(n, id) in e.found_ships" :key="'s' + id">{{ name(id) }} {{ fmt(n) }} </span>
+                  <span v-if="e.lost_units" class="neg">{{ t('expeditions.lossUnits', { n: fmt(e.lost_units) }) }} </span>
+                  <span v-if="hasLostShips(e)" class="neg" :title="e.lost_source === 'manual' ? t('expeditions.lossManual') : t('expeditions.lossFleet')">−{{ lostShipsText(e) }}</span>
+                  <span v-else-if="e.event === 'BlackHole'" class="faint">{{ t('expeditions.lossUnknown') }}</span>
                 </td>
-                <td>
+                <td class="actions">
+                  <button v-if="canEditLoss(e)" class="small" :title="t('expeditions.lossEditTitle')" @click="editLoss(e)">{{ t('expeditions.lossEdit') }}</button>
                   <button v-if="isManual(e) && e.user_id === ctx!.me.id" class="small" :title="t('expeditions.deleteTitle')" @click="removeManual(e)">{{ t('common.delete') }}</button>
                 </td>
               </tr>
@@ -295,6 +363,20 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
         <ShowMore :limit="listLimit" />
       </template>
     </Section>
+    <Sheet v-model="lossForm.open" :title="t('expeditions.lossSheet')">
+      <template #head><Hint>{{ t('expeditions.lossSheetHint') }}</Hint></template>
+      <div class="loss-grid">
+        <label v-for="id in shipIds" :key="id" class="small">
+          <span>{{ name(id) }}</span>
+          <input v-model.number="lossForm.ships[id]" type="number" min="0" step="1" inputmode="numeric" />
+        </label>
+      </div>
+      <div v-if="lossForm.error" class="error">{{ lossForm.error }}</div>
+      <template #footer>
+        <button @click="lossForm.open = false">{{ t('plans.cancelForm') }}</button>
+        <button class="primary" :disabled="lossForm.busy" @click="saveLoss">{{ t('expeditions.lossSave') }}</button>
+      </template>
+    </Sheet>
   </template>
 </template>
 
@@ -309,5 +391,10 @@ table.data tfoot th { color: var(--text); }
   table.data tfoot tr:first-child th { border-top: 2px solid var(--border-strong); }
 }
 a.plain { color: var(--text); }
+td.actions { white-space: nowrap; }
+td.actions button + button { margin-left: 4px; }
+.loss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 12px; }
+.loss-grid label { display: flex; flex-direction: column; gap: 2px; }
+.loss-grid input { width: 100%; }
 a.plain:hover { color: var(--accent); }
 </style>

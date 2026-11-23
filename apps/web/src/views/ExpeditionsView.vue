@@ -58,6 +58,7 @@ useLiveReload(loadSlots, tables('fleets', 'expeditions', 'empire', 'research'));
         <p>{{ t('expeditions.hint1') }}</p>
         <p>{{ t('expeditions.hint2') }}</p>
         <p>{{ t('expeditions.hint3') }}</p>
+        <p>{{ t('expeditions.hintLosses') }}</p>
       </Hint>
     </template>
     <CsvButton v-if="tab !== 'deck'" dataset="expeditions" />

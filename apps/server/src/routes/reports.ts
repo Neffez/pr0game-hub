@@ -7,6 +7,9 @@ import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
 import { clampInt, contextOf, DISPLAY, range, type Q } from './util.js';
 import { moonChances } from '../repo/moons.js';
+import { catalogOfGroup } from '../context.js';
+import { events } from '../events.js';
+import { blackHoleLosses, cleanShips } from '../repo/expeditionLosses.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -188,12 +191,19 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
 
     const perUser = new Map<number | null, any>();
     for (const r of rows) {
-      const e = perUser.get(r.user_id) ?? { userId: r.user_id, username: r.username, total: 0, events: {}, resources: {}, ships: {} };
+      const e = perUser.get(r.user_id) ?? {
+        userId: r.user_id, username: r.username, total: 0, events: {}, resources: {}, ships: {}, losses: 0, lostUnits: 0, lostShips: {}, unknownLosses: 0,
+      };
       e.total++;
       const key = r.size === 'None' ? r.event : `${r.event}:${r.size}`;
       e.events[key] = (e.events[key] ?? 0) + 1;
       for (const [id, n] of Object.entries(JSON.parse(r.found_resources) as Record<string, number>)) e.resources[id] = (e.resources[id] ?? 0) + n;
       for (const [id, n] of Object.entries(JSON.parse(r.found_ships) as Record<string, number>)) e.ships[id] = (e.ships[id] ?? 0) + n;
+      const lostShips = r.lost_ships ? (JSON.parse(r.lost_ships) as Record<string, number>) : {};
+      if (r.lost_units || Object.keys(lostShips).length) e.losses++;
+      else if (r.event === 'BlackHole') e.unknownLosses++;
+      e.lostUnits += r.lost_units ?? 0;
+      for (const [id, n] of Object.entries(lostShips)) e.lostShips[id] = (e.lostShips[id] ?? 0) + n;
       perUser.set(r.user_id, e);
     }
     const expected = Object.fromEntries(
@@ -205,8 +215,33 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
       perUser: [...perUser.values()],
       deckSize: ctx.universe.deck.reduce((s, c) => s + c.count, 0),
       expected,
-      list: rows.slice(0, 300).map((r) => ({ ...r, found_resources: JSON.parse(r.found_resources), found_ships: JSON.parse(r.found_ships) })),
+      list: rows.slice(0, 300).map((r) => ({
+        ...r, found_resources: JSON.parse(r.found_resources), found_ships: JSON.parse(r.found_ships), lost_ships: r.lost_ships ? JSON.parse(r.lost_ships) : null,
+      })),
     };
+  });
+
+  /**
+   * Ships the caller lost on one of their expeditions to a black hole, entered by hand (the fleet was not synced, or the
+   * synced one is wrong); empty ships clear the entry, a synced fleet list then fills it again when it knows the fleet.
+   */
+  app.put<{ Params: { uni: string; id: string }; Body: { ships?: unknown } }>('/api/:uni/expeditions/:id/loss', async (req) => {
+    const ctx = ctxOf(req);
+    const row = db
+      .prepare('SELECT event FROM expeditions WHERE id = ? AND group_id = ? AND user_id = ?')
+      .get(Number(req.params.id), ctx.groupId, ctx.user.id) as { event: string } | undefined;
+    if (!row) throw new HttpError(404, 'expedition_not_found', 'Expedition not found');
+    if (row.event !== 'BlackHole') throw new HttpError(400, 'loss_not_black_hole', 'Only black holes take a manual loss');
+    const catalog = catalogOfGroup(db, ctx.groupId);
+    const ships = cleanShips(req.body?.ships ?? {}, (id) => catalog.ships.includes(id));
+    if (!ships) throw new HttpError(400, 'loss_invalid', 'Invalid ships');
+    const empty = !Object.keys(ships).length;
+    db.prepare('UPDATE expeditions SET lost_ships = ?, lost_source = ? WHERE id = ? AND group_id = ?').run(
+      empty ? null : JSON.stringify(ships), empty ? null : 'manual', Number(req.params.id), ctx.groupId,
+    );
+    if (empty) blackHoleLosses(db, ctx.groupId, ctx.user.id);
+    events.publish(ctx.groupId, { type: 'data', tables: ['expeditions'], userId: ctx.user.id });
+    return { ok: true };
   });
 
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/hostile', async (req) => {

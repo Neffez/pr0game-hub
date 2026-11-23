@@ -1256,6 +1256,43 @@ describe('review fixes', () => {
     expect(d.state.events).toBe(2); // the synced one + the manual "Nothing"
   });
 
+  it('tracks expedition losses: pirate fights, black holes from the fleet list or by hand', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Losses' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const ingest = (payload: object) => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload });
+    const expos = async () => (await app.inject({ method: 'GET', url: `/hub/api/u8/expeditions?${EVER}`, headers })).json();
+    const loss = (id: number, ships: object) => app.inject({ method: 'PUT', url: `/hub/api/u8/expeditions/${id}/loss`, headers, payload: { ships } });
+
+    await ingest({ html: fixture('messages.html') });
+    const blackHole = 'Flottenhauptquartier\nExpeditionsbericht\n22. Nov 2026, 05:38:18\nExpeditionsbericht der Flotte von Heimat [1:200:4] bei [1:200:16]:\n\nVerschluckt.\n\nSchwarze Löcher';
+    await ingest({ text: blackHole });
+    let e = await expos();
+    expect(e.perUser[0]).toMatchObject({ total: 4, losses: 1, lostUnits: 5000, lostShips: {}, unknownLosses: 1 });
+    const pirates = e.list.find((x: any) => x.event === 'Pirates');
+    const hole = e.list.find((x: any) => x.event === 'BlackHole');
+    expect(pirates).toMatchObject({ lost_units: 5000, lost_ships: null });
+    expect(hole).toMatchObject({ lost_units: 0, lost_ships: null, lost_source: null });
+
+    // only black holes take a manual loss, only the own ones, only ships
+    expect((await loss(pirates.id, { 202: 1 })).statusCode).toBe(400);
+    expect((await loss(hole.id, { 1: 1 })).statusCode).toBe(400);
+    expect((await loss(hole.id, { 202: 1.5 })).statusCode).toBe(400);
+    expect((await loss(hole.id, { 202: 10, 204: 0 })).statusCode).toBe(200);
+    e = await expos();
+    expect(e.list.find((x: any) => x.id === hole.id)).toMatchObject({ lost_ships: { 202: 10 }, lost_source: 'manual' });
+    expect(e.perUser[0]).toMatchObject({ losses: 2, lostShips: { 202: 10 }, unknownLosses: 0 });
+
+    // cleared, the synced fleet list holding at the position until the report fills it
+    const fleet = {
+      owner: 'own', player: null, mission: 15, missionName: 'Expedition', phase: 'hold', from: { coords: { g: 1, s: 200, p: 4 }, type: 'planet' },
+      to: { coords: { g: 1, s: 200, p: 16 }, type: 'planet' }, ships: { 203: 3, 210: 1 }, resources: null, seconds: 3600, clock: null, acs: null, arrival: hole.time + 20,
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, 1, ?, ?)').run(groupX, hole.time - 3600, JSON.stringify([fleet]));
+    expect((await loss(hole.id, {})).statusCode).toBe(200);
+    e = await expos();
+    expect(e.list.find((x: any) => x.id === hole.id)).toMatchObject({ lost_ships: { 203: 3, 210: 1 }, lost_source: 'fleet' });
+  });
+
   it('keeps moon names and diameters from the galaxy view', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Moons' } })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupX) };
@@ -2040,7 +2077,7 @@ describe('player card ingest', () => {
 
     // the migration credits the cards counted before the points existed
     db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'playerCard'").run(group);
-    db.exec(readFileSync(new URL('../migrations/102_player_card_points.sql', import.meta.url), 'utf8'));
+    db.exec(readFileSync(new URL('../migrations/103_player_card_points.sql', import.meta.url), 'utf8'));
     // the recap counted the first new card of each player
     expect(points()).toEqual([{ key: 'Alice', count: 1 }, { key: 'Captain Joe', count: 1 }]);
   });
