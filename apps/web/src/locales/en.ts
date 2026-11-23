@@ -1838,7 +1838,7 @@ const en: typeof de = {
     points: {
       galaxy: 'Galaxy system 3 (each system once a day)', spy: 'Spy report 3', empire: 'Empire 10 (once a day)', overview: 'Overview 5 (once a day)',
       hostile: 'Foreign espionage 3', battle: 'Battle report 3', buildings: 'Buildings page 2 (per planet and day)', research: 'Research 2', market: 'Marketplace 2 (once a day)',
-      expedition: 'Expedition 1', messages: 'In-game message 1', stats: 'Statistics category 1', statsFirst: 'first +2', playerCard: 'player profile 1 (once per player, when it brought something new)',
+      expedition: 'Expedition 1', messages: 'In-game message 1', stats: 'Statistics category 1', statsFirst: 'first +2', playerCard: 'player profile 1 (when it brought something new, once a day per player)',
       universe: 'universe.json 1 per percent of the systems refreshed (all fresh: 100, at most 100 a week)',
     },
   },

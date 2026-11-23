@@ -39,7 +39,7 @@ export const POINTS = {
   messages: 1,
   stats: 1,
   statsFirst: 2,
-  /** a player's card that brought something new, once per player and member */
+  /** a player's card that brought something new (home planet, changed fight statistics), once a day per player and member */
   playerCard: 1,
   /**
    * a universe.json: one point per percent of the universe's systems it refreshed (all of them fresh: 100), at most

@@ -759,7 +759,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report 3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2 (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1 (pasted first +2), player card 1 (once per player, when it brought something new), universe.json 1 per percent of the universe's systems it refreshed (at least 1, at most 100 a week). `parts`: the points per kind. */
+        /** @description Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report 3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2 (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1 (pasted first +2), player card 1 (when it brought something new, once a day per player), universe.json 1 per percent of the universe's systems it refreshed (at least 1, at most 100 a week). `parts`: the points per kind. */
         get: operations["getRanking"];
         put?: never;
         post?: never;
