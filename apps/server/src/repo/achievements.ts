@@ -20,6 +20,8 @@ export interface Credit {
   kind: CreditKind;
   /** unit counted once a day ('' for once-a-day kinds) */
   key?: string;
+  /** units of a weekly kind (default 1), capped by its weekly maximum */
+  count?: number;
 }
 
 /** Points per unit in the ranking: what a single copy is worth to the alliance, galaxy and spy reports first. */
@@ -37,8 +39,11 @@ export const POINTS = {
   messages: 1,
   stats: 1,
   statsFirst: 2,
-  /** an up-to-date universe.json, once a week (Monday to Sunday) */
-  universe: 100,
+  /**
+   * a universe.json: one point per percent of the universe's systems it refreshed (all of them fresh: 100), at most
+   * `WEEKLY.universe` a week (Monday to Sunday)
+   */
+  universe: 1,
 } as const;
 export type PointKind = keyof typeof POINTS;
 
@@ -58,17 +63,28 @@ export function addDays(day: string, n: number): string {
 /** Start of a day in the universe's time zone, Unix seconds. */
 const dayStart = (day: string, timeZone: string) => localToEpoch(`${day} 00:00:00`, timeZone);
 
-/** Kinds credited at most once a week (Monday to Sunday, like the ranking) instead of once a day. */
-const WEEKLY: ReadonlySet<CreditKind> = new Set(['universe']);
+/** Kinds credited by count up to a maximum a week (Monday to Sunday, like the ranking) instead of once a day. */
+export const WEEKLY: Partial<Record<CreditKind, number>> = { universe: 100 };
 
-/** Stores the credits of one sync for the member (a unit already credited that day, or that week for a weekly kind, stays as it is). */
+/**
+ * Stores the credits of one sync for the member: a unit already credited that day stays as it is; a weekly kind adds
+ * its count up to what the week still allows.
+ */
 export function addCredits(db: DB, groupId: number, userId: number, day: string, credits: Credit[]) {
   const put = db.prepare('INSERT OR IGNORE INTO sync_credits (group_id, user_id, day, kind, key) VALUES (?, ?, ?, ?, ?)');
-  const inWeek = db.prepare('SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = ? AND day BETWEEN ? AND ?');
+  const add = db.prepare(
+    "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, ?, '', ?) ON CONFLICT DO UPDATE SET count = count + excluded.count",
+  );
+  const inWeek = db.prepare('SELECT COALESCE(SUM(count), 0) FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = ? AND day BETWEEN ? AND ?').pluck();
   const { from } = periodDays('week', day);
   for (const c of credits) {
-    if (WEEKLY.has(c.kind) && inWeek.get(groupId, userId, c.kind, from, day)) continue;
-    put.run(groupId, userId, day, c.kind, c.key ?? '');
+    const max = WEEKLY[c.kind];
+    if (max == null) {
+      put.run(groupId, userId, day, c.kind, c.key ?? '');
+      continue;
+    }
+    const n = Math.min(c.count ?? 1, max - (inWeek.get(groupId, userId, c.kind, from, day) as number));
+    if (n > 0) add.run(groupId, userId, day, c.kind, n);
   }
 }
 

@@ -209,6 +209,8 @@ async function sendDiscord() {
     busy.value = '';
   }
 }
+/** a rank's name, a dash for none */
+const rankName = (n: number) => (n ? t(`rank.names.${n}`) : '–');
 </script>
 
 <template>
@@ -299,19 +301,16 @@ async function sendDiscord() {
       <section class="card rc-wide">
         <h3>{{ t('recap.promotions') }}</h3>
         <p v-if="!data.ranks.length" class="muted small">{{ t('recap.noPromotions') }}</p>
-        <ul class="rc-badges">
+        <ul class="rc-ranks">
           <li v-for="r in data.ranks" :key="r.userId" :class="{ me: r.userId === ctx?.me.id }">
-            <RankInsignia :level="r.to" :size="20" />
-            <span>
-              <b class="rc-name">{{ r.name }}</b>
-              <span class="muted small">
-                {{ t('recap.rankChange', { from: r.from ? t(`rank.names.${r.from}`) : '–', to: r.to ? t(`rank.names.${r.to}`) : '–' }) }}
-              </span>
-              <br /><span class="small">
-                <span v-for="k in r.gained" :key="k" class="pos">+{{ t(`rank.conditions.${k}`) }} </span>
-                <span v-for="k in r.lost" :key="k" class="neg">−{{ t(`rank.conditions.${k}`) }} </span>
-              </span>
-            </span>
+            <span class="rc-rank-icon"><RankInsignia :level="r.to" :size="20" /></span>
+            <div>
+              <div><b class="rc-name">{{ r.name }}</b> <span class="muted small">{{ t('recap.rankChange', { from: rankName(r.from), to: rankName(r.to) }) }}</span></div>
+              <ul class="rc-rank-conds small">
+                <li v-for="k in r.gained" :key="`+${k}`" class="pos">+ {{ t(`rank.conditions.${k}`) }}</li>
+                <li v-for="k in r.lost" :key="`-${k}`" class="neg">− {{ t(`rank.conditions.${k}`) }}</li>
+              </ul>
+            </div>
           </li>
         </ul>
       </section>
@@ -385,6 +384,11 @@ async function sendDiscord() {
 .rc-days:not(.dense) .rc-day { padding-bottom: 0; }
 .rc-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 16px; }
 .rc-badges li { display: flex; gap: 8px; align-items: center; }
+.rc-ranks { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 16px; }
+.rc-ranks > li { display: flex; gap: 8px; align-items: flex-start; }
+.rc-ranks li.me .rc-name { color: var(--accent); }
+.rc-rank-icon { flex: none; width: 23px; height: 20px; display: inline-flex; }
+.rc-rank-conds { list-style: none; padding: 0; margin: 2px 0 0; }
 .rc-galaxy { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .rc-open { display: flex; flex-direction: column; gap: 4px; }
 .rc-open li::before { content: '•'; color: var(--accent); margin-right: 8px; }

@@ -19,6 +19,21 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Recap: Im Abschnitt Rangabzeichen kleben Name, Rangwechsel und Wertungen nicht mehr aneinander; jede gewonnene oder verlorene Wertung steht in einer eigenen Zeile.',
+        en: 'Recap: in the rank badge section name, rank change and rankings no longer run together; each ranking taken over or lost stands on its own line.',
+      },
+      {
+        kind: 'fix',
+        de: 'Rangliste: Eine hochgeladene universe.json bringt nicht mehr pauschal 100 Punkte, sondern je nach Anteil der Systeme, die sie aufgefrischt hat: das ganze Universum frisch 100, nur ein paar Systeme entsprechend weniger (höchstens 100 pro Woche).',
+        en: 'Ranking: an uploaded universe.json no longer earns a flat 100 points but according to the share of systems it refreshed: the whole universe fresh 100, only a few systems correspondingly less (at most 100 a week).',
+      },
+      {
+        kind: 'fix',
+        de: 'Rangabzeichen: Es steht jetzt auch bei den Mitgliedern, die gerade online sind, und in der Anzeige, wer dasselbe System oder Spielerprofil gerade ansieht.',
+        en: 'Rank badge: it now also shows for the members currently online and in the note on who else is viewing the same system or player profile.',
+      },
+      {
         kind: 'new',
         de: 'Rangabzeichen: Zerstörte und verlorene Units zählen jetzt, was deine eigenen Flotten abgeschossen und verloren haben, wie „real“ auf der Spielerkarte. Ganz genau wird es, wenn du deine Spielerkarte einfügst (im Popup die Tabelle markieren und kopieren); Kämpfe danach rechnet der Hub dazu. Ohne Karte schätzt er aus deinen Kampfberichten.',
         en: 'Rank badge: units destroyed and lost now count what your own fleets shot down and lost, like "actually" on the player card. It gets exact when you paste your player card (select and copy the table in the popup); the hub adds the fights after it. Without a card it estimates from your battle reports.',

@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Ranking: a universe.json earns one point per percent of the universe's systems it refreshed (a whole fresh
+  universe 100, a few systems at least 1) instead of a flat 100; still at most 100 a week, now summed over the uploads
+  of the week. The weekly universe credits stored before keep their 100 points (migration 101).
+- Rank badge: the insignia also shows before the names of the members online in the online list (it showed only for
+  the offline ones) and in the "also viewing" badge of galaxy systems and player profiles.
+- Rank order: the explanation of each condition moves into an info tooltip next to its name.
+- Recap, section "Rank badge": name and rank change no longer run together, and each condition taken over or lost
+  stands on its own line (the spaces between them were dropped).
 - Rank badge: units destroyed and lost now follow the "real" block of the game's player card (what the member's own
   fleets shot down and lost) instead of the whole side.
   - Player cards (optional, HTML or the selected table as text, DE/EN) now also yield the fight statistics: wins,

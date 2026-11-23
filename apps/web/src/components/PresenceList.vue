@@ -94,7 +94,7 @@ function where(p: PresenceMember) {
     <div ref="head" class="section one-line" :title="onlineTitle"><span ref="probe" class="probe" aria-hidden="true">{{ onlineTitle }}</span>{{ onlineHeading }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
-      <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
+      <span class="name" :class="roleClass(m)" :title="nameTitle(m)"><RankInsignia :user-id="m.id" :size="12" />{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
       <RouterLink v-if="badgesOf.get(m.id)?.length" class="badges" :to="badgesLink" @click="emit('navigate')"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></RouterLink>
       <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>

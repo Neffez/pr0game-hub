@@ -140,22 +140,25 @@ describe('universe.json upload', () => {
     expect(galaxyCredits()).toBe(before);
   });
 
-  it('earns the universe credit once a week, only when it refreshed systems', async () => {
-    const universeCredits = () => db.prepare("SELECT day FROM sync_credits WHERE group_id = ? AND kind = 'universe'").pluck().all(group) as string[];
-    // the upload above earned it; the same file again refreshes nothing and the week has it already
-    expect(universeCredits()).toHaveLength(1);
+  it('earns a point per percent of the systems it refreshed, at most 100 a week', async () => {
+    const credits = () => db.prepare("SELECT day, count FROM sync_credits WHERE group_id = ? AND kind = 'universe'").all(group) as { day: string; count: number }[];
+    const points = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/ranking?period=week', headers: carol })).json().rows.find((r: any) => r.userId === carolId).parts.universe ?? 0;
+    // the upload above refreshed a few systems of the universe's 9 × 499: 1 point (at least 1), not 100
+    expect(credits()).toEqual([{ day: expect.any(String), count: 1 }]);
+    expect(await points()).toBe(1);
+    // the same file again refreshes nothing
     const res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers: carol, payload: { text: fixture('universe.json') } });
     expect(res.statusCode).toBe(200);
-    expect(universeCredits()).toHaveLength(1);
-    const ranking = await app.inject({ method: 'GET', url: '/hub/api/u8/ranking?period=week', headers: carol });
-    expect(ranking.json().rows.find((r: any) => r.userId === carolId).parts.universe).toBe(100);
-    // a day of this week already credited holds back another one; a day of the next week does not
+    expect(credits()).toHaveLength(1);
+    // a whole fresh universe would be 100: the week holds at most 100 altogether, the next week starts again
     const { addCredits, addDays } = await import('../src/repo/achievements.js');
-    const [day] = universeCredits();
+    const [{ day }] = credits();
     const monday = addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
-    addCredits(db, group, carolId, addDays(monday, 6), [{ kind: 'universe' }]);
-    expect(universeCredits()).toHaveLength(1);
-    addCredits(db, group, carolId, addDays(monday, 7), [{ kind: 'universe' }]);
-    expect(universeCredits()).toHaveLength(2);
+    addCredits(db, group, carolId, addDays(monday, 6), [{ kind: 'universe', count: 60 }]);
+    addCredits(db, group, carolId, addDays(monday, 6), [{ kind: 'universe', count: 60 }]);
+    const week = (d: string) => credits().filter((c) => c.day >= monday && c.day <= d).reduce((n, c) => n + c.count, 0);
+    expect(week(addDays(monday, 6))).toBe(100);
+    addCredits(db, group, carolId, addDays(monday, 7), [{ kind: 'universe', count: 100 }]);
+    expect(credits().find((c) => c.day === addDays(monday, 7))?.count).toBe(100);
   });
 });
