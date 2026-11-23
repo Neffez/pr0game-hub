@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Rangabzeichen: „Meiste Flottenpunkte“ zählt jetzt auch ohne Flottenstatistik. Die Flotte kommt aus deinem Imperium-Sync (mit fliegenden Flotten), sobald der neuer ist als die Statistik, also schon im Early Game vor Spionage 6. In der Rangordnung steht, woher der Wert stammt.',
+        en: 'Rank badge: "Most fleet points" now counts without fleet statistics too. The fleet comes from your empire sync (with fleets in flight) whenever it is newer than the statistics, so already in the early game before espionage 6. The rank order shows where the value comes from.',
+      },
+      {
+        kind: 'new',
         de: 'Neues Rangabzeichen: Wer unter den Mitgliedern bei Flotten-, Forschungs-, Gebäude- oder Gesamtpunkten, zerstörten oder verlorenen Units, erbeuteten Rohstoffen, Siegesserie, Verhältnis Beute zu Verlust oder angegriffenen Spielern vorne liegt, bekommt je einen Punkt. Daraus wird ein Rang vom Gefreiten bis zum Marschall, der vor deinem Namen steht, überall im Hub. Wer welche Wertung hält, steht im Allianz-Fortschritt unter „Streaks & Abzeichen“; Beförderungen erscheinen im Recap.',
         en: 'New rank badge: whoever leads the members in fleet, research, building or total points, units destroyed or lost, resources captured, win streak, ratio of loot to losses or players attacked gets one point each. That makes a rank from private to marshal shown before your name everywhere in the hub. Who holds which ranking is listed in the alliance progress under "Streaks & badges"; promotions show in the recap.',
       },

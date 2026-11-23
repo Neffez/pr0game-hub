@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { ranksAt } = await import('../src/repo/rank.js');
+const { empireFleetPoints, ranksAt } = await import('../src/repo/rank.js');
 const { resolveGroup, getUniverse } = await import('../src/context.js');
 
 const db = openDb(':memory:');
@@ -119,6 +119,31 @@ describe('rank badge', () => {
     const tie = ranksAt(db, ctx(), [carolId, daveId], [T + 6000]).get(T + 6000)!;
     expect(tie.get(carolId)!.holds).toContain('researchPoints');
     expect(tie.get(daveId)!.holds).toContain('researchPoints');
+  });
+
+  it('takes the fleet points from a newer empire page', () => {
+    const erin = db.prepare("SELECT id FROM users WHERE username = 'erin'").pluck().get() as number;
+    const page = (user: number, time: number, rec: object) =>
+      db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, user, time, JSON.stringify(rec));
+    const planet = (ships: Record<number, number>) => ({ coords: { g: 5, s: 5, p: 5 }, type: 'planet', name: 'x', values: ships });
+    // dave: a page with the ships in flight after his newest fleet statistics (T + 1000) wins over them
+    const dave = { planets: [planet({ 202: 1000 })], research: {}, flyingShips: { 203: 100 } };
+    page(daveId, T + 2000, dave);
+    // carol: a page older than her statistics leaves them
+    page(carolId, T - 10, { planets: [planet({ 202: 99999 })], research: {}, flyingShips: {} });
+    // erin: no statistics at all, a page without the ships in flight is taken as it is
+    page(erin, T + 3000, { planets: [planet({ 202: 10 })], research: {} });
+    const c = ctx();
+    const ranks = ranksAt(db, c, [carolId, daveId, erin], [T + 10_000]).get(T + 10_000)!;
+    const davePoints = empireFleetPoints(c, dave as never);
+    expect(davePoints.points).toBeGreaterThan(3500);
+    expect(ranks.get(daveId)!).toMatchObject({ fleetSource: 'empire', values: { fleetPoints: davePoints.points } });
+    expect(ranks.get(daveId)!.holds).toContain('fleetPoints');
+    expect(ranks.get(carolId)!).toMatchObject({ fleetSource: 'stats', values: { fleetPoints: 3000 } });
+    expect(ranks.get(erin)!.fleetSource).toBe('empire');
+    expect(ranks.get(erin)!.values.fleetPoints).toBeGreaterThan(0);
+    // before the pages: the statistics again
+    expect(ranksAt(db, c, [daveId], [T + 1500]).get(T + 1500)!.get(daveId)!).toMatchObject({ fleetSource: 'stats', values: { fleetPoints: 3500 } });
   });
 
   it('is part of the achievements and the recap', async () => {

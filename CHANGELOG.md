@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Rank badge, "most fleet points": also from the members' empire pages, so it works before anyone can sync the fleet
+  statistics (espionage 6). Per member the newer source counts: the newest empire page (ships on the planets and in
+  flight) when it was synced after the newest fleet statistics, else the statistics; an older empire page without the
+  ships in flight only without any statistics. `MemberRank.fleetSource` (`stats`, `empire`, null) tells which; the
+  rank order and the insignia's tooltip show it.
 - New dynamic rank badge: ten conditions, each held by the member(s) leading it among the group's members (ties: all
   of them) over the whole history; every held condition is a point, the points (0–10) are a rank from private to
   marshal, drawn as a military insignia in a space style (delta-wing chevrons, hull bars, ringed planet, stars in
