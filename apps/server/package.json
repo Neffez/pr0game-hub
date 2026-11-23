@@ -13,7 +13,7 @@
   "dependencies": {
     "@fastify/compress": "^9.3.0",
     "@fastify/cookie": "^11.1.5",
-    "@fastify/static": "^10.1.10",
+    "@fastify/static": "^10.1.12",
     "@pr0hub/battle": "workspace:*",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
@@ -32,7 +32,7 @@
     "ajv-formats": "^3.0.1",
     "tsx": "^4.19.2",
     "typescript": "^6.0.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "files": [
     "battle-worker.mjs",
