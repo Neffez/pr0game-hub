@@ -759,7 +759,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report 3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2 (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1 (pasted first +2), universe.json 1 per percent of the universe's systems it refreshed (at least 1, at most 100 a week). `parts`: the points per kind. */
+        /** @description Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report 3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2 (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1 (pasted first +2), player card 1 (when it brought something new, once a day per player), universe.json 1 per percent of the universe's systems it refreshed (at least 1, at most 100 a week). `parts`: the points per kind. */
         get: operations["getRanking"];
         put?: never;
         post?: never;
@@ -3936,7 +3936,7 @@ export type components = {
             } | null;
             /** @description Members of the alliance */
             members: number;
-            /** @description Syncs of pages with something new, by page type: the overview at most every 15 minutes, empire, buildings, research, shipyard and fleets every hour, the marketplace once a day, a player card once per player, galaxy only when a system changed; reports every time */
+            /** @description Syncs of pages with something new, by page type: the overview at most every 15 minutes, empire, buildings, research, shipyard and fleets every hour, the marketplace once a day, a player card once a day per player, galaxy only when a system changed; reports every time */
             syncs: components["schemas"]["RecapCompare"];
             /** @description Members with points or syncs */
             active: components["schemas"]["RecapCompare"];
@@ -3947,7 +3947,7 @@ export type components = {
             /** @description Per kind with points (in the period or before), most points first */
             kinds: {
                 /** @enum {string} */
-                kind: "galaxy" | "spy" | "empire" | "overview" | "hostile" | "battle" | "buildings" | "research" | "market" | "expedition" | "messages" | "stats" | "statsFirst" | "universe";
+                kind: "galaxy" | "spy" | "empire" | "overview" | "hostile" | "battle" | "buildings" | "research" | "market" | "expedition" | "messages" | "stats" | "statsFirst" | "universe" | "playerCard";
                 /** @description Units in the period (systems, reports, days, …) */
                 units: number;
                 points: number;

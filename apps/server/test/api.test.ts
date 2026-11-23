@@ -2054,6 +2054,34 @@ describe('player card ingest', () => {
     expect(rows()).toHaveLength(1);
   });
 
+  it('earns a ranking point for a card with news once a day per player, also back from the stored sync counts', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardPoints' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    const points = () => db.prepare("SELECT key, SUM(count) AS count FROM sync_credits WHERE group_id = ? AND kind = 'playerCard' GROUP BY key ORDER BY key").all(group);
+    const ingest = (text: string) => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
+    await ingest(fixture('playercard.txt'));
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 1 }]);
+    // the same card again brings nothing new; a card with news about the same player the same day: still one
+    await ingest(fixture('playercard.txt'));
+    await ingest(fixture('playercard-combat.txt'));
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 1 }]);
+    // the next day (today's credit moved back a day): the same card again nothing, changed fight statistics one more
+    db.prepare("UPDATE sync_credits SET day = date(day, '-1 day') WHERE group_id = ? AND kind = 'playerCard'").run(group);
+    await ingest(fixture('playercard-combat.txt'));
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 1 }]);
+    await ingest(fixture('playercard-combat.txt').replace('344.000', '350.000'));
+    expect(points()).toEqual([{ key: 'Captain Joe', count: 2 }]);
+    // another player's card: one more for that player
+    await ingest(fixture('playercard-en.txt'));
+    expect(points()).toEqual([{ key: 'Alice', count: 1 }, { key: 'Captain Joe', count: 2 }]);
+
+    // the migration credits the cards counted before the points existed
+    db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'playerCard'").run(group);
+    db.exec(readFileSync(new URL('../migrations/103_player_card_points.sql', import.meta.url), 'utf8'));
+    // the recap counted the first new card of each player
+    expect(points()).toEqual([{ key: 'Alice', count: 1 }, { key: 'Captain Joe', count: 1 }]);
+  });
+
   it('does not overwrite a planet the galaxy already mapped', async () => {
     const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardGalaxy' }, headers: admin })).json().id;
     const other = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, 'Other').lastInsertRowid);

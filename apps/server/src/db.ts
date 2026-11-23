@@ -138,7 +138,7 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
   // (repo/syncCount.ts): rebuilt from the raw syncs for the whole days they still cover (a record of the summary new
   // or changed), the days before them stay as they are. Galaxy and player card pages are parsed again: a galaxy page
   // counts when a system's fingerprint differs from the group's view before it in the raw syncs (the first one in
-  // them counts), a card once per player; the fingerprints become the systems' current ones.
+  // them counts), a card once a day per player; the fingerprints become the systems' current ones.
   'js:sync_counts_throttled': (db) => {
     const zones = new Map<number, Intl.DateTimeFormat>();
     const dayOf = (groupId: number, settings: string, epoch: number) => {

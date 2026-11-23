@@ -178,7 +178,12 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
     if (news) {
       const card = parsed.records.find((r) => r.kind === 'playerCard');
       const unit = card ? String(card.ingameId ?? card.name) : null;
-      countSync(db, target.groupId, target.syncedBy ?? target.userId, dayOf(now(), target.timezone), parsed.pageType, now(), unit);
+      const day = dayOf(now(), target.timezone);
+      const by = target.syncedBy ?? target.userId;
+      countSync(db, target.groupId, by, day, parsed.pageType, now(), unit);
+      // a player card with something new (home planet, changed fight statistics) earns a ranking point, once a day per
+      // player (the credit's key)
+      if (parsed.pageType === 'playerCard' && unit) addCredits(db, target.groupId, by, day, [{ kind: 'playerCard', key: unit }]);
     }
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(

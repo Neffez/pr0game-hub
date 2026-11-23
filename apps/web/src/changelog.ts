@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Rangliste: Ein eingefügtes Spielerprofil bringt 1 Punkt, wenn es etwas Neues enthielt, zum Beispiel geänderte Kampfwerte, je Spieler höchstens einmal am Tag; im Recap zählt es genauso. Profile, die du schon früher eingefügt hast, wurden rückwirkend gutgeschrieben.',
+        en: 'Ranking: a pasted player profile earns 1 point when it held something new, such as changed fight statistics, at most once a day per player; the recap counts it the same way. Profiles you pasted before were credited retroactively.',
+      },
+      {
+        kind: 'new',
         de: 'Expeditionen: Verluste werden jetzt mitgezählt und von den Punkten abgezogen. Kämpfe gegen Piraten und Aliens bringen ihre Verluste aus dem Bericht mit; bei einem Schwarzen Loch kennt der Hub die verlorene Flotte, wenn deine Flottenliste sie gezeigt hat, sonst trägst du die Schiffe in der Liste der Expeditionen von Hand ein.',
         en: 'Expeditions: losses now count and are subtracted from the points. Fights with pirates and aliens bring their losses from the report; for a black hole the hub knows the lost fleet when your fleet list showed it, otherwise you enter the ships by hand in the list of expeditions.',
       },

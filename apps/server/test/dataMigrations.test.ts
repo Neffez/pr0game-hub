@@ -59,7 +59,7 @@ describe('data migrations', () => {
     raw('overview', { overview: { new: 1, duplicate: 0 } }, at + 1000);
     raw('messages', { spy: { new: 1, duplicate: 0 } }, at + 120);
     raw('messages', { battle_reports: { new: 1, duplicate: 0 } }, at + 130);
-    // a galaxy page counts when the system changed, a player card once per player, the marketplace once a day
+    // a galaxy page counts when the system changed, a player card once a day per player, the marketplace once a day
     const fixture = (name: string) => gzipSync(readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url)));
     const page = (type: string, html: Buffer, counts: object, t: number) =>
       db.prepare('INSERT INTO raw_ingests (group_id, user_id, source, page_type, html_gz, summary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(group, user, 'paste', type, html, JSON.stringify({ counts }), t);

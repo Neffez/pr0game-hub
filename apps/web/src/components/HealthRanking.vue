@@ -43,7 +43,7 @@ const ranked = computed(() => {
     return { ...r, rank };
   });
 });
-const KINDS = ['galaxy', 'spy', 'empire', 'overview', 'hostile', 'battle', 'buildings', 'research', 'market', 'expedition', 'messages', 'stats', 'statsFirst', 'universe'] as const;
+const KINDS = ['galaxy', 'spy', 'empire', 'overview', 'hostile', 'battle', 'buildings', 'research', 'market', 'expedition', 'messages', 'stats', 'statsFirst', 'universe', 'playerCard'] as const;
 const partsTitle = (parts: Record<string, number>) =>
   KINDS.filter((k) => parts[k]).map((k) => `${t(`ranking.kinds.${k}`)}: ${fmt(parts[k])}`).join('\n') || t('ranking.none');
 const pointsHelp = computed(() => KINDS.map((k) => t(`ranking.points.${k}`)).join(' · '));
