@@ -961,7 +961,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description The fleet the player has or last had, with all ships and no age limit: per body the newest spy report with a fleet section, bodies spied on close in time added up and checked against the fleet statistics, the ships of their newest battles (by the current name or an earlier one) and the most of each type over them, and fleets of theirs on their way to members now. */
+        /** @description The fleet the player has or last had, with all ships and no age limit: per body the newest spy report with a fleet section, bodies spied on close in time added up and checked against the fleet statistics, the ships of their newest battles (by the current name or an earlier one) and the most of each type over them, fleets of theirs on their way to members now, and for a member's player their newest empire page with the fleets in flight they share. */
         get: operations["getPlayerFleet"];
         put?: never;
         post?: never;
@@ -5388,10 +5388,10 @@ export type components = {
         };
         FleetSighting: {
             /**
-             * @description `spy`: newest spy report with a fleet section of one body (empty: no ships there); `spySum`: those reports of several bodies at most 12 hours apart added up; `battle`: the ships brought into one battle; `battles`: the most of each ship type over the battles of 14 days up to the newest; `incoming`: a fleet on its way to a member now.
+             * @description `spy`: newest spy report with a fleet section of one body (empty: no ships there); `spySum`: those reports of several bodies at most 12 hours apart added up; `battle`: the ships brought into one battle; `battles`: the most of each ship type over the battles of 14 days up to the newest; `incoming`: a fleet on its way to a member now; `empire` (a member's player): the ships on their planets and moons from their newest empire page, plus their fleets in flight then (as they share them) from a fleet list synced at most 1 hour before or 15 minutes after it.
              * @enum {string}
              */
-            source: "spy" | "spySum" | "battle" | "battles" | "incoming";
+            source: "spy" | "spySum" | "battle" | "battles" | "incoming" | "empire";
             /** @description Time of the report */
             time: number;
             units: components["schemas"]["UnitCounts"];
@@ -5405,13 +5405,13 @@ export type components = {
                 /** @enum {string} */
                 type: "planet" | "moon";
             } | null;
-            /** @description spySum: bodies added up; battles: battles taken into account */
+            /** @description spySum: bodies added up; battles: battles taken into account; empire: fleets in flight added (null: no fleet list close enough to tell) */
             count: number | null;
             /** @description battle: the battle report (`/api/{uni}/combat-reports/{id}`) */
             reportId: string | null;
         };
         PlayerFleet: {
-            /** @description The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics): what the player has at least, unless they lost ships meanwhile. Null without any sighting. */
+            /** @description The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics): what the player has at least, unless they lost ships meanwhile. With an empire page (exact) only it and newer sightings count. Null without any sighting. */
             fleet: components["schemas"]["FleetSighting"] | null;
             /** @description The `spySum` sighting checked against the fleet points of the statistics; null without one. */
             sum: (components["schemas"]["FleetSighting"] & {

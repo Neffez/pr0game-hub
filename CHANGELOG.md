@@ -11,6 +11,10 @@ Every commit adds its changes here, newest first, grouped by date.
   Spy reports of several bodies at most 12 hours apart are added up and checked against the fleet points of the nearest
   statistics update (fits, more: counted twice, less: part unseen); a sum above the statistics is never taken as the
   fleet. The fleet shown is the strongest sighting of the 14 days up to the newest one; all sightings on request.
+  - For a member's player the newest empire page counts too (source `empire`): the ships on all planets and moons,
+    plus the fleets in flight at that time from a fleet list synced at most 1 hour before or 15 minutes after it (each
+    flight once, only fleets the member shares). The empire page is exact: with one, older sightings no longer count
+    for the fleet shown.
 - Ranking: a synced player profile earns 1 point when it brought something new (the home planet, changed fight
   statistics), once a day per player and member; the recap's sync count follows the same rule (it took a player's card
   only once ever). Migration 103 credits the profiles the recap counted before (the

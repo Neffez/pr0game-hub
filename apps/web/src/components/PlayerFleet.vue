@@ -30,7 +30,8 @@ const ships = (s: Record<string, number>) => Object.entries(s).filter(([, n]) =>
 const shipsText = (s: Record<string, number>) => ships(s).map(([id, n]) => `${fmt(n)} ${abbr(Number(id))}`).join(' · ') || t('player.fleet.noShips');
 const shipsTitle = (s: Record<string, number>) => ships(s).map(([id, n]) => `${fmt(n)} ${name(id)}`).join('\n');
 const where = (x: Sighting) => (x.body ? `${coords(x.body.g, x.body.s, x.body.p)}${x.body.type === 'moon' ? ` ${t('common.moon')}` : ''}` : '');
-const sourceText = (x: Sighting) => t(`player.fleet.source.${x.source}`, { where: where(x), n: x.count ?? 0 });
+const sourceKey = (x: Sighting) => (x.source !== 'empire' ? x.source : x.count == null ? 'empireUnknown' : x.count ? 'empireFlights' : 'empire');
+const sourceText = (x: Sighting) => t(`player.fleet.source.${sourceKey(x)}`, { where: where(x), n: x.count ?? 0 });
 /** the statistics show clearly more fleet points than the fleet known: it may be larger now */
 const grown = computed(() => {
   const f = fleet.value;

@@ -2,7 +2,10 @@ import { CLASS_FLEET, elementPoints } from '@pr0hub/core/tech';
 import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { latestEmpires } from './empire.js';
+import { flightLines, sharedFleets, type StoredFleet } from './fleets.js';
 import { hostileAttacks } from './hostile.js';
+import { memberPlayers } from './members.js';
 import { likeTerm } from './sql.js';
 import { FLEET_DAYS } from './threats.js';
 
@@ -14,9 +17,13 @@ import { FLEET_DAYS } from './threats.js';
  *   statistics (a fleet that moved between two spy reports would count twice),
  * - `battle`: the ships the player brought into one of their newest battles (battle hall, members' messages),
  * - `battles`: the most of each ship type over their battles of `FLEET_DAYS` up to the newest one,
- * - `incoming`: a fleet of theirs on its way to a member now.
+ * - `incoming`: a fleet of theirs on its way to a member now,
+ * - `empire`: for a member's player the ships on their planets and moons from their newest empire page (visible to the
+ *   members on the fleet page anyway), plus their fleets in flight then from their fleet list as they share it, when
+ *   that list was synced at most `FLIGHT_BEFORE` before the empire page or `FLIGHT_SLACK` after it.
  * `fleet` is the strongest sighting of the last `FLEET_DAYS` before the newest one (a sum only when it fits the
- * statistics): what they have at least, unless they lost ships meanwhile.
+ * statistics): what they have at least, unless they lost ships meanwhile. The empire page is exact: with one, only
+ * itself and newer sightings count.
  */
 
 /** Spy reports of different bodies at most this far apart are added up (`spySum`). */
@@ -26,17 +33,24 @@ const BATTLES = 5;
 /** A sum above the statistics by more than this share (plus rounding) counts ships twice; below `UNDER` part of the fleet is unseen. */
 const OVER = 1.1;
 const UNDER = 0.8;
+/**
+ * A fleet list synced this long after the empire page still tells the fleets in flight at the empire page (both pages
+ * synced in one go); a later one may hold fleets launched since, which the empire page still shows on their planet.
+ */
+export const FLIGHT_SLACK = 15 * 60;
+/** An older fleet list misses the fleets launched since; up to this age it still stands for the fleets in flight. */
+export const FLIGHT_BEFORE = 3600;
 
 type Body = { g: number; s: number; p: number; type: 'planet' | 'moon' };
 
 export interface FleetSighting {
-  source: 'spy' | 'spySum' | 'battle' | 'battles' | 'incoming';
+  source: 'spy' | 'spySum' | 'battle' | 'battles' | 'incoming' | 'empire';
   time: number;
   units: Record<string, number>;
   points: number;
   /** spy: the body spied on; battle: where it took place (null in the battle hall); incoming: where the fleet started */
   body: Body | null;
-  /** spySum: bodies added up; battles: battles taken into account */
+  /** spySum: bodies added up; battles: battles taken into account; empire: fleets in flight added (null: not known) */
   count: number | null;
   /** battle: the battle report (hub page `battle-hall/:id`) */
   reportId: string | null;
@@ -155,11 +169,38 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
       if (Object.keys(units).length) sightings.push(sighting({ source: 'incoming', time: a.seen, units, body: { g: a.from.g, s: a.from.s, p: a.from.p, type: a.from.type } }));
     }
 
+    // a member's player: their own empire page, with the fleets in flight then
+    let empire: FleetSighting | null = null;
+    const member = [...memberPlayers(db, ctx)].find(([, p]) => p === playerId)?.[0];
+    const page = member != null ? latestEmpires(db, ctx).find((e) => e.userId === member) : undefined;
+    if (member != null && page) {
+      const units: Record<string, number> = {};
+      for (const pl of page.rec.planets) for (const [id, n] of Object.entries(pl.values)) if (isShip(Number(id)) && n > 0) units[id] = (units[id] ?? 0) + n;
+      let flights: number | null = null;
+      const list = sharedFleets(db, ctx.groupId, member, ctx.user.id);
+      if (list && list.time <= page.time + FLIGHT_SLACK && list.time >= page.time - FLIGHT_BEFORE) {
+        flights = 0;
+        // each flight once (outward, holding and return lines), away at the empire page: back only after it
+        const own = list.data.filter((f) => f.owner === 'own').sort((a, b) => a.arrival - b.arrival);
+        const counted = new Set<StoredFleet>();
+        for (const f of own) {
+          if (counted.has(f)) continue;
+          const lines = flightLines(own, f);
+          for (const l of lines) counted.add(l);
+          if (lines[lines.length - 1].arrival <= page.time || !Object.keys(f.ships).length) continue;
+          for (const [id, n] of Object.entries(f.ships)) if (n > 0) units[id] = (units[id] ?? 0) + n;
+          flights++;
+        }
+      }
+      empire = sighting({ source: 'empire', time: page.time, units, body: null, count: flights });
+      sightings.push(empire);
+    }
+
     sightings.sort((a, b) => b.time - a.time || b.points - a.points);
     const newest = sightings[0]?.time ?? 0;
     const fleet =
       sightings
-        .filter((x) => x.time >= newest - FLEET_DAYS * 86400 && (x.source !== 'spySum' || sum?.check !== 'over'))
+        .filter((x) => (empire ? x.time >= empire.time : x.time >= newest - FLEET_DAYS * 86400) && (x.source !== 'spySum' || sum?.check !== 'over'))
         .reduce<FleetSighting | null>((best, x) => (!best || x.points > best.points ? x : best), null);
     const fleetPoints =
       (db

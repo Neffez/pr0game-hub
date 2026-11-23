@@ -26,7 +26,8 @@ beforeAll(async () => {
   const h = { headers: { cookie: await login('admin', 'adminpass') } };
   await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', name: 'Universum 9' }, ...h });
   group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u9', name: 'A' }, ...h })).json().id;
-  db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Carol')").run(group, carolId);
+  const daveId = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dave', hashPassword('davepass')).lastInsertRowid);
+  db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Carol'), (?, ?, 'Dave')").run(group, carolId, group, daveId);
   carol = { cookie: await login('carol', 'carolpass'), 'x-hub-group': String(group) };
 
   const player = (name: string, ...bodies: [number, number, number][]) => {
@@ -72,6 +73,33 @@ beforeAll(async () => {
   battle.run(group, 'b3', t - 60 * 86400, JSON.stringify([[0, 'Brawler', [[207, 99, 99]]], [1, 'Other', [[401, 1, 0]]]]), null, null, null, null);
 
   player('Nobody', [4, 10, 1]);
+
+  // members: Carol's empire page with a fleet list synced just after it; Dave's empire page without a fleet list
+  const carolPlayer = player('Carol', [5, 10, 1]);
+  spy.run(group, 5, 10, 1, 'planet', carolPlayer, 'Carol', t - 5 * 86400, JSON.stringify({ 200: { 202: 9999 } }));
+  const empire = (userId: number, time: number, planets: unknown[]) =>
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, userId, time, JSON.stringify({ kind: 'empire', research: {}, planets }));
+  empire(carolId, t - 3600, [
+    { name: 'Home', coords: { g: 5, s: 10, p: 1 }, type: 'planet', values: { 1: 20, 202: 10, 204: 20, 401: 50 } },
+    { name: 'Moon', coords: { g: 5, s: 10, p: 1 }, type: 'moon', values: { 214: 1 } },
+  ]);
+  const body = (s: number) => ({ coords: { g: 5, s, p: 1 }, type: 'planet', name: null });
+  const line = (phase: string, mission: number, arrival: number, ships: Record<number, number>, from: number, to: number) => ({
+    owner: 'own', player: null, mission, missionName: '', phase, from: body(from), to: body(to), ships, resources: null, seconds: 0, clock: null, acs: null, arrival,
+  });
+  db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, carolId, t - 3300, JSON.stringify([
+    // an attack away at the empire page: outward and return line, counted once
+    line('out', 1, t - 3000, { 207: 5 }, 10, 20),
+    line('return', 1, t - 1000, { 207: 5 }, 20, 10),
+    // a transport back only after the empire page: away there too
+    line('return', 3, t - 3500, { 203: 7 }, 30, 10),
+    // an expedition back before the empire page (an old line still listed): its ships stand on the planet there
+    line('return', 15, t - 3700, { 209: 4 }, 40, 10),
+  ]));
+  const davePlayer = player('Dave', [6, 10, 1]);
+  empire(daveId, t - 7200, [{ name: 'Dave', coords: { g: 6, s: 10, p: 1 }, type: 'planet', values: { 205: 3 } }]);
+  ids.Carol = carolPlayer;
+  ids.Dave = davePlayer;
 });
 
 describe('player fleet', () => {
@@ -107,6 +135,18 @@ describe('player fleet', () => {
     expect(f.sightings.find((x: any) => x.source === 'battles')).toMatchObject({ units: { 204: 30, 210: 2, 202: 40 }, count: 2, time: t - 86400 });
     expect(f.fleet.source).toBe('battles');
     expect(f.sum).toBeNull();
+  });
+
+  it("takes a member's empire page with the fleets in flight then", async () => {
+    const f = (await fleetOf('Carol')).json();
+    const e = f.sightings.find((x: any) => x.source === 'empire');
+    expect(e).toMatchObject({ time: t - 3600, units: { 202: 10, 204: 20, 214: 1, 207: 5, 203: 7 }, count: 2, body: null });
+    expect(e.units[209]).toBeUndefined();
+    // exact: an older spy report with more ships doesn't count any more
+    expect(f.fleet.source).toBe('empire');
+    // without a fleet list close to the empire page the fleets in flight are unknown
+    const d = (await fleetOf('Dave')).json();
+    expect(d.fleet).toMatchObject({ source: 'empire', units: { 205: 3 }, count: null });
   });
 
   it('answers without sightings and only for players of the group', async () => {
