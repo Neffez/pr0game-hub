@@ -157,7 +157,8 @@ describe('messages', () => {
       fromPlayerName: 'Spion', fromPlanetName: 'Kolonie', fromCoords: { g: 2, s: 3, p: 4 },
       targetCoords: { g: 1, s: 200, p: 4 }, time: '2026-10-21 15:00:00',
     });
-    expect(pirates).toMatchObject({ event: 'Pirates', size: 'Small' });
+    expect(pirates).toMatchObject({ event: 'Pirates', size: 'Small', lostUnits: 5000 });
+    expect(expo.lostUnits).toBe(0);
     expect(slow).toMatchObject({ event: 'Slow', size: 'Medium', factor: 3 });
     expect(res.records[6]).toEqual({
       kind: 'recycle', msgId: 107, time: '2026-10-21 16:00:00', coords: { g: 1, s: 234, p: 5 },
@@ -286,6 +287,23 @@ describe('messages', () => {
     expect(battle).toMatchObject({ time: '2026-10-21 13:10:00', loot: { metal: 600000 } });
     expect(ships).toMatchObject({ event: 'Ships', size: 'Small', foundShips: { 202: 12, 204: 3 }, depletion: 'none' });
     expect(nothing).toMatchObject({ event: 'Nothing', depletion: null, time: '2026-10-21 15:00:00' });
+  });
+
+  it('reads the fleet losses of an expedition fight from plain text', () => {
+    const text = [
+      'Expeditionberichte', 'Flottenhauptquartier', 'Expeditionsbericht', '22. Nov 2026, 05:38:18',
+      'Expeditionsbericht der Flotte von Amaterasu [1:194:11] bei [1:194:16]:', '',
+      'Wir mussten uns gegen einige Piraten wehren, die zum Glück nicht allzu zahlreich waren.', '',
+      'Kampfbericht [1:194:16] (P)', 'Verluste\tAngreifer: 5.000 Verteidiger: 0', 'Gewinn\tMetall: 0  Kristall: 0  Deuterium: 0',
+      'Trümmerfeld\tMetall: 0  Kristall: 0', '', '',
+      'Logbuch Nachtrag des Kommunikationsoffiziers: Es ist ein erhebendes Gefühl, der Erste in einem unerforschten Sektor zu sein.', '',
+      'Kleine Piraten',
+    ].join('\n');
+    const res = parsePage({ text });
+    expect(res.records).toHaveLength(1);
+    expect(res.records[0]).toMatchObject({
+      kind: 'expedition', event: 'Pirates', size: 'Small', lostUnits: 5000, coords: { g: 1, s: 194, p: 16 }, time: '2026-11-22 05:38:18',
+    });
   });
 });
 

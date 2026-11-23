@@ -1761,6 +1761,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/expeditions/{id}/loss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Enters the ships the caller lost on one of their expeditions to a black hole (the fleet was not synced). Body `{ ships: { "<unit id>": count } }`; empty ships clear the entry (a synced fleet list fills it again when it knows the fleet). 404 for another member's expedition, 400 for other events or invalid ships. */
+        put: operations["putExpeditionLoss"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/deck": {
         parameters: {
             query?: never;
@@ -6003,6 +6020,17 @@ export type components = {
             found_ships: {
                 [key: string]: number;
             };
+            /** @description Units (metal and crystal of the destroyed ships) the fleet lost in a fight with pirates or aliens; null for reports synced before losses were read */
+            lost_units?: number | null;
+            /** @description Ships a black hole swallowed, from the synced fleet list or entered by hand; null when unknown */
+            lost_ships?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * @description Where `lost_ships` comes from
+             * @enum {string|null}
+             */
+            lost_source?: "fleet" | "manual" | null;
         };
         Expeditions: {
             from: number;
@@ -6021,6 +6049,16 @@ export type components = {
                 ships: {
                     [key: string]: number;
                 };
+                /** @description Expeditions with a known loss */
+                losses: number;
+                /** @description Units lost in fights with pirates and aliens */
+                lostUnits: number;
+                /** @description Ships lost to black holes */
+                lostShips: {
+                    [key: string]: number;
+                };
+                /** @description Black holes whose lost fleet is unknown (not synced */
+                unknownLosses: number;
             }[];
             deckSize: number;
             /** @description Cards per event key in the universe's deck */
@@ -11933,6 +11971,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Expeditions"];
+                };
+            };
+        };
+    };
+    putExpeditionLoss: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    ships?: {
+                        [key: string]: number;
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };

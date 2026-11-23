@@ -35,6 +35,7 @@ import { RECYCLER } from './repo/debris.js';
 import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
+import { blackHoleLosses } from './repo/expeditionLosses.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players, scoreKey } from './repo/players.js';
 import { galaxyFingerprint } from './repo/syncCount.js';
@@ -413,19 +414,23 @@ export class Store {
       user_id: this.t.userId, time, g: r.coords?.g ?? null, s: r.coords?.s ?? null, p: r.coords?.p ?? null, event: r.event, size: r.size,
       factor: r.factor, found_resources: JSON.stringify(r.foundResources), found_ships: JSON.stringify(r.foundShips),
     };
-    if (this.sameContent('expeditions', content, r.msgId, { depletion: r.depletion })) return this.count('expeditions', false);
+    if (this.sameContent('expeditions', content, r.msgId, { depletion: r.depletion, lost_units: r.lostUnits })) {
+      if (r.event === 'BlackHole') blackHoleLosses(this.db, this.t.groupId, this.t.userId);
+      return this.count('expeditions', false);
+    }
     const key = r.msgId
       ? `m${r.msgId}`
       : `h${fnv1a(JSON.stringify([r.time, r.coords, r.event, r.size, r.factor, r.foundResources, r.foundShips]))}`;
     const res = this.db
       .prepare(
         `INSERT OR IGNORE INTO expeditions (group_id, user_id, dedupe_key, msg_id, time, g, s, p, event, size, factor, depletion,
-           found_resources, found_ships) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           found_resources, found_ships, lost_units) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         this.t.groupId, this.t.userId, key, r.msgId, time, r.coords?.g ?? null, r.coords?.s ?? null, r.coords?.p ?? null,
-        r.event, r.size, r.factor, r.depletion, JSON.stringify(r.foundResources), JSON.stringify(r.foundShips),
+        r.event, r.size, r.factor, r.depletion, JSON.stringify(r.foundResources), JSON.stringify(r.foundShips), r.lostUnits,
       );
+    if (r.event === 'BlackHole') blackHoleLosses(this.db, this.t.groupId, this.t.userId);
     this.count('expeditions', res.changes > 0);
   }
 
@@ -1011,6 +1016,7 @@ export class Store {
          AND id <> (SELECT id FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time < ? ORDER BY page_time DESC, id DESC LIMIT 1)`,
       )
       .run(this.t.groupId, this.t.userId, cutoff, this.t.groupId, this.t.userId, cutoff);
+    blackHoleLosses(this.db, this.t.groupId, this.t.userId);
     this.count('fleets', true);
   }
 }

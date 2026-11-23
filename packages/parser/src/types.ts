@@ -88,6 +88,11 @@ export interface ExpeditionRecord {
   depletion: ExpoDepletion;
   foundResources: Record<number, number>;
   foundShips: Record<number, number>;
+  /**
+   * units the own fleet lost in a fight with pirates or aliens (the "attacker" losses of the embedded battle summary:
+   * metal and crystal of the destroyed ships), 0 without a fight or losses
+   */
+  lostUnits: number;
 }
 
 export interface HostileSpyRecord {

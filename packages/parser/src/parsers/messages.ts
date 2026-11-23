@@ -254,6 +254,9 @@ function parseExpeditionText(text: string, msgId: number | null, time: LocalDate
     }
   }
 
+  // pirates and aliens: the own fleet is the attacker of the embedded battle summary
+  const losses = event === 'Pirates' || event === 'Aliens' ? flat.match(BATTLE_LOSSES_RE) : null;
+
   return {
     kind: 'expedition',
     msgId,
@@ -265,6 +268,7 @@ function parseExpeditionText(text: string, msgId: number | null, time: LocalDate
     depletion,
     foundResources,
     foundShips,
+    lostUnits: parseNumber(losses?.[1]) ?? 0,
   };
 }
 

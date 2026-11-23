@@ -3128,6 +3128,14 @@ components:
         depletion: { type: [string, 'null'] }
         found_resources: { type: object, additionalProperties: { type: integer } }
         found_ships: { type: object, additionalProperties: { type: integer } }
+        lost_units:
+          type: [integer, 'null']
+          description: Units (metal and crystal of the destroyed ships) the fleet lost in a fight with pirates or aliens; null for reports synced before losses were read
+        lost_ships:
+          type: [object, 'null']
+          additionalProperties: { type: integer }
+          description: Ships a black hole swallowed, from the synced fleet list or entered by hand; null when unknown
+        lost_source: { type: [string, 'null'], enum: [fleet, manual, null], description: 'Where `lost_ships` comes from' }
     Expeditions:
       type: object
       required: [from, to, perUser, deckSize, expected, list]
@@ -3138,7 +3146,7 @@ components:
           type: array
           items:
             type: object
-            required: [userId, username, total, events, resources, ships]
+            required: [userId, username, total, events, resources, ships, losses, lostUnits, lostShips, unknownLosses]
             properties:
               userId: { type: integer }
               username: { type: string }
@@ -3146,6 +3154,10 @@ components:
               events: { type: object, additionalProperties: { type: integer }, description: 'Count per event key (`Res:Small`, `Nothing`)' }
               resources: { type: object, additionalProperties: { type: integer } }
               ships: { type: object, additionalProperties: { type: integer } }
+              losses: { type: integer, description: Expeditions with a known loss }
+              lostUnits: { type: integer, description: Units lost in fights with pirates and aliens }
+              lostShips: { type: object, additionalProperties: { type: integer }, description: Ships lost to black holes }
+              unknownLosses: { type: integer, description: Black holes whose lost fleet is unknown (not synced, not entered) }
         deckSize: { type: integer }
         expected: { type: object, additionalProperties: { type: integer }, description: Cards per event key in the universe's deck }
         list: { type: array, maxItems: 300, items: { $ref: '#/components/schemas/Expedition' } }
@@ -7685,6 +7697,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Expeditions' }
+  /api/{uni}/expeditions/{id}/loss:
+    put:
+      tags: [Combat]
+      operationId: putExpeditionLoss
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Enters the ships the caller lost on one of their expeditions to a black hole (the fleet was not synced). Body
+        `{ ships: { "<unit id>": count } }`; empty ships clear the entry (a synced fleet list fills it again when it
+        knows the fleet). 404 for another member's expedition, 400 for other events or invalid ships.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ships: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
   /api/{uni}/deck:
     get:
       tags: [Combat]

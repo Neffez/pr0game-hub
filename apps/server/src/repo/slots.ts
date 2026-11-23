@@ -18,7 +18,7 @@ const MISSILE_MISSION = 10;
 const COMPUTER_TECH = 108;
 const ASTROPHYSICS = 124;
 /** An expedition report is written at the end of the stay (`stay_time`); its time matches the hold line this closely. */
-const REPORT_TOLERANCE = 60;
+export const REPORT_TOLERANCE = 60;
 
 /** One own flight of the fleet list: its lines (out, hold, return as listed) and when it frees its slot. */
 export interface Flight {
