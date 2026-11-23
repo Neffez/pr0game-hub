@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Rangabzeichen: Zerstörte und verlorene Units zählen jetzt, was deine eigenen Flotten abgeschossen und verloren haben, wie „real“ auf der Spielerkarte. Ganz genau wird es, wenn du deine Spielerkarte einfügst (im Popup die Tabelle markieren und kopieren); Kämpfe danach rechnet der Hub dazu. Ohne Karte schätzt er aus deinen Kampfberichten.',
+        en: 'Rank badge: units destroyed and lost now count what your own fleets shot down and lost, like "actually" on the player card. It gets exact when you paste your player card (select and copy the table in the popup); the hub adds the fights after it. Without a card it estimates from your battle reports.',
+      },
+      {
+        kind: 'fix',
+        de: 'Rangabzeichen: Kämpfe auf Expeditionen gegen Piraten und Aliens zählen nicht mehr als zerstörte oder verlorene Units, genau wie auf der Spielerkarte im Spiel. „Meiste verlorene Units“ heißt jetzt ohne „Trostrang“.',
+        en: 'Rank badge: fights on expeditions against pirates and aliens no longer count as units destroyed or lost, just like the player card in the game. "Most units lost" is now named without "consolation rank".',
+      },
+      {
+        kind: 'new',
         de: 'Bash-Limit: Der Hub zählt deine Angriffe aus deinen synchronisierten Kampfberichten. Im Spielerprofil siehst du z. B. „Bash 3/10“ für den Spieler und „1/3“ je Planet und Mond, dazu wann der nächste Angriff wegfällt bzw. wann du wieder angreifen darfst. In der Galaxieansicht steht es neben Planet, Mond und Spieler. Jedes Mitglied hat sein eigenes Limit; ein Angriff zählt 24 Stunden ab dem Einschlag.',
         en: 'Bash limit: the hub counts your attacks from the battle reports you synced. The player profile shows e.g. "Bash 3/10" for the player and "1/3" per planet and moon, plus when the next attack drops out or when you may attack again. The galaxy view shows it next to planet, moon and player. Every member has their own limit; an attack counts for 24 hours from its impact.',
       },

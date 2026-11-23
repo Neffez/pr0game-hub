@@ -1,5 +1,5 @@
 import type { EmpireRecord } from '@pr0hub/core';
-import { CLASS_FLEET, classOf, elementPoints } from '@pr0hub/core/tech';
+import { CLASS_FLEET, classOf, costOf, elementPoints } from '@pr0hub/core/tech';
 import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
@@ -23,11 +23,14 @@ export const RANK_CONDITIONS = [
   'buildingPoints',
   /** most total points */
   'totalPoints',
-  /** most units destroyed (resource value) in the member's battle reports */
+  /**
+   * most units destroyed by the member's own fleets ("real" on the game's player card): the newest synced player card
+   * plus the battle reports after it, without a card the battle reports alone (in an ACS a share, see `realUnits`)
+   */
   'unitsDestroyed',
   /** most resources gained: loot of the member's attacks plus recycled debris */
   'resources',
-  /** most units lost (a consolation rank) */
+  /** most units lost by the member's own fleets (like `unitsDestroyed`) */
   'unitsLost',
   /** longest win streak: wins where the opponent lost units, broken by a defeat against someone outside the alliance */
   'winStreak',
@@ -47,6 +50,31 @@ export interface MemberRank {
   values: Record<RankCondition, number>;
   /** where the fleet points come from: the statistics, the member's empire page, null for neither */
   fleetSource: 'stats' | 'empire' | null;
+  /** units destroyed and lost: the time of the player card they start from (battle reports after it added), null for battle reports only */
+  combatCard: number | null;
+}
+
+/** A fleet of a stored combat report: side (0 attacker, 1 defender), name, ships [element, before, after]. */
+type CombatFleet = [number, string, [number, number, number][], unknown?];
+
+/**
+ * Units (metal + crystal, like the game) the member's own fleets destroyed and lost in a battle of a stored combat
+ * report: the losses of the fleets under the member's names, the opponents' losses (`enemyLost`, from the battle
+ * message) in the share of the member's fleets in the value of their side. Null when no fleet of the member's side
+ * carries one of the names.
+ */
+export function realUnits(fleets: CombatFleet[], side: 0 | 1, names: Set<string>, enemyLost: number): { destroyed: number; lost: number } | null {
+  const value = (id: number, n: number) => {
+    const c = costOf(id);
+    return c ? (c[0] + c[1]) * n : 0;
+  };
+  const mine = fleets.filter((f) => f[0] === side && names.has(f[1].toLowerCase()));
+  if (!mine.length) return null;
+  const start = (list: CombatFleet[]) => list.reduce((s, f) => s + f[2].reduce((x, [id, before]) => x + value(id, before), 0), 0);
+  const lost = mine.reduce((s, f) => s + f[2].reduce((x, [id, before, after]) => x + value(id, Math.max(0, before - after)), 0), 0);
+  const all = start(fleets.filter((f) => f[0] === side));
+  const share = all > 0 ? start(mine) / all : 1;
+  return { destroyed: Math.round(enemyLost * share), lost: Math.round(lost) };
 }
 
 /** Ship points of an empire page (on the planets and in flight); `complete` false for an older page without the ships in flight. */
@@ -65,6 +93,8 @@ const STAT_TYPE: Partial<Record<RankCondition, number>> = { totalPoints: 1, flee
 interface BattleRow {
   user_id: number;
   t: number;
+  /** when the battle took place (the sync time without one) */
+  at: number;
   g: number;
   s: number;
   p: number;
@@ -88,10 +118,11 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
 
   const battles = db
     .prepare(
-      `SELECT user_id, created_at AS t, g, s, p, outcome, lost_attacker, lost_defender, loot_metal + loot_crystal + loot_deuterium AS loot, report_id
-       FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? ORDER BY COALESCE(time, created_at), id`,
+      `SELECT user_id, created_at AS t, COALESCE(time, created_at) AS at, g, s, p, outcome, lost_attacker, lost_defender, loot_metal + loot_crystal + loot_deuterium AS loot, report_id
+       FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? AND p <= ? ORDER BY COALESCE(time, created_at), id`,
     )
-    .all(g, last) as BattleRow[];
+    // fights on expeditions (pirates, aliens: the position behind the last planet) do not count, like in the game
+    .all(g, last, ctx.universe.settings.positions) as BattleRow[];
   const recycled = db
     .prepare('SELECT user_id, created_at AS t, metal + crystal AS n FROM recycle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ?')
     .all(g, last) as { user_id: number; t: number; n: number }[];
@@ -108,6 +139,29 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
   );
   for (const id of players.values()) if (id != null) sideIds.add(id);
 
+  // units destroyed and lost: the member's newest player card, their names in combat reports
+  const cardAt = db.prepare(
+    'SELECT seen_at, real_destroyed, real_lost FROM player_combat_stats WHERE group_id = ? AND player_id = ? AND seen_at < ? ORDER BY seen_at DESC LIMIT 1',
+  );
+  const fleetsOf = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND report_id = ?').pluck();
+  const names = new Map<number, Set<string>>();
+  for (const r of db
+    .prepare('SELECT m.user_id, m.ingame_name, u.username FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .all(g) as { user_id: number; ingame_name: string | null; username: string }[]) {
+    const pid = players.get(r.user_id);
+    const player = pid == null ? undefined : (db.prepare('SELECT name FROM players WHERE id = ?').pluck().get(pid) as string | undefined);
+    names.set(r.user_id, new Set([player, r.ingame_name, r.username].filter((n): n is string => !!n).map((n) => n.toLowerCase())));
+  }
+  const fleetCache = new Map<string, CombatFleet[] | null>();
+  const reportFleets = (id: string) => {
+    if (!fleetCache.has(id)) {
+      const json = fleetsOf.get(g, id) as string | undefined;
+      fleetCache.set(id, json ? (JSON.parse(json) as CombatFleet[]) : null);
+    }
+    return fleetCache.get(id)!;
+  };
+  const catalog = catalogOf(ctx.universe);
+
   const empireAt = db.prepare(
     'SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at < ? ORDER BY created_at DESC, id DESC LIMIT 1',
   );
@@ -122,6 +176,7 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
     const ids = userIds.map((u) => players.get(u)).filter((x): x is number => x != null);
     const scores = latestScores(db, g, ids, [1, 2, 3, 4], end);
     const sources = new Map<number, MemberRank['fleetSource']>();
+    const cards = new Map<number, number>();
     for (const u of userIds) {
       const pid = players.get(u);
       const score = pid == null ? undefined : scores.get(pid);
@@ -135,6 +190,13 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
         values.get(u)!.fleetPoints = fleet.points;
         sources.set(u, 'empire');
       } else sources.set(u, stat ? 'stats' : null);
+      // units: the newest player card ("real" block) as the start, the battles after it added below
+      const card = pid == null ? undefined : (cardAt.get(g, pid, end) as { seen_at: number; real_destroyed: number; real_lost: number } | undefined);
+      if (card) {
+        values.get(u)!.unitsDestroyed = card.real_destroyed;
+        values.get(u)!.unitsLost = card.real_lost;
+        cards.set(u, card.seen_at);
+      }
     }
 
     for (const b of battles) {
@@ -143,8 +205,15 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
       const defense = own.get(b.user_id)?.has(`${b.g}:${b.s}:${b.p}`) ?? false;
       const lost = defense ? b.lost_defender : b.lost_attacker;
       const destroyed = defense ? b.lost_attacker : b.lost_defender;
-      v.unitsDestroyed += destroyed;
-      v.unitsLost += lost;
+      // what the member's own fleets destroyed and lost: from the combat report when stored (an ACS shares the side),
+      // else the side of the battle message; battles before the player card are in it already
+      const card = cards.get(b.user_id);
+      if (card == null || b.at > card) {
+        const fleets = b.report_id ? reportFleets(b.report_id) : null;
+        const real = fleets ? withUnits(catalog, () => realUnits(fleets, defense ? 1 : 0, names.get(b.user_id) ?? new Set(), destroyed)) : null;
+        v.unitsDestroyed += real?.destroyed ?? destroyed;
+        v.unitsLost += real?.lost ?? lost;
+      }
       /** the opponent is known to be of the own alliance */
       let friendly = false;
       if (!defense) {
@@ -186,7 +255,7 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
       if (top <= 0) continue;
       for (const [u, v] of values) if (v[k] === top) holds.get(u)!.push(k);
     }
-    out.set(end, new Map(userIds.map((u) => [u, { points: holds.get(u)!.length, holds: holds.get(u)!, values: values.get(u)!, fleetSource: sources.get(u) ?? null }])));
+    out.set(end, new Map(userIds.map((u) => [u, { points: holds.get(u)!.length, holds: holds.get(u)!, values: values.get(u)!, fleetSource: sources.get(u) ?? null, combatCard: cards.get(u) ?? null }])));
   }
   return out;
 }

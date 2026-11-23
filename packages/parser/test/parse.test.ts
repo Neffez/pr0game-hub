@@ -1372,6 +1372,41 @@ describe('player card', () => {
     });
   });
 
+  const combat = {
+    wins: 23,
+    draws: 2,
+    losses: 1,
+    involved: { destroyed: 560000, lost: 93000, debrisMetal: 66600, debrisCrystal: 70600 },
+    real: { destroyed: 344000, lost: 53000, debrisMetal: 39600, debrisCrystal: 53200 },
+  };
+
+  it('reads the fight statistics from a copied card', () => {
+    const rec = parsePage({ text: fixture('playercard-combat.txt') }).records[0];
+    expect(rec).toMatchObject({ kind: 'playerCard', name: 'Captain Joe', coords: { g: 1, s: 9, p: 8 }, combat });
+  });
+
+  it('reads the fight statistics from the popup HTML', () => {
+    const rec = parsePage({ html: fixture('playercard-combat.html') }).records[0];
+    expect(rec).toMatchObject({ kind: 'playerCard', ingameId: 4711, name: 'Captain Joe', combat });
+  });
+
+  it('reads the fight statistics with spaces instead of tabs and in English', () => {
+    const text = fixture('playercard-combat.txt').replace(/\t/g, ' ');
+    expect(parsePage({ text }).records[0]).toMatchObject({ combat });
+    const en = [
+      'Player Profile', 'Username\tAlice', 'Home planet\tHome [2:10:4]', 'Alliance\t-', 'Fight Stats', '\tWon\t3\t75%', '\tDrawn\t0\t0%', '\tLost\t1\t25%',
+      'Alice was involved in the following destructions:', '\tUnits Killed\t10.000', '\tUnits Lost\t2.000', '\tRecycled Metal\t1.000', '\tRecycled Crystal\t500',
+      'Alice has actually destroyed the following himself:', '\tUnits Killed\t8.000', '\tUnits Lost\t2.000', '\tRecycled Metal\t800', '\tRecycled Crystal\t400',
+    ].join('\n');
+    expect(parsePage({ text: en }).records[0]).toMatchObject({
+      combat: { wins: 3, draws: 0, losses: 1, involved: { destroyed: 10000, lost: 2000 }, real: { destroyed: 8000, lost: 2000, debrisMetal: 800, debrisCrystal: 400 } },
+    });
+  });
+
+  it('leaves the fight statistics out when the card hides them', () => {
+    expect(parsePage({ text: fixture('playercard.txt') }).records[0]).not.toHaveProperty('combat');
+  });
+
   it('parses a copied HTML table fragment without the popup body', () => {
     const html = [
       '<table><tr><td>Username</td><td>Bob</td></tr>',

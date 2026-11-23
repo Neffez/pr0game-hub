@@ -1008,15 +1008,20 @@ components:
         among the group's members (ties: all of them), over the whole history. `researchPoints`, `buildingPoints`,
         `totalPoints` the newest synced statistics, `fleetPoints` the newer of the fleet statistics and the member's
         newest empire page (ships on the planets and in flight; a page without the ships in flight only without
-        statistics), see `fleetSource`; from the member's synced battle reports (units in
-        resource value as in the report, the member's side from the target: an own planet is a defense)
-        `unitsDestroyed` the opponents' losses, `unitsLost` the own losses, `resources` loot of attacks plus recycled
+        statistics), see `fleetSource`; `unitsDestroyed` and `unitsLost` what the member's own fleets destroyed and
+        lost (metal + crystal, the "real" block of the game's player card): the newest synced player card plus the
+        battle reports after it (see `combatCard`), without a card the battle reports alone, each battle from its
+        combat report when stored (the losses of the member's fleets, the opponents' losses in the share of the
+        member's fleets in their side's value, for an ACS) or else the battle message's side totals; from the member's
+        synced battle reports without expedition fights (the member's side from the target: an own planet is a
+        defense) `resources` loot of attacks plus recycled
         debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the
         opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1),
         `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is
         one point, the points (0–10) are the rank.
-      required: [points, holds, values, fleetSource]
+      required: [points, holds, values, fleetSource, combatCard]
       properties:
+        combatCard: { type: [integer, 'null'], description: 'Sync time of the player card that `unitsDestroyed` and `unitsLost` start from (Unix seconds); null when they come from battle reports only' }
         fleetSource: { type: [string, 'null'], enum: [stats, empire, null], description: 'Where `fleetPoints` comes from: the statistics, the empire page, null for neither' }
         points: { type: integer, description: 'Held conditions, the rank: 0 none … 10 the highest' }
         holds: { type: array, items: { $ref: '#/components/schemas/RankCondition' } }
@@ -9121,7 +9126,7 @@ paths:
       description: >-
         Stores a pasted game page. `forUser` may point to another member only for messages and combat reports,
         not for empire, overview or fleets. Player profiles (`page=playerCard`, the in-game popup) store the home
-        planet. `dryRun` returns the preview without storing. When nothing was recognized
+        planet and the fight statistics (for the rank badge's units). `dryRun` returns the preview without storing. When nothing was recognized
         (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`),
         `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or
         `unknown_game_page`.

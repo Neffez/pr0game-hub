@@ -2003,6 +2003,20 @@ describe('player card ingest', () => {
     expect(again.json().counts.player_cards).toEqual({ new: 0, duplicate: 1 });
   });
 
+  it('stores the fight statistics of a card once per change', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardCombat' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard-combat.txt') } });
+    expect(res.json().counts.player_cards).toEqual({ new: 1, duplicate: 0 });
+    const rows = () =>
+      db.prepare('SELECT wins, draws, losses, destroyed, lost, real_destroyed, real_lost, real_debris_metal FROM player_combat_stats WHERE group_id = ?').all(group);
+    expect(rows()).toEqual([{ wins: 23, draws: 2, losses: 1, destroyed: 560000, lost: 93000, real_destroyed: 344000, real_lost: 53000, real_debris_metal: 39600 }]);
+    // the same card again: nothing new
+    const again = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('playercard-combat.html') } });
+    expect(again.json().counts.player_cards).toEqual({ new: 0, duplicate: 1 });
+    expect(rows()).toHaveLength(1);
+  });
+
   it('does not overwrite a planet the galaxy already mapped', async () => {
     const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardGalaxy' }, headers: admin })).json().id;
     const other = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, 'Other').lastInsertRowid);

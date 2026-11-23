@@ -537,7 +537,7 @@ export interface CombatReportRecord {
   moonCreated?: boolean;
 }
 
-/** Player profile popup (`page=playerCard`): home planet only, not the whole colony list. */
+/** Player profile popup (`page=playerCard`): home planet (not the whole colony list) and the fight statistics. */
 export interface PlayerCardRecord {
   kind: 'playerCard';
   ingameId: number | null;
@@ -546,6 +546,27 @@ export interface PlayerCardRecord {
   coords: Coords;
   allyId: number | null;
   allyName: string | null;
+  /** the fight statistics, when the card shows them (hidden by the player's settings: left out) */
+  combat?: PlayerCardCombat;
+}
+
+/** Units in metal + crystal value, as the game counts them. */
+export interface PlayerCardUnits {
+  destroyed: number;
+  lost: number;
+  debrisMetal: number;
+  debrisCrystal: number;
+}
+
+/** Fight statistics of a player card. */
+export interface PlayerCardCombat {
+  wins: number;
+  draws: number;
+  losses: number;
+  /** "… war an folgenden Zerstörungen beteiligt": the whole side of every fight the player took part in */
+  involved: PlayerCardUnits;
+  /** "… hat real folgendes selbst zerstört": what the player's own fleets destroyed and lost */
+  real: PlayerCardUnits;
 }
 
 export type HubRecord =
