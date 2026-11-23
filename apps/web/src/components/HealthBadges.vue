@@ -9,8 +9,8 @@ import { useI18n } from 'vue-i18n';
 import { achievements, isManualBadge } from '../achievements';
 import type { Badge } from '../apiTypes';
 import { useUni } from '../composables';
-import { fmt } from '../format';
-import { RANK_CONDITIONS, RANK_LEVELS, type RankCondition } from '../rank';
+import { dateTime, fmt } from '../format';
+import { RANK_CONDITIONS, RANK_LEVELS, type MemberRank, type RankCondition } from '../rank';
 
 /**
  * Health page, tab "Streaks & badges": per member the rank, sync streak and every badge, then the rank order (who leads
@@ -40,6 +40,8 @@ const order = computed(() => {
     return { key: k, holders, value: holders[0]?.rank.values[k] ?? null, mine: me && !me.rank.holds.includes(k) ? me.rank.values[k] : null };
   });
 });
+/** where a member's units destroyed and lost come from */
+const unitsSource = (r: MemberRank) => (r.combatCard != null ? t('rank.source.card', { date: dateTime(r.combatCard) }) : t('rank.source.battles'));
 const levels = Array.from({ length: RANK_LEVELS }, (_, i) => i + 1);
 </script>
 
@@ -80,6 +82,7 @@ const levels = Array.from({ length: RANK_LEVELS }, (_, i) => i + 1);
             <td class="num">
               {{ c.value != null ? value(c.key, c.value) : '–' }}
               <div v-if="c.key === 'fleetPoints' && c.holders[0]?.rank.fleetSource" class="muted small">{{ t(`rank.source.${c.holders[0].rank.fleetSource}`) }}</div>
+              <div v-if="(c.key === 'unitsDestroyed' || c.key === 'unitsLost') && c.holders[0]" class="muted small">{{ unitsSource(c.holders[0].rank) }}</div>
             </td>
           </tr>
         </tbody>

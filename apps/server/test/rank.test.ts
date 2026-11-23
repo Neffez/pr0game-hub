@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { empireFleetPoints, ranksAt } = await import('../src/repo/rank.js');
+const { empireFleetPoints, ranksAt, realUnits } = await import('../src/repo/rank.js');
 const { resolveGroup, getUniverse } = await import('../src/context.js');
 
 const db = openDb(':memory:');
@@ -146,6 +146,34 @@ describe('rank badge', () => {
     expect(ranks.get(erin)!.values.fleetPoints).toBeGreaterThan(0);
     // before the pages: the statistics again
     expect(ranksAt(db, c, [daveId], [T + 1500]).get(T + 1500)!.get(daveId)!).toMatchObject({ fleetSource: 'stats', values: { fleetPoints: 3500 } });
+  });
+
+  it('takes the own fleets\' share of an ACS from the combat report', () => {
+    // small cargo 202 (2000 + 2000), light fighter 204 (3000 + 1000): carol's fleet holds 40,000 of the side's 100,000
+    const fleets: [number, string, [number, number, number][]][] = [
+      [0, 'Carol', [[202, 10, 10]]],
+      [0, 'Bob', [[204, 15, 10]]],
+      [1, 'Enemy1', [[204, 30, 0]]],
+    ];
+    expect(realUnits(fleets, 0, new Set(['carol']), 120_000)).toEqual({ destroyed: 48_000, lost: 0 });
+    expect(realUnits(fleets, 0, new Set(['bob']), 120_000)).toEqual({ destroyed: 72_000, lost: 20_000 });
+    expect(realUnits(fleets, 0, new Set(['nobody']), 120_000)).toBeNull();
+  });
+
+  it('starts from the player card and adds the battles after it', () => {
+    const daveP = db.prepare("SELECT id FROM players WHERE group_id = ? AND name = 'dave'").pluck().get(group) as number;
+    // a card synced after dave's third battle (battles take place at T + n)
+    const cardTime = T + 7;
+    db.prepare(
+      `INSERT INTO player_combat_stats (group_id, player_id, seen_at, wins, draws, losses, destroyed, lost, debris_metal, debris_crystal,
+         real_destroyed, real_lost, real_debris_metal, real_debris_crystal) VALUES (?, ?, ?, 3, 0, 1, 99, 99, 0, 0, 100000, 4000, 0, 0)`,
+    ).run(group, daveP, cardTime);
+    const c = ctx();
+    const d = ranksAt(db, c, [daveId], [T + 10_000]).get(T + 10_000)!.get(daveId)!;
+    // dave's battles at T + 8 (win: destroyed 200), T + 9 (draw: 50 / 50) and T + 10 (win: destroyed 300) come after the card
+    expect(d).toMatchObject({ combatCard: cardTime, values: { unitsDestroyed: 100_550, unitsLost: 4050 } });
+    // before the card: battle reports only
+    expect(ranksAt(db, c, [daveId], [T + 7]).get(T + 7)!.get(daveId)!).toMatchObject({ combatCard: null });
   });
 
   it('is part of the achievements and the recap', async () => {

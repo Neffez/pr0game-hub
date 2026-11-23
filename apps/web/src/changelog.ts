@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-23',
     items: [
       {
+        kind: 'new',
+        de: 'Rangabzeichen: Zerstörte und verlorene Units zählen jetzt, was deine eigenen Flotten abgeschossen und verloren haben, wie „real“ auf der Spielerkarte. Ganz genau wird es, wenn du deine Spielerkarte einfügst (im Popup die Tabelle markieren und kopieren); Kämpfe danach rechnet der Hub dazu. Ohne Karte schätzt er aus deinen Kampfberichten.',
+        en: 'Rank badge: units destroyed and lost now count what your own fleets shot down and lost, like "actually" on the player card. It gets exact when you paste your player card (select and copy the table in the popup); the hub adds the fights after it. Without a card it estimates from your battle reports.',
+      },
+      {
         kind: 'fix',
         de: 'Rangabzeichen: Kämpfe auf Expeditionen gegen Piraten und Aliens zählen nicht mehr als zerstörte oder verlorene Units, genau wie auf der Spielerkarte im Spiel. „Meiste verlorene Units“ heißt jetzt ohne „Trostrang“.',
         en: 'Rank badge: fights on expeditions against pirates and aliens no longer count as units destroyed or lost, just like the player card in the game. "Most units lost" is now named without "consolation rank".',

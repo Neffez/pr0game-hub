@@ -315,8 +315,9 @@ export class Store {
   }
 
   /**
-   * Player profile popup: the player's home planet only. A galaxy view of that system wins (it already mapped the
-   * slot, or showed it empty); a planet of another player is left alone.
+   * Player profile popup: the player's home planet and the fight statistics. A galaxy view of that system wins (it
+   * already mapped the slot, or showed it empty); a planet of another player is left alone. The fight statistics are
+   * stored when they changed since the player's last card.
    */
   private playerCard(r: PlayerCardRecord) {
     const time = now();
@@ -324,16 +325,38 @@ export class Store {
     const playerId = this.players.player(r.ingameId, r.name, time);
     const allyId = this.players.alliance(r.allyId, r.allyName);
     if (allyId) this.db.prepare('UPDATE players SET alliance_id = ? WHERE id = ? AND last_seen <= ?').run(allyId, playerId, time);
+    const combat = r.combat ? this.playerCombat(playerId, r.combat, time) : false;
 
     const viewed = this.db.prepare('SELECT 1 FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').get(this.t.groupId, g, s);
     const planet = this.db
       .prepare('SELECT player_id, name FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ?')
       .get(this.t.groupId, g, s, p) as { player_id: number | null; name: string | null } | undefined;
-    if (!planet && viewed) return this.count('player_cards', false);
-    if (planet?.player_id != null && planet.player_id !== playerId) return this.count('player_cards', false);
+    if (!planet && viewed) return this.count('player_cards', combat);
+    if (planet?.player_id != null && planet.player_id !== playerId) return this.count('player_cards', combat);
     const same = planet != null && planet.player_id === playerId && (r.planetName == null || r.planetName === planet.name);
     if (!same) this.upsertPlanet(g, s, p, { name: r.planetName, playerId, hasMoon: null });
-    this.count('player_cards', !same);
+    this.count('player_cards', !same || combat);
+  }
+
+  /** Stores the fight statistics of a player card unless they equal the player's newest ones; true when stored. */
+  private playerCombat(playerId: number, c: NonNullable<PlayerCardRecord['combat']>, time: number): boolean {
+    const row = [c.wins, c.draws, c.losses, c.involved.destroyed, c.involved.lost, c.involved.debrisMetal, c.involved.debrisCrystal,
+      c.real.destroyed, c.real.lost, c.real.debrisMetal, c.real.debrisCrystal];
+    const last = this.db
+      .prepare(
+        `SELECT wins, draws, losses, destroyed, lost, debris_metal, debris_crystal, real_destroyed, real_lost, real_debris_metal, real_debris_crystal
+         FROM player_combat_stats WHERE group_id = ? AND player_id = ? ORDER BY seen_at DESC LIMIT 1`,
+      )
+      .raw()
+      .get(this.t.groupId, playerId) as number[] | undefined;
+    if (last && last.every((v, i) => v === row[i])) return false;
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO player_combat_stats (group_id, player_id, seen_at, wins, draws, losses, destroyed, lost, debris_metal, debris_crystal,
+           real_destroyed, real_lost, real_debris_metal, real_debris_crystal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(this.t.groupId, playerId, time, ...row);
+    return true;
   }
 
   /**

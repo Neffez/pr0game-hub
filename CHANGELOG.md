@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Rank badge: units destroyed and lost now follow the "real" block of the game's player card (what the member's own
+  fleets shot down and lost) instead of the whole side.
+  - Player cards (optional, HTML or the selected table as text, DE/EN) now also yield the fight statistics: wins,
+    draws, losses and both unit blocks ("involved" and "real"), stored per change in `player_combat_stats`
+    (migration 100).
+  - The rank starts from the member's newest player card and adds the battle reports of fights after it; without a
+    card it uses the battle reports alone. A battle with a stored combat report counts the losses of the member's
+    own fleets and, in an ACS, the opponents' losses in the share of the member's fleets in their side's value; other
+    battles count the battle message's side totals. `MemberRank.combatCard` gives the card's time; the rank order
+    shows the source under the values.
 - Rank badge: units destroyed and lost (and the win streak, resources and ratio built on the battle reports) leave
   out fights on expeditions (pirates, aliens: battle reports at the position behind the last planet), like the game's
   player card; they counted as lost units before. In an ACS the whole side counts, as in the card's first block. The
