@@ -23,8 +23,8 @@ const { t, locale } = useI18n();
 const { uni } = useUni();
 
 const COLORS: Record<ActivitySource, string> = {
-  spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7', sync: '#56d4dd',
-  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', offline: '#6e7681', hub: '#8b98a9',
+  spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7',
+  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', offline: '#6e7681', hub: '#56d4dd',
 };
 const CURVE = '#7c6cf0';
 const POINTS = '#8b98a9';
@@ -87,7 +87,7 @@ function draw() {
     });
   }
   datasets.push(
-    // one tick per event below the curve (syncs thinned out); galaxy marks (also set by others' actions) paler and shorter
+    // one tick per event below the curve (syncs and hub presence thinned out); galaxy marks (also set by others' actions) paler and shorter
     ...present.map((source) => {
       const weak = source === 'galaxy';
       const color = weak ? `${COLORS[source]}88` : COLORS[source];

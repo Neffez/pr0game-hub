@@ -2554,7 +2554,7 @@ components:
       properties:
         time: { type: integer, description: Best estimate (Unix seconds) }
         spread: { type: integer, description: Half width of the uncertainty in seconds (0 = exact) }
-        source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, offline, sync, hub] }
+        source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, offline, hub], description: "hub: a member's syncs and open hub tab, together once per hour" }
         weight: { type: number, description: Contribution to the activity curve (galaxy marks scaled by planets per hour) }
         g: { type: integer, description: Galaxy mark only – galaxy coordinate }
         s: { type: integer, description: Galaxy mark only – system coordinate }

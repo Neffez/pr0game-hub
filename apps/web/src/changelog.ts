@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Aktivitätsmuster: „Im Hub“ und „Synchronisiert“ sind zu einem Hinweis „Im Hub / synchronisiert“ zusammengefasst, der höchstens einmal je Stunde zählt. So überdecken Mitglieder, die viel synchronisieren oder den Hub lange offen haben, nicht mehr die übrigen Hinweise.',
+        en: 'Activity pattern: "In the hub" and "Synced" are merged into one source "In the hub / synced" that counts at most once an hour, so members who sync a lot or keep the hub open no longer drown out the other evidence.',
+      },
+      {
+        kind: 'new',
         de: 'Spielerseite: Der neue Abschnitt „Flotte“ zeigt Schiff für Schiff, welche Flotte ein Spieler hat oder zuletzt hatte, aus Spionageberichten, Kämpfen und Anflügen. Spionageberichte mehrerer Planeten kurz nacheinander werden zusammengezählt und mit den Flottenpunkten der Statistik verglichen, damit eine verlegte Flotte nicht doppelt zählt. Bei Mitgliedern zählt das Imperium mit, samt den geteilten Flotten im Flug. Alle Sichtungen lassen sich aufklappen.',
         en: 'Player page: the new section "Fleet" shows ship by ship which fleet a player has or last had, from spy reports, battles and incoming fleets. Spy reports of several planets taken close together are added up and compared with the fleet points of the statistics, so a fleet that moved does not count twice. For members the empire page counts too, with the shared fleets in flight. All sightings can be expanded.',
       },
