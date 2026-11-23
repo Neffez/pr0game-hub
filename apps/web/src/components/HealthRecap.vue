@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import BadgeIcon from './BadgeIcon.vue';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
@@ -260,7 +261,7 @@ async function sendDiscord() {
             <span class="rc-hl-icon"><Icon :name="HIGHLIGHT_ICONS[h.key]" :size="18" /></span>
             <span>
               <span class="muted small">{{ t(`recap.highlight.${h.key}`) }}</span><br />
-              <b class="rc-name">{{ h.name }}</b> <span class="muted small">{{ highlightValue(h.key, h.value) }}</span>
+              <b class="rc-name"><RankInsignia :user-id="h.userId" />{{ h.name }}</b> <span class="muted small">{{ highlightValue(h.key, h.value) }}</span>
             </span>
           </li>
         </ul>
@@ -294,6 +295,26 @@ async function sendDiscord() {
           </li>
         </ul>
       </section>
+
+      <section class="card rc-wide">
+        <h3>{{ t('recap.promotions') }}</h3>
+        <p v-if="!data.ranks.length" class="muted small">{{ t('recap.noPromotions') }}</p>
+        <ul class="rc-badges">
+          <li v-for="r in data.ranks" :key="r.userId" :class="{ me: r.userId === ctx?.me.id }">
+            <RankInsignia :level="r.to" :size="20" />
+            <span>
+              <b class="rc-name">{{ r.name }}</b>
+              <span class="muted small">
+                {{ t('recap.rankChange', { from: r.from ? t(`rank.names.${r.from}`) : '–', to: r.to ? t(`rank.names.${r.to}`) : '–' }) }}
+              </span>
+              <br /><span class="small">
+                <span v-for="k in r.gained" :key="k" class="pos">+{{ t(`rank.conditions.${k}`) }} </span>
+                <span v-for="k in r.lost" :key="k" class="neg">−{{ t(`rank.conditions.${k}`) }} </span>
+              </span>
+            </span>
+          </li>
+        </ul>
+      </section>
     </div>
 
     <section class="card" data-tour="health-recap-open">
@@ -324,7 +345,7 @@ async function sendDiscord() {
           </thead>
           <tbody>
             <tr v-for="r in rows" :key="r.userId" :class="{ dim: !r.points && !r.syncs }">
-              <td :class="{ 'rc-me': r.userId === ctx?.me.id }">{{ r.name }}</td>
+              <td :class="{ 'rc-me': r.userId === ctx?.me.id }"><RankInsignia :user-id="r.userId" />{{ r.name }}</td>
               <td class="num">{{ fmt(r.points) }}</td>
               <td v-if="data.previous" class="num" :class="r.points > r.before ? 'pos' : r.points < r.before ? 'neg' : 'muted'">{{ r.points === r.before ? '–' : fmtSigned(r.points - r.before) }}</td>
               <td class="num">{{ fmt(r.syncs) }}</td>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from '../components/RankInsignia.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -104,7 +105,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
       <div v-if="mobile" class="hl-cards" data-tour="health-list">
         <div v-for="m in rows" :key="m.userId" class="card hl-card small">
           <div class="row">
-            <b>{{ m.name }}</b>
+            <b><RankInsignia :user-id="m.userId" />{{ m.name }}</b>
             <span v-if="m.ingameName" class="muted small">{{ m.ingameName }}</span>
             <span class="grow" />
             <FreshnessScore :freshness="m.freshness" />
@@ -146,7 +147,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
             <tr v-for="m in rows" :key="m.userId">
               <td>
                 <PlayerLink v-if="m.player" :id="m.player.id" :name="m.name" />
-                <span v-else>{{ m.name }}</span>
+                <span v-else><RankInsignia :user-id="m.userId" />{{ m.name }}</span>
                 <span v-if="m.role === 'admin'" class="faint small"> · {{ t('health.admin') }}</span>
                 <div v-if="m.ingameName" class="muted small">{{ m.ingameName }}</div>
                 <div v-if="m.flags.length" class="hl-flags">

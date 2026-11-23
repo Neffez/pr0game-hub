@@ -253,6 +253,7 @@ export const TOURS = {
       { key: 'list', el: 'health-list', side: 'top', tabs: ['members'] },
       { key: 'streak', el: 'health-badges-streak', side: 'bottom', tabs: ['badges'] },
       { key: 'badgesList', el: 'health-badges-list', side: 'top', tabs: ['badges'] },
+      { key: 'rank', el: 'health-badges-rank', side: 'top', tabs: ['badges'] },
       { key: 'legend', el: 'health-badges-legend', side: 'top', tabs: ['badges'] },
       { key: 'period', el: 'health-ranking-period', side: 'bottom', tabs: ['ranking'] },
       { key: 'rankingList', el: 'health-ranking-list', side: 'top', tabs: ['ranking'] },

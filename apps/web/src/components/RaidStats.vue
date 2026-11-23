@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 /**
  * Raid statistics (tab of the raid page): battle reports, recycling and interplanetary missile attacks of the members
  * in a time range, for the whole alliance or one member.
@@ -213,7 +214,7 @@ const targetLink = (r: { g: number; s: number; p: number }) => ({ path: `/${uni.
         <tbody>
           <tr v-for="r in reportsLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
             <td class="small">{{ dateTime(r.time) }}</td>
-            <td>{{ r.username }}</td>
+            <td><RankInsignia :name="r.username" />{{ r.username }}</td>
             <td>
               <RouterLink class="mono" :to="{ path: `/${uni}/spy`, query: { c: `${r.g}:${r.s}:${r.p}`, type: r.planet_type } }">{{ coords(r.g, r.s, r.p) }}</RouterLink>
               <span v-if="r.target_player_name" class="muted small target-player">{{ r.target_player_name }}</span>
@@ -278,7 +279,7 @@ const targetLink = (r: { g: number; s: number; p: number }) => ({ path: `/${uni.
         <tbody>
           <tr v-for="r in recyclingLimit.shown.value" :key="r.id">
             <td class="small">{{ dateTime(r.time ?? r.created_at) }}</td>
-            <td>{{ r.username }}</td>
+            <td><RankInsignia :name="r.username" />{{ r.username }}</td>
             <td class="mono"><RouterLink :to="browseLink(r)" :title="t('activity.showInBrowser')">{{ coords(r.g, r.s, r.p) }}</RouterLink></td>
             <td class="num">{{ fmt(r.metal) }}</td>
             <td class="num">{{ fmt(r.crystal) }}</td>
@@ -332,7 +333,7 @@ const targetLink = (r: { g: number; s: number; p: number }) => ({ path: `/${uni.
         <tbody>
           <tr v-for="r in missilesLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
             <td class="small">{{ dateTime(r.time ?? r.created_at) }}</td>
-            <td>{{ r.username }}</td>
+            <td><RankInsignia :name="r.username" />{{ r.username }}</td>
             <td>
               <RouterLink class="mono" :to="targetLink(r)">{{ coords(r.g, r.s, r.p) }}</RouterLink>
               <span v-if="r.target_player_name" class="muted small target-player">{{ r.target_player_name }}</span>

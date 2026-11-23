@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from '../components/RankInsignia.vue';
 import Section from '../components/Section.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
@@ -448,7 +449,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               </thead>
               <tbody>
                 <tr v-for="p in state.participants" :key="p.id">
-                  <td>{{ p.name }}</td>
+                  <td><RankInsignia :name="p.name" />{{ p.name }}</td>
                   <td v-for="f in (['flightDeut', 'recDeut', 'missiles'] as const)" :key="f" class="num">
                     <input v-model.number="p[f]" type="number" min="0" :disabled="!editing" />
                     <button

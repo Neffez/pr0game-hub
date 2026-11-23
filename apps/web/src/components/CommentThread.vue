@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
@@ -79,7 +80,7 @@ const remove = (c: Comment) => confirm(t('comments.confirmDelete')) && run(() =>
     <p v-else-if="data && !data.length" class="muted small">{{ t('comments.none') }}</p>
     <div v-for="c in data ?? []" :key="c.id" class="comment">
       <div class="head small">
-        <b>{{ c.member ?? t('common.unknown') }}</b>
+        <b><RankInsignia :user-id="c.user_id" :name="c.member" />{{ c.member ?? t('common.unknown') }}</b>
         <span class="muted">{{ dateTime(c.created_at) }}<template v-if="c.edited_at"> · {{ t('comments.edited') }}</template></span>
         <span class="grow" />
         <template v-if="editing !== c.id">

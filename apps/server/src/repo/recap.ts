@@ -4,6 +4,7 @@ import {
   achievementsAt, addDays, dayOf, periodDays, pointUnits, POINTS, rankRows, type BadgeKey, type PointKind, type RankingPeriod,
 } from './achievements.js';
 import { allianceGoals, GOAL_DEFAULTS, goalSettings } from './goals.js';
+import type { RankCondition } from './rank.js';
 
 /**
  * Recap of a period for the alliance (the progress page's tab, the post to the Discord channel): syncs, active
@@ -59,6 +60,8 @@ export interface Recap {
   highlights: { key: HighlightKey; userId: number; name: string; value: number }[];
   /** badge levels reached in the period: the highest per member and badge, highest level first */
   badges: { userId: number; name: string; key: BadgeKey; level: number }[];
+  /** members whose rank badge changed in the period (repo/rank.ts): highest rank first */
+  ranks: { userId: number; name: string; from: number; to: number; gained: RankCondition[]; lost: RankCondition[] }[];
   /** members, most points first */
   rows: RecapRow[];
   /** what is open now (not at the end of a past period) */
@@ -119,6 +122,15 @@ export function recap(db: DB, ctx: GroupContext, period: RecapPeriod): Recap {
     for (const b of m.badges) if (b.level > (was.get(b.key) ?? 0)) badges.push({ userId: m.userId, name: m.name, key: b.key, level: b.level });
   }
   badges.sort((a, b) => b.level - a.level || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+  // rank badge: the held conditions at the end of the period against the end of the day before it
+  const ranks: Recap['ranks'] = [];
+  for (const m of end.values()) {
+    const was = start.get(m.userId)?.rank.holds ?? [];
+    const gained = m.rank.holds.filter((k) => !was.includes(k));
+    const lost = was.filter((k) => !m.rank.holds.includes(k));
+    if (gained.length || lost.length) ranks.push({ userId: m.userId, name: m.name, from: was.length, to: m.rank.points, gained, lost });
+  }
+  ranks.sort((a, b) => b.to - a.to || b.to - b.from - (a.to - a.from) || a.name.localeCompare(b.name));
   const levelsGained = (userId: number) => {
     const was = new Map((start.get(userId)?.badges ?? []).map((b) => [b.key, b.level]));
     return sum(end.get(userId)?.badges ?? [], (b) => Math.max(0, b.level - (was.get(b.key) ?? 0)));
@@ -209,6 +221,7 @@ export function recap(db: DB, ctx: GroupContext, period: RecapPeriod): Recap {
     days,
     highlights,
     badges,
+    ranks,
     rows,
     open: {
       galaxy: { fresh: [...perGalaxy.values()].reduce((a, b) => a + b, 0), total: settings.galaxies * settings.systems, days: window, weakest },

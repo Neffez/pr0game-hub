@@ -22,6 +22,7 @@ export const alertFor = (a: FleetAlert, f: Fleet) =>
 </script>
 
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import Icon from './Icon.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { computed, reactive, ref } from 'vue';
@@ -145,7 +146,7 @@ function clock(epoch: number) {
         <span class="mono fl-clock">{{ clock(f.arrival) }}</span>
         <Ticker v-slot="{ now }"><span class="mono muted">{{ past ? t('imperium.since', { time: countdown(now - f.arrival) }) : countdown(f.arrival - now) }}</span></Ticker>
         <span class="grow" />
-        <b v-if="f.member" class="fl-member">{{ f.member }}</b>
+        <b v-if="f.member" class="fl-member"><RankInsignia :name="f.member" />{{ f.member }}</b>
         <button v-if="sharing && ownParts(r.parts).length" class="small fl-eye alert-btn" :class="{ active: f.shared }" :disabled="shareBusy === r.parts[0]" :title="eyeTitle(f)" :aria-label="eyeTitle(f)" @click="emit('share', ownParts(r.parts), !f.shared)">
           <Icon :name="f.shared ? 'eye' : 'eyeOff'" :size="14" />
         </button>
@@ -208,7 +209,7 @@ function clock(epoch: number) {
         <tr v-for="f in [r.fleet]" :key="r.key" :class="{ hostile: attack(f) }" :style="{ '--mc': color(f) }">
           <td class="mono fl-clock">{{ clock(f.arrival) }}</td>
           <td class="mono muted"><Ticker v-slot="{ now }">{{ countdown(past ? now - f.arrival : f.arrival - now) }}</Ticker></td>
-          <td v-if="fleets.some((x) => x.member)"><b class="fl-member">{{ f.member }}</b></td>
+          <td v-if="fleets.some((x) => x.member)"><b class="fl-member"><RankInsignia :name="f.member" />{{ f.member }}</b></td>
           <td>
             <span class="fl-mission">{{ mission(r) }}</span>
             <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>

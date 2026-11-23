@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-23',
     items: [
       {
+        kind: 'new',
+        de: 'Neues Rangabzeichen: Wer unter den Mitgliedern bei Flotten-, Forschungs-, Gebäude- oder Gesamtpunkten, zerstörten oder verlorenen Units, erbeuteten Rohstoffen, Siegesserie, Verhältnis Beute zu Verlust oder angegriffenen Spielern vorne liegt, bekommt je einen Punkt. Daraus wird ein Rang vom Gefreiten bis zum Marschall, der vor deinem Namen steht, überall im Hub. Wer welche Wertung hält, steht im Allianz-Fortschritt unter „Streaks & Abzeichen“; Beförderungen erscheinen im Recap.',
+        en: 'New rank badge: whoever leads the members in fleet, research, building or total points, units destroyed or lost, resources captured, win streak, ratio of loot to losses or players attacked gets one point each. That makes a rank from private to marshal shown before your name everywhere in the hub. Who holds which ranking is listed in the alliance progress under "Streaks & badges"; promotions show in the recap.',
+      },
+      {
         kind: 'fix',
         de: 'Ingame-Nachrichten: Empfangene Spielernachrichten werden wieder synchronisiert. Seit dem letzten pr0game-Update fehlt bei Nachrichten, die nur an dich gingen, die „An:“-Zeile, deshalb kamen bisher nur deine gesendeten Nachrichten an. Synchronisiere die Nachrichtenseite einfach noch einmal.',
         en: 'In-game messages: received player messages sync again. Since the latest pr0game update, messages sent only to you lack the "To:" line, so only your sent messages arrived. Just sync the messages page once more.',

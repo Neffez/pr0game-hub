@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from '../components/RankInsignia.vue';
 import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import ShowMore from '../components/ShowMore.vue';
@@ -99,7 +100,7 @@ useAutoTour('hostile', () => (tab.value === 'me' ? !!threats.value?.ready : !!da
             </td>
             <td class="mono">{{ coords(h.from_g, h.from_s, h.from_p) }}{{ h.from_type === 'moon' ? ' ' + t('game.moonShort') : '' }} <span class="muted">{{ h.from_planet }}</span></td>
             <td class="mono">{{ coords(h.target_g, h.target_s, h.target_p) }}{{ h.target_type === 'moon' ? ' ' + t('game.moonShort') : '' }} <span class="muted">{{ h.target_planet }}</span></td>
-            <td>{{ h.username }}</td>
+            <td><RankInsignia :name="h.username" />{{ h.username }}</td>
           </tr>
         </tbody>
       </table>

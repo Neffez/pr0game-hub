@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from '../components/RankInsignia.vue';
 import type { SaveTarget } from '@pr0hub/flight';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -249,7 +250,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <div v-else-if="mobile" class="at-cards">
         <div v-for="h in openHelpers" :key="helperKey(h)" class="at-card small">
           <div class="row">
-            <b>{{ h.member }}</b>
+            <b><RankInsignia :name="h.member" />{{ h.member }}</b>
             <span>{{ h.from.name }} <span class="mono">{{ c(h.from) }}</span><template v-if="h.from.type === 'moon'"> ({{ t('common.moon') }})</template></span>
           </div>
           <div class="muted" :title="shipsTitle(h.ships)">{{ shipsText(h.ships) }} · {{ short(h.points) }} {{ t('attack.points') }}</div>
@@ -275,7 +276,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
           </thead>
           <tbody>
             <tr v-for="h in openHelpers" :key="helperKey(h)">
-              <td>{{ h.member }}</td>
+              <td><RankInsignia :name="h.member" />{{ h.member }}</td>
               <td class="small">{{ h.from.name }} <span class="mono">{{ c(h.from) }}</span><template v-if="h.from.type === 'moon'"> ({{ t('common.moon') }})</template></td>
               <td class="small" :title="shipsTitle(h.ships)">{{ shipsText(h.ships) }}</td>
               <td class="num">{{ short(h.points) }}</td>
