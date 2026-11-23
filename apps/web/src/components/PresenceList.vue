@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
@@ -101,7 +102,7 @@ function where(p: PresenceMember) {
       <summary class="muted small">{{ t('presence.offline', { n: offline.length }) }}</summary>
       <div v-for="m in offline" :key="m.id" class="member muted">
         <span class="dot off" />
-        <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}</span>
+        <span class="name" :class="roleClass(m)" :title="nameTitle(m)"><RankInsignia :user-id="m.id" :size="12" />{{ m.name }}</span>
         <RouterLink v-if="badgesOf.get(m.id)?.length" class="badges" :to="badgesLink" @click="emit('navigate')"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></RouterLink>
         <span class="where">{{ m.last_seen_at ? t('presence.lastSeen', { ago: ago(m.last_seen_at) }) : '' }}</span>
       </div>

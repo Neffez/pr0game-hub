@@ -4,7 +4,7 @@ import type { HighlightKey, Recap, RecapCompare } from './repo/recap.js';
 
 /**
  * The recap as a message: title and Markdown body for the Discord channel (an embed) and for copying by hand
- * (`recapMarkdown`). Names appear only for good news (highlights, badges); what is open is told as counts.
+ * (`recapMarkdown`). Names appear only for good news (highlights, badges, promotions); what is open is told as counts.
  */
 
 const de = {
@@ -29,6 +29,9 @@ const de = {
   synced: 'Am meisten eingefügt',
   badges: 'Neue Abzeichen',
   moreBadges: '… und {n} weitere',
+  promotions: 'Beförderungen',
+  /** the rank badge's ranks by points (1–10) */
+  ranks: ['Gefreiter', 'Korporal', 'Sergeant', 'Feldwebel', 'Leutnant', 'Hauptmann', 'Major', 'Oberst', 'General', 'Marschall'],
   open: 'Da geht noch was',
   galaxy: 'Galaxie: {pct} der Systeme jünger als {days} Tage, am ältesten G{g} ({gpct})',
   idle: '{n} von {of} Mitgliedern ohne Punkte – jeder Sync zählt!',
@@ -67,6 +70,8 @@ const en: typeof de = {
   synced: 'Synced the most',
   badges: 'New badges',
   moreBadges: '… and {n} more',
+  promotions: 'Promotions',
+  ranks: ['Private', 'Corporal', 'Sergeant', 'Staff sergeant', 'Lieutenant', 'Captain', 'Major', 'Colonel', 'General', 'Marshal'],
   open: 'Room to grow',
   galaxy: 'Galaxy: {pct} of the systems younger than {days} days, oldest G{g} ({gpct})',
   idle: '{n} of {of} members without points – every sync counts!',
@@ -141,6 +146,13 @@ export function recapMessage(recap: Recap, lang: PushLang): { title: string; bod
     for (const b of recap.badges.slice(0, MAX_BADGES)) byMember.set(b.name, [...(byMember.get(b.name) ?? []), `${t.badge[b.key]} ${b.level}`]);
     for (const [name, list] of byMember) lines.push(`• ${name}: ${list.join(', ')}`);
     if (recap.badges.length > MAX_BADGES) lines.push(fill(t.moreBadges, { n: recap.badges.length - MAX_BADGES }));
+  }
+
+  const promoted = recap.ranks.filter((r) => r.to > r.from);
+  if (promoted.length) {
+    lines.push('', `**${t.promotions}**`);
+    for (const r of promoted.slice(0, MAX_BADGES)) lines.push(`• ${r.name}: ${t.ranks[r.to - 1]} (${r.to})`);
+    if (promoted.length > MAX_BADGES) lines.push(fill(t.moreBadges, { n: promoted.length - MAX_BADGES }));
   }
 
   const open: string[] = [];

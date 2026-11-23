@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import Hint from './Hint.vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -62,7 +63,7 @@ const pointsHelp = computed(() => KINDS.map((k) => t(`ranking.points.${k}`)).joi
     <ol class="rk-list">
       <li v-for="r in ranked" :key="r.userId" :class="{ me: r.userId === ctx?.me.id, zero: !r.points }" :title="partsTitle(r.parts)">
         <span class="rk-rank mono">{{ r.points ? r.rank : '–' }}</span>
-        <span class="rk-name">{{ r.name }}</span>
+        <span class="rk-name"><RankInsignia :user-id="r.userId" />{{ r.name }}</span>
         <span class="rk-bar"><span :style="{ width: `${(100 * r.points) / top}%` }" /></span>
         <span class="rk-points mono">{{ fmt(r.points) }}</span>
       </li>

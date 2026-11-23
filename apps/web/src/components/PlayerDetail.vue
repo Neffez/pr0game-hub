@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import type { PlayerDetails, PlayerScore } from '../apiTypes';
 import { nowSec } from '../clock';
 import Section from './Section.vue';
@@ -171,7 +172,7 @@ onBeforeUnmount(() => chart?.destroy());
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <h1 :id="titleId">
-      {{ data.player.name }}
+      <RankInsignia :player-id="data.player.id" :size="22" />{{ data.player.name }}
       <StatusBadges :status="data.player.status" :points="latest[1]?.points ?? null" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>
       <PresenceBadge :player="data.player.id" />

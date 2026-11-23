@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import Icon from './Icon.vue';
 import PlanetActions from './PlanetActions.vue';
 import PlayerLink from './PlayerLink.vue';
@@ -44,7 +45,7 @@ const browseLink = (c: { g: number; s: number }) => ({ path: `/${uni.value}/brow
           </td>
           <td><PlayerLink v-if="c.player_id" :id="c.player_id" :name="c.player_name ?? '?'" /></td>
           <td>{{ t(`claims.kinds.${c.kind}`) }}</td>
-          <td>{{ c.member }}</td>
+          <td><RankInsignia :name="c.member" />{{ c.member }}</td>
           <td :title="dateTime(c.expires_at)">{{ remaining(c) }}</td>
           <td class="m-wide">{{ c.note ?? '' }}</td>
           <td><PlanetActions :g="c.g" :s="c.s" :p="c.p" :type="c.planet_type" /></td>

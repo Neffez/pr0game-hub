@@ -2,6 +2,7 @@ import { localToEpoch } from '@pr0hub/core';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { memberPlayers } from './members.js';
+import { type MemberRank, ranksAt } from './rank.js';
 import { DISPLAY } from './sql.js';
 
 /**
@@ -169,6 +170,8 @@ export interface MemberAchievements {
   playerId: number | null;
   streak: Streak;
   badges: Badge[];
+  /** the dynamic rank badge (repo/rank.ts) */
+  rank: MemberRank;
 }
 
 /**
@@ -260,15 +263,18 @@ export function achievementsAt(db: DB, ctx: GroupContext, days: string[]): Map<s
   };
 
   const vacations = new Map(members.map((m) => [m.user_id, vacationOf(m.user_id)]));
+  const dayEnd = (day: string) => dayStart(addDays(day, 1), tz);
+  const ranks = ranksAt(db, ctx, members.map((m) => m.user_id), sorted.map(dayEnd));
 
   return new Map(
     sorted.map((today) => {
       const counts = countsAt(today);
+      const rankOf = ranks.get(dayEnd(today))!;
       const list = members.map((m) => {
         const upTo = new Set([...(syncDays.get(m.user_id) ?? [])].filter((d) => d <= today));
         const streak = streakOf(upTo, vacations.get(m.user_id)!, today);
         counts.streak.set(m.user_id, streak.best);
-        return { userId: m.user_id, name: m.name, playerId: players.get(m.user_id) ?? null, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)) };
+        return { userId: m.user_id, name: m.name, playerId: players.get(m.user_id) ?? null, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)), rank: rankOf.get(m.user_id)! };
       });
       return [today, list] as const;
     }),

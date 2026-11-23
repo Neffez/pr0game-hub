@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import type { Expedition, Expeditions, ExpeditionsPerUser } from '../apiTypes';
 import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
@@ -273,7 +274,7 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
             <tbody>
               <tr v-for="e in listLimit.shown.value" :key="e.id">
                 <td class="small">{{ dateTime(e.time) }}</td>
-                <td>{{ e.username }}</td>
+                <td><RankInsignia :name="e.username" />{{ e.username }}</td>
                 <td class="mono">{{ e.g ? coords(e.g, e.s ?? 0, e.p ?? 0) : '' }}</td>
                 <td>
                   {{ cardLabel(`${e.event}:${e.size}`) }}<span v-if="e.factor" class="faint"> ×{{ e.factor }}</span>

@@ -997,9 +997,44 @@ components:
       properties:
         now: { type: integer, description: Value in the period }
         before: { type: integer, description: Value in the span before }
+    RankCondition:
+      type: string
+      description: A condition of the rank badge
+      enum: [fleetPoints, researchPoints, buildingPoints, totalPoints, unitsDestroyed, resources, unitsLost, winStreak, profitRatio, playersAttacked]
+    MemberRank:
+      type: object
+      description: >-
+        The dynamic rank badge: each of the ten conditions is held by the member(s) with the highest value above 0
+        among the group's members (ties: all of them), over the whole history. `fleetPoints`, `researchPoints`,
+        `buildingPoints`, `totalPoints` the newest synced statistics; from the member's synced battle reports (units in
+        resource value as in the report, the member's side from the target: an own planet is a defense)
+        `unitsDestroyed` the opponents' losses, `unitsLost` the own losses, `resources` loot of attacks plus recycled
+        debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the
+        opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1),
+        `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is
+        one point, the points (0–10) are the rank.
+      required: [points, holds, values]
+      properties:
+        points: { type: integer, description: 'Held conditions, the rank: 0 none … 10 the highest' }
+        holds: { type: array, items: { $ref: '#/components/schemas/RankCondition' } }
+        values:
+          type: object
+          description: The member's value of every condition (profitRatio with two decimals)
+          required: [fleetPoints, researchPoints, buildingPoints, totalPoints, unitsDestroyed, resources, unitsLost, winStreak, profitRatio, playersAttacked]
+          properties:
+            fleetPoints: { type: number }
+            researchPoints: { type: number }
+            buildingPoints: { type: number }
+            totalPoints: { type: number }
+            unitsDestroyed: { type: number }
+            resources: { type: number }
+            unitsLost: { type: number }
+            winStreak: { type: number }
+            profitRatio: { type: number }
+            playersAttacked: { type: number }
     Recap:
       type: object
-      required: [period, from, to, previous, members, syncs, active, points, newBadges, kinds, days, highlights, badges, rows, open]
+      required: [period, from, to, previous, members, syncs, active, points, newBadges, kinds, days, highlights, badges, ranks, rows, open]
       properties:
         period: { type: string, enum: [week, lastWeek, days30, start] }
         from: { type: string, description: First day (YYYY-MM-DD) }
@@ -1062,6 +1097,21 @@ components:
               name: { type: string }
               key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner, livingLegend] }
               level: { type: integer }
+        ranks:
+          type: array
+          description: >-
+            Members whose rank badge changed in the period (see `getAchievements`): the rank at the end of the day before
+            the period (`from`) and at its end (`to`), the conditions taken over and lost; highest rank first
+          items:
+            type: object
+            required: [userId, name, from, to, gained, lost]
+            properties:
+              userId: { type: integer }
+              name: { type: string }
+              from: { type: integer }
+              to: { type: integer }
+              gained: { type: array, items: { $ref: '#/components/schemas/RankCondition' } }
+              lost: { type: array, items: { $ref: '#/components/schemas/RankCondition' } }
         rows:
           type: array
           description: Every member, most points first
@@ -5276,7 +5326,7 @@ paths:
         on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin
         (`awardMemberBadge`). The streak counts days in the universe's time zone
         with a sync only the member can make (own empire, overview, buildings or research page, own reports and
-        messages); a day in vacation mode pauses it.
+        messages); a day in vacation mode pauses it. `rank` is the dynamic rank badge (`MemberRank`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -5293,8 +5343,9 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [userId, name, playerId, streak, badges]
+                      required: [userId, name, playerId, streak, badges, rank]
                       properties:
+                        rank: { $ref: '#/components/schemas/MemberRank' }
                         userId: { type: integer }
                         name: { type: string }
                         playerId: { type: [integer, 'null'], description: "The member's player in the game, null while unknown" }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from '../components/RankInsignia.vue';
 import Loading from '../components/Loading.vue';
 import ActionMenu, { type MenuItem } from '../components/ActionMenu.vue';
 import BackLink from '../components/BackLink.vue';
@@ -201,7 +202,7 @@ const planMenu = computed<MenuItem[]>(() => {
         </div>
         <div>
           <dt>{{ t('plans.creator') }}</dt>
-          <dd>{{ plan.creator }}</dd>
+          <dd><RankInsignia :name="plan.creator" />{{ plan.creator }}</dd>
         </div>
       </dl>
       <p v-if="plan.note" class="note">{{ plan.note }}</p>
@@ -261,7 +262,7 @@ const planMenu = computed<MenuItem[]>(() => {
       <div v-if="mobile && (plan.fleets.length || plan.guests?.length)" class="fleet-cards">
         <div v-for="x in view!.fleets" :key="x.fleet.id" class="fleet-card" :class="{ mine: x.fleet.user_id === me, dim: x.fleet.status === 'withdrawn' }">
           <div class="fc-head">
-            <b>{{ x.fleet.member }}</b>
+            <b><RankInsignia :name="x.fleet.member" />{{ x.fleet.member }}</b>
             <span v-if="isLead(x.plan?.id)" class="badge">{{ t('plans.leadShort') }}</span>
             <Icon v-if="x.duration != null && rp.oldDrives(x.fleet)" name="warning" :size="13" class="warn" :label="t('plans.drivesOld')" />
             <span class="grow" />
@@ -347,7 +348,7 @@ const planMenu = computed<MenuItem[]>(() => {
           <tbody>
             <tr v-for="x in view!.fleets" :key="x.fleet.id" :class="{ mine: x.fleet.user_id === me, dim: x.fleet.status === 'withdrawn' }">
               <td>
-                {{ x.fleet.member }}
+                <RankInsignia :name="x.fleet.member" />{{ x.fleet.member }}
                 <span v-if="isLead(x.plan?.id)" class="badge">{{ t('plans.leadShort') }}</span>
                 <Icon v-if="x.duration != null && rp.oldDrives(x.fleet)" name="warning" :size="13" class="warn" :label="t('plans.drivesOld')" />
               </td>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RankInsignia from './RankInsignia.vue';
 import { computed } from 'vue';
 import { usePlayerDialog, useUni } from '../composables';
 
@@ -16,5 +17,5 @@ function onClick(e: MouseEvent) {
 </script>
 
 <template>
-  <a :href="href" @click.stop="onClick">{{ name }}</a>
+  <a :href="href" @click.stop="onClick"><RankInsignia :player-id="id" />{{ name }}</a>
 </template>

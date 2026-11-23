@@ -4,8 +4,17 @@ import type { DB } from '../db.js';
 
 export type Score = { points: number; rank: number; time: number };
 
-/** Newest synced score per category (1 total … 5 defense) of the given players: player id → type → score. */
-export function latestScores(db: DB, groupId: number, playerIds: number[], types: number[] = [1, 2, 3, 4, 5]): Map<number, Record<number, Score>> {
+/**
+ * Newest synced score per category (1 total … 5 defense) of the given players: player id → type → score; with `before`
+ * (Unix seconds) the newest from a statistics update before then.
+ */
+export function latestScores(
+  db: DB,
+  groupId: number,
+  playerIds: number[],
+  types: number[] = [1, 2, 3, 4, 5],
+  before = Number.MAX_SAFE_INTEGER,
+): Map<number, Record<number, Score>> {
   const out = new Map<number, Record<number, Score>>();
   if (!playerIds.length) return out;
   // one index lookup per player and category (see migration 055), not an aggregate over the whole history
@@ -14,9 +23,9 @@ export function latestScores(db: DB, groupId: number, playerIds: number[], types
       `SELECT ps.player_id, ps.type, ps.points, ps.rank, ps.stat_time AS time
        FROM json_each(?) id JOIN players p ON p.id = id.value AND p.group_id = ? CROSS JOIN json_each(?) t
        JOIN player_scores ps ON ps.rowid = (
-         SELECT rowid FROM player_scores WHERE player_id = p.id AND type = t.value ORDER BY stat_time DESC LIMIT 1)`,
+         SELECT rowid FROM player_scores WHERE player_id = p.id AND type = t.value AND stat_time < ? ORDER BY stat_time DESC LIMIT 1)`,
     )
-    .all(JSON.stringify(playerIds), groupId, JSON.stringify(types)) as ({ player_id: number; type: number } & Score)[];
+    .all(JSON.stringify(playerIds), groupId, JSON.stringify(types), before) as ({ player_id: number; type: number } & Score)[];
   for (const r of rows) out.set(r.player_id, { ...out.get(r.player_id), [r.type]: { points: r.points, rank: r.rank, time: r.time } });
   return out;
 }

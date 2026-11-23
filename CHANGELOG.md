@@ -4,6 +4,25 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- New dynamic rank badge: ten conditions, each held by the member(s) leading it among the group's members (ties: all
+  of them) over the whole history; every held condition is a point, the points (0–10) are a rank from private to
+  marshal, drawn as a military insignia in a space style (delta-wing chevrons, hull bars, ringed planet, stars in
+  orbit). It shows before the name and the other badges wherever a member's name stands (player links in the
+  statistics and elsewhere, profile, online list, comments, attack and raid planning, fleets, claims, raid and
+  expedition statistics, foreign espionage, loot settlements, alliance progress).
+  - Conditions: most fleet, research, building and total points (newest synced statistics); from the member's
+    battle reports (units in resource value, an own planet as target makes it a defense) most units destroyed, most
+    resources gained (loot plus recycled debris), most units lost (consolation rank), the longest win streak (wins
+    in which the opponent lost units; a defeat breaks it unless the opponent is known to be of the own alliance;
+    draws neutral), the best ratio of resources gained to units lost, most different players attacked outside the
+    own alliance.
+  - Computed live in `repo/rank.ts` (`ranksAt`, also as of past days); `getAchievements` returns `rank` per member
+    (`MemberRank`), the recap `ranks` (rank changes in the period) and its Discord text a "Promotions" section.
+  - Alliance progress, tab "Streaks & badges": below the member cards a table "Rank order" (explained in an info
+    tooltip) with the leader and value of each condition, the own value and a legend of all ranks (tour step); the
+    legend of all badges moves to the bottom; the recap shows the rank changes.
+  - `latestScores` takes an optional `before` to read the statistics as of an instant.
+
 - In-game messages: received player messages sync again. Since its latest release the game hides the "An:"/"To:" line
   when the viewer is the only recipient, and the parser, which recognized player messages by that line, dropped them.
   - HTML: a message with the reply link (`Dialog.PM`) is a player message even without recipient line (`to` empty).

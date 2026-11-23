@@ -742,7 +742,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin (`awardMemberBadge`). The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
+        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 5 days ahead, `livingLegend` ("Living legend") awarded by a global admin (`awardMemberBadge`). The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. `rank` is the dynamic rank badge (`MemberRank`). */
         get: operations["getAchievements"];
         put?: never;
         post?: never;
@@ -3874,6 +3874,30 @@ export type components = {
             /** @description Value in the span before */
             before: number;
         };
+        /**
+         * @description A condition of the rank badge
+         * @enum {string}
+         */
+        RankCondition: "fleetPoints" | "researchPoints" | "buildingPoints" | "totalPoints" | "unitsDestroyed" | "resources" | "unitsLost" | "winStreak" | "profitRatio" | "playersAttacked";
+        /** @description The dynamic rank badge: each of the ten conditions is held by the member(s) with the highest value above 0 among the group's members (ties: all of them), over the whole history. `fleetPoints`, `researchPoints`, `buildingPoints`, `totalPoints` the newest synced statistics; from the member's synced battle reports (units in resource value as in the report, the member's side from the target: an own planet is a defense) `unitsDestroyed` the opponents' losses, `unitsLost` the own losses, `resources` loot of attacks plus recycled debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1), `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is one point, the points (0–10) are the rank. */
+        MemberRank: {
+            /** @description Held conditions, the rank: 0 none … 10 the highest */
+            points: number;
+            holds: components["schemas"]["RankCondition"][];
+            /** @description The member's value of every condition (profitRatio with two decimals) */
+            values: {
+                fleetPoints: number;
+                researchPoints: number;
+                buildingPoints: number;
+                totalPoints: number;
+                unitsDestroyed: number;
+                resources: number;
+                unitsLost: number;
+                winStreak: number;
+                profitRatio: number;
+                playersAttacked: number;
+            };
+        };
         Recap: {
             /** @enum {string} */
             period: "week" | "lastWeek" | "days30" | "start";
@@ -3927,6 +3951,15 @@ export type components = {
                 /** @enum {string} */
                 key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner" | "livingLegend";
                 level: number;
+            }[];
+            /** @description Members whose rank badge changed in the period (see `getAchievements`): the rank at the end of the day before the period (`from`) and at its end (`to`), the conditions taken over and lost; highest rank first */
+            ranks: {
+                userId: number;
+                name: string;
+                from: number;
+                to: number;
+                gained: components["schemas"]["RankCondition"][];
+                lost: components["schemas"]["RankCondition"][];
             }[];
             /** @description Every member, most points first */
             rows: {
@@ -8778,6 +8811,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         members: {
+                            rank: components["schemas"]["MemberRank"];
                             userId: number;
                             name: string;
                             /** @description The member's player in the game, null while unknown */
