@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Rangabzeichen: Es steht jetzt auch bei den Mitgliedern, die gerade online sind, und in der Anzeige, wer dasselbe System oder Spielerprofil gerade ansieht.',
+        en: 'Rank badge: it now also shows for the members currently online and in the note on who else is viewing the same system or player profile.',
+      },
+      {
         kind: 'new',
         de: 'Rangabzeichen: Zerstörte und verlorene Units zählen jetzt, was deine eigenen Flotten abgeschossen und verloren haben, wie „real“ auf der Spielerkarte. Ganz genau wird es, wenn du deine Spielerkarte einfügst (im Popup die Tabelle markieren und kopieren); Kämpfe danach rechnet der Hub dazu. Ohne Karte schätzt er aus deinen Kampfberichten.',
         en: 'Rank badge: units destroyed and lost now count what your own fleets shot down and lost, like "actually" on the player card. It gets exact when you paste your player card (select and copy the table in the popup); the hub adds the fights after it. Without a card it estimates from your battle reports.',
