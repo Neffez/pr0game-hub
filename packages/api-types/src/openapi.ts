@@ -5439,8 +5439,11 @@ export type components = {
             time: number;
             /** @description Half width of the uncertainty in seconds (0 = exact) */
             spread: number;
-            /** @enum {string} */
-            source: "spy" | "attack" | "defense" | "message" | "galaxy" | "fleet" | "recall" | "manual" | "offline" | "sync" | "hub";
+            /**
+             * @description hub: a member's syncs and open hub tab, together once per hour
+             * @enum {string}
+             */
+            source: "spy" | "attack" | "defense" | "message" | "galaxy" | "fleet" | "recall" | "manual" | "offline" | "hub";
             /** @description Contribution to the activity curve (galaxy marks scaled by planets per hour) */
             weight?: number;
             /** @description Galaxy mark only – galaxy coordinate */

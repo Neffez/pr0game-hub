@@ -1234,7 +1234,7 @@ const de = {
     active: 'aktiv',
     activity: {
       title: 'Aktivitätsmuster',
-      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern; bei Spielern der Allianz auch ihre Synchronisierungen und wann sie den Hub offen hatten (wenn sie Online-Status bzw. Synchronisierungen teilen). Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
+      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern; bei Spielern der Allianz auch ihre Synchronisierungen und wann sie den Hub offen hatten, zusammen höchstens einmal je Stunde (wenn sie Online-Status bzw. Synchronisierungen teilen). Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
       hintPoints: 'Die graue, gestufte Fläche ist der Punktezuwachs je Statistik-Update (alle 6 h) im Vergleich zu seinen anderen Zeitfenstern: keine Punkte, keine Aktivität; viele Punkte, viel Aktivität. Zeiten ohne bekannte Statistik bleiben leer.',
       hintGalaxy: 'Galaxie-Aktivität: ein Stern auf einem Planeten zählt wenig, mehrere Planeten in derselben Stunde mehr (bis zum bisherigen Maximum); fremde Aktionen auf dem Planeten können einen Stern setzen. Eigene Spionagen oder Kämpfe dort streichen nur diesen Planeten; eine Offline-Meldung streicht die Sterne in der Stunde.',
       empty: 'Noch keine Hinweise in diesem Zeitraum.',
@@ -1253,7 +1253,7 @@ const de = {
       spread: '± {min} min',
       sources: {
         spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung', message: 'Nachricht', galaxy: 'Galaxie-Aktivität',
-        fleet: 'Flottenstart', recall: 'Rückruf', manual: 'Online', offline: 'Offline', sync: 'Synchronisiert', hub: 'Im Hub',
+        fleet: 'Flottenstart', recall: 'Rückruf', manual: 'Online', offline: 'Offline', hub: 'Im Hub / synchronisiert',
       },
     },
   },

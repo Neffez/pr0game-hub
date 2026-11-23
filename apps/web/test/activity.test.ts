@@ -55,14 +55,14 @@ describe('activity curve', () => {
 });
 
 describe('tick events', () => {
-  it('keeps the newest sync per half hour of the day and every other event', () => {
+  it('keeps the newest hub evidence per half hour of the day and every other event', () => {
     const events = [
-      ev(at(14, 2), 'sync'), ev(at(14, 20), 'sync'), ev(at(14, 25, 1), 'sync'), ev(at(14, 40), 'sync'),
+      ev(at(14, 2), 'hub'), ev(at(14, 20), 'hub'), ev(at(14, 25, 1), 'hub'), ev(at(14, 40), 'hub'),
       ev(at(14, 5), 'spy'), ev(at(14, 6), 'spy'),
     ];
     const ticks = tickEvents(events);
     expect(ticks.filter((e) => e.source === 'spy')).toHaveLength(2);
-    expect(ticks.filter((e) => e.source === 'sync').map((e) => e.time).sort()).toEqual([at(14, 20), at(14, 40)]);
+    expect(ticks.filter((e) => e.source === 'hub').map((e) => e.time).sort()).toEqual([at(14, 20), at(14, 40)]);
   });
 });
 

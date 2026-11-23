@@ -1,6 +1,6 @@
 /** Activity pattern of a player: evidence of online times laid over one day and smoothed (see `activityCurve`). */
 
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'sync' | 'hub';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'hub';
 
 export interface ActivityEvent {
   time: number;
@@ -19,10 +19,10 @@ export interface ActivityEvent {
 
 /**
  * How much one piece of evidence counts: galaxy marks are also set by others' actions, an open hub tab means the member
- * is around but not necessarily in the game.
+ * is around but not necessarily in the game (an hour with a sync carries weight 1 from the server).
  */
 export const SOURCE_WEIGHT: Record<ActivitySource, number> = {
-  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, offline: 0, sync: 1, galaxy: 0.4, hub: 0.5,
+  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, offline: 0, galaxy: 0.4, hub: 0.5,
 };
 
 /** Evidence of yesterday counts about 0.7, of a week ago about 0.1. */
@@ -71,18 +71,18 @@ export function activityCurve(events: ActivityEvent[], now: number, days: number
   return peak > 0 ? out.map((v) => v / peak) : out;
 }
 
-/** Sync ticks are thinned to one per this many minutes of the day. */
+/** Ticks of a member's syncs and hub presence are thinned to one per this many minutes of the day. */
 export const SYNC_TICK_SLOT = 30;
 
 /**
- * The events drawn as ticks below the curve: a member who syncs all the time would fill the axis with sync ticks, so
- * those keep only the newest per `SYNC_TICK_SLOT` of the day (over all days shown). The curve still takes every event.
+ * The events drawn as ticks below the curve: a member who syncs or has the hub open all the time would fill the axis
+ * with those ticks (one per hour), so they keep only the newest per `SYNC_TICK_SLOT` of the day (over all days shown). The curve still takes every event.
  */
 export function tickEvents(events: ActivityEvent[]): ActivityEvent[] {
   const newest = new Map<number, ActivityEvent>();
   const out: ActivityEvent[] = [];
   for (const e of events) {
-    if (e.source !== 'sync') {
+    if (e.source !== 'hub') {
       out.push(e);
       continue;
     }

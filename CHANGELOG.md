@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Activity pattern: a member's syncs and open hub tab are one source "In the hub / synced" and count at most once
+  per hour (syncs every 15 minutes and hub presence every half hour before). The hour's event lies in the middle of
+  its evidence; with a sync among it, it counts fully, an open hub tab alone half as before. The API's activity
+  source `sync` is gone, `hub` covers both.
 - Player page: new section "Fleet" with the fleet the player has or last had, ship by ship and including probes,
   solar satellites and transporters (`GET /api/{uni}/players/{id}/fleet`, `repo/playerFleet.ts`). Sightings without an
   age limit: per planet or moon the newest spy report with a fleet section, the ships brought into the newest battles

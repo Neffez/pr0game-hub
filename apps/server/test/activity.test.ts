@@ -257,25 +257,33 @@ describe('player activity', () => {
     db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ? AND user_id = ?').run(groupA, carolId);
   });
 
-  it("takes a member's syncs and hub presence as far as they share them", async () => {
+  it("takes a member's syncs and hub presence together once per hour, as far as they share them", async () => {
     // Carol's player, found by her in-game name
     const carolPlayer = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Carol')").run(groupA).lastInsertRowid);
-    const t = now();
+    const hour = Math.floor(now() / 3600) * 3600 - 3600;
     const raw = db.prepare("INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, created_at) VALUES (?, ?, ?, 'paste', 'fleets', ?)");
-    // two pages in a row count once; a page the admin synced for Carol is the admin's
-    raw.run(groupA, carolId, null, t - 3600);
-    raw.run(groupA, carolId, null, t - 3590);
-    raw.run(groupA, carolId, adminId, t - 7200);
-    expect((await call('POST', '/presence', carol, { page: 'overview', tab: 't1' })).statusCode).toBe(200);
+    // two syncs and an open hub tab in one hour count once; a page the admin synced for Carol is the admin's
+    raw.run(groupA, carolId, null, hour + 600);
+    raw.run(groupA, carolId, null, hour + 1800);
+    raw.run(groupA, carolId, adminId, hour - 7200);
+    db.prepare('INSERT INTO member_online (group_id, user_id, slot) VALUES (?, ?, ?)').run(groupA, carolId, hour + 2400);
+    // the hub tab alone, the hour before
+    db.prepare('INSERT INTO member_online (group_id, user_id, slot) VALUES (?, ?, ?)').run(groupA, carolId, hour - 3600 + 900);
 
-    const of = async (headers: Record<string, string>) =>
-      sources((await call('GET', `/players/${carolPlayer}/activity`, headers)).json().events);
-    expect(await of(dave)).toEqual(['hub', 'sync']);
-    db.prepare('UPDATE users SET show_online = 0, share_syncs = 0 WHERE id = ?').run(carolId);
-    expect(await of(dave)).toEqual([]);
+    const events = async (headers: Record<string, string>) =>
+      (await call('GET', `/players/${carolPlayer}/activity`, headers)).json().events as any[];
+    expect(await events(dave)).toEqual([
+      { time: hour - 3600 + 1050, spread: 150, source: 'hub' },
+      { time: hour + 1650, spread: 1050, source: 'hub', weight: 1 },
+    ]);
+    // without shared syncs only the hub tab counts
+    db.prepare('UPDATE users SET share_syncs = 0 WHERE id = ?').run(carolId);
+    expect((await events(dave))[1]).toEqual({ time: hour + 2550, spread: 150, source: 'hub' });
+    db.prepare('UPDATE users SET show_online = 0 WHERE id = ?').run(carolId);
+    expect(await events(dave)).toEqual([]);
     // herself and global admins still see them
-    expect(await of(carol)).toEqual(['hub', 'sync']);
-    expect(await of(admin)).toEqual(['hub', 'sync']);
+    expect(await events(carol)).toHaveLength(2);
+    expect(await events(admin)).toHaveLength(2);
     db.prepare('UPDATE users SET show_online = 1, share_syncs = 1 WHERE id = ?').run(carolId);
   });
 
