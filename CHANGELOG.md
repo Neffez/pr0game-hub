@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Rank badge: units destroyed and lost (and the win streak, resources and ratio built on the battle reports) leave
+  out fights on expeditions (pirates, aliens: battle reports at the position behind the last planet), like the game's
+  player card; they counted as lost units before. In an ACS the whole side counts, as in the card's first block. The
+  condition "most units lost" drops "(consolation rank)" from its name.
 - Bash limit tracking: the hub counts each member's own attacks against the game's bash limit (by default 3 attacks
   on one planet or moon and 10 on one player within 24 hours of each impact) from the battle messages they synced
   themselves; other members have their own limits. Battles at the member's own planets and those where they were on

@@ -23,11 +23,11 @@ export const RANK_CONDITIONS = [
   'buildingPoints',
   /** most total points */
   'totalPoints',
-  /** most units destroyed (resource value) in the member's battle reports */
+  /** most units destroyed (resource value) in the member's battle reports: the whole side's, like the game's player card */
   'unitsDestroyed',
   /** most resources gained: loot of the member's attacks plus recycled debris */
   'resources',
-  /** most units lost (a consolation rank) */
+  /** most units lost */
   'unitsLost',
   /** longest win streak: wins where the opponent lost units, broken by a defeat against someone outside the alliance */
   'winStreak',
@@ -89,9 +89,10 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
   const battles = db
     .prepare(
       `SELECT user_id, created_at AS t, g, s, p, outcome, lost_attacker, lost_defender, loot_metal + loot_crystal + loot_deuterium AS loot, report_id
-       FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? ORDER BY COALESCE(time, created_at), id`,
+       FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? AND p <= ? ORDER BY COALESCE(time, created_at), id`,
     )
-    .all(g, last) as BattleRow[];
+    // fights on expeditions (pirates, aliens: the position behind the last planet) do not count, like in the game
+    .all(g, last, ctx.universe.settings.positions) as BattleRow[];
   const recycled = db
     .prepare('SELECT user_id, created_at AS t, metal + crystal AS n FROM recycle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ?')
     .all(g, last) as { user_id: number; t: number; n: number }[];

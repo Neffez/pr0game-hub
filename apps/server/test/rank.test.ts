@@ -75,6 +75,8 @@ beforeAll(async () => {
   fight(carolId, 1, 'win', 0, 0, 500);
   fight(carolId, 3, 'lose', 2000, 0, 0);
   fight(carolId, 2, 'win', 0, 1000, 1000);
+  // an expedition fight (position 16) counts for nothing: neither losses nor the streak
+  fight(carolId, 16, 'lose', 7777, 0, 0);
   // dave: a win, a defeat against an enemy breaks it, then two wins; loses a lot, attacks only one player
   fight(daveId, 1, 'win', 0, 100, 100);
   fight(daveId, 1, 'lose', 9000, 0, 0);
