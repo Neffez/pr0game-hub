@@ -1,4 +1,5 @@
 import { CLASS_BUILDINGS, CLASS_RESEARCH, PHALANX } from '@pr0hub/core/tech';
+import { bashLimits, bashOf } from '../repo/bash.js';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
@@ -240,6 +241,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       history, ownHistory, planets, spyReports, statusLog, aliases, ...intel,
       pointsStall: pointsStalls(db, ctx.groupId, { playerIds: [id] }).get(id) ?? null,
       inactivity: inactivities(db, ctx, [id]).get(id) ?? null,
+      bash: bashOf(bashLimits(db, ctx), { playerId: id }),
     };
   });
 

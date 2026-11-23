@@ -66,6 +66,13 @@ export interface UniverseSettings {
   /** shield domes must fall before other units can be hit */
   bigShields?: boolean;
   /**
+   * Bash limit of the game: at most `bashPlanetLimit` attacks on one planet or moon and `bashPlayerLimit` on one
+   * player within `bashHours` (counted from each impact). 0 turns a limit off.
+   */
+  bashPlanetLimit?: number;
+  bashPlayerLimit?: number;
+  bashHours?: number;
+  /**
    * Resources of a new planet (game config metal_start, crystal_start, deuterium_start): build orders planned before
    * the start or for planets without coordinates begin with them.
    */
@@ -128,6 +135,9 @@ export const OPTIONAL_DEFAULTS = {
   fleetDebrisPercent: 40,
   defenseDebrisPercent: 0,
   bigShields: false,
+  bashPlanetLimit: 3,
+  bashPlayerLimit: 10,
+  bashHours: 24,
   planetSizeFactor: 1,
   metalStart: 500,
   crystalStart: 500,
@@ -163,6 +173,21 @@ export function lastDebrisCleanup(s: Pick<UniverseSettings, 'timezone' | 'debris
     if (at <= t) return at;
   }
   return t - 7 * 86400;
+}
+
+/** Bash limit of a universe: attacks per planet (or moon) and per player within `hours`; 0 = no limit. */
+export interface BashRule {
+  planet: number;
+  player: number;
+  hours: number;
+}
+
+/** The universe's bash limit, or null when both limits are off. */
+export function bashRuleOf(s: Pick<UniverseSettings, 'bashPlanetLimit' | 'bashPlayerLimit' | 'bashHours'>): BashRule | null {
+  const planet = s.bashPlanetLimit ?? OPTIONAL_DEFAULTS.bashPlanetLimit;
+  const player = s.bashPlayerLimit ?? OPTIONAL_DEFAULTS.bashPlayerLimit;
+  const hours = Number(s.bashHours) || OPTIONAL_DEFAULTS.bashHours;
+  return planet > 0 || player > 0 ? { planet, player, hours } : null;
 }
 
 /** Resources of a new planet (901-903) by the universe's settings. */
@@ -230,7 +255,7 @@ const SETTING_KEY_SET = new Set(SETTING_KEYS);
 /** at least 1 and whole */
 const COUNTS = ['galaxies', 'systems', 'positions', 'fleetSpeed', 'storageMultiplier'];
 /** whole numbers from 0 */
-const WHOLE = ['maxInitialPlanets', 'maxAdditionalPlanets', 'metalStart', 'crystalStart', 'deuteriumStart'];
+const WHOLE = ['maxInitialPlanets', 'maxAdditionalPlanets', 'metalStart', 'crystalStart', 'deuteriumStart', 'bashPlanetLimit', 'bashPlayerLimit'];
 /** whole numbers with an upper bound */
 const BOUNDED: Record<string, number> = { debrisCleanupDay: 6, debrisCleanupHour: 23, debrisCleanupMinute: 59 };
 /** percentages */
