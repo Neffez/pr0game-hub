@@ -2480,6 +2480,71 @@ components:
       required: [enabled]
       properties:
         enabled: { type: boolean }
+    FleetSighting:
+      type: object
+      required: [source, time, units, points, body, count, reportId]
+      properties:
+        source:
+          type: string
+          enum: [spy, spySum, battle, battles, incoming]
+          description: >-
+            `spy`: newest spy report with a fleet section of one body (empty: no ships there); `spySum`: those reports
+            of several bodies at most 12 hours apart added up; `battle`: the ships brought into one battle; `battles`:
+            the most of each ship type over the battles of 14 days up to the newest; `incoming`: a fleet on its way to a
+            member now.
+        time: { type: integer, description: Time of the report, battle or sighting (Unix seconds) }
+        units: { $ref: '#/components/schemas/UnitCounts' }
+        points: { type: integer, description: Points of the ships (like the fleet statistics) }
+        body:
+          type: [object, 'null']
+          description: 'spy: the body spied on; battle: where it took place (null in the battle hall); incoming: where the fleet started'
+          required: [g, s, p, type]
+          properties:
+            g: { type: integer }
+            s: { type: integer }
+            p: { type: integer }
+            type: { type: string, enum: [planet, moon] }
+        count: { type: [integer, 'null'], description: 'spySum: bodies added up; battles: battles taken into account' }
+        reportId: { type: [string, 'null'], description: 'battle: the battle report (`/api/{uni}/combat-reports/{id}`)' }
+    PlayerFleet:
+      type: object
+      required: [fleet, sum, sightings, fleetPoints]
+      properties:
+        fleet:
+          description: >-
+            The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics):
+            what the player has at least, unless they lost ships meanwhile. Null without any sighting.
+          oneOf:
+            - { $ref: '#/components/schemas/FleetSighting' }
+            - { type: 'null' }
+        sum:
+          description: The `spySum` sighting checked against the fleet points of the statistics; null without one.
+          oneOf:
+            - allOf:
+                - { $ref: '#/components/schemas/FleetSighting' }
+                - type: object
+                  required: [stat, check]
+                  properties:
+                    stat:
+                      type: [object, 'null']
+                      description: Fleet points of the statistics update nearest to the newest report of the sum
+                      required: [points, time]
+                      properties:
+                        points: { type: integer }
+                        time: { type: integer }
+                    check:
+                      type: [string, 'null']
+                      enum: [match, over, under, null]
+                      description: '`match`: fits the statistics; `over`: more than them (ships counted twice); `under`: part of the fleet unseen; null without statistics'
+            - { type: 'null' }
+        sightings: { type: array, description: All sightings, the newest first, items: { $ref: '#/components/schemas/FleetSighting' } }
+        fleetPoints:
+          type: [object, 'null']
+          description: Newest fleet points of the statistics
+          required: [points, time]
+          properties:
+            points: { type: integer }
+            time: { type: integer }
     ActivityEvent:
       type: object
       required: [time, spread, source]
@@ -5888,6 +5953,26 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PlayerDetails' }
+  /api/{uni}/players/{id}/fleet:
+    get:
+      tags: [Universe]
+      operationId: getPlayerFleet
+      description: >-
+        The fleet the player has or last had, with all ships and no age limit: per body the newest spy report with a
+        fleet section, bodies spied on close in time added up and checked against the fleet statistics, the ships of
+        their newest battles (by the current name or an earlier one) and the most of each type over them, and fleets of
+        theirs on their way to members now.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlayerFleet' }
+        '404': { description: 'Not a player of the group (`player_not_found`)' }
   /api/{uni}/players/{id}/activity:
     get:
       tags: [Universe]

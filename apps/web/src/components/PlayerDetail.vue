@@ -5,6 +5,7 @@ import { nowSec } from '../clock';
 import Section from './Section.vue';
 import Icon from './Icon.vue';
 import ActivityPattern from './ActivityPattern.vue';
+import PlayerFleet from './PlayerFleet.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
 import BadgeIcon from './BadgeIcon.vue';
@@ -231,6 +232,8 @@ onBeforeUnmount(() => chart?.destroy());
       </div>
       <p v-else class="muted small m-0">{{ t('player.researchUnknown') }}</p>
     </Section>
+
+    <PlayerFleet :player="data.player.id" />
 
     <div class="card">
       <h3 class="mt-0">{{ t('player.note') }}</h3>
