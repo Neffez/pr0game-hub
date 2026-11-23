@@ -71,7 +71,7 @@ const levels = Array.from({ length: RANK_LEVELS }, (_, i) => i + 1);
         </thead>
         <tbody>
           <tr v-for="c in order" :key="c.key">
-            <td :title="t(`rank.how.${c.key}`)">{{ t(`rank.conditions.${c.key}`) }}<div class="muted small">{{ t(`rank.how.${c.key}`) }}</div></td>
+            <td>{{ t(`rank.conditions.${c.key}`) }} <Hint>{{ t(`rank.how.${c.key}`) }}</Hint></td>
             <td>
               <span v-if="!c.holders.length" class="muted">{{ t('rank.nobody') }}</span>
               <span v-for="(m, i) in c.holders" :key="m.userId" class="hb-holder" :class="{ me: m.userId === ctx?.me.id }"

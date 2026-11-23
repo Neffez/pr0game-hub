@@ -6,6 +6,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Rank badge: the insignia also shows before the names of the members online in the online list (it showed only for
   the offline ones) and in the "also viewing" badge of galaxy systems and player profiles.
+- Rank order: the explanation of each condition moves into an info tooltip next to its name.
 - Rank badge: units destroyed and lost now follow the "real" block of the game's player card (what the member's own
   fleets shot down and lost) instead of the whole side.
   - Player cards (optional, HTML or the selected table as text, DE/EN) now also yield the fight statistics: wins,
