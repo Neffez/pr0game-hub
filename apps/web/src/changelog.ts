@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Recap: Im Abschnitt Rangabzeichen kleben Name, Rangwechsel und Wertungen nicht mehr aneinander; jede gewonnene oder verlorene Wertung steht in einer eigenen Zeile.',
+        en: 'Recap: in the rank badge section name, rank change and rankings no longer run together; each ranking taken over or lost stands on its own line.',
+      },
+      {
+        kind: 'fix',
         de: 'Rangliste: Eine hochgeladene universe.json bringt nicht mehr pauschal 100 Punkte, sondern je nach Anteil der Systeme, die sie aufgefrischt hat: das ganze Universum frisch 100, nur ein paar Systeme entsprechend weniger (höchstens 100 pro Woche).',
         en: 'Ranking: an uploaded universe.json no longer earns a flat 100 points but according to the share of systems it refreshed: the whole universe fresh 100, only a few systems correspondingly less (at most 100 a week).',
       },
