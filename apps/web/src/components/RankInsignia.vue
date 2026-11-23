@@ -42,7 +42,7 @@ const value = (k: RankCondition, v: number) => {
 const tip = computed(() => {
   const head = `${t(`rank.names.${points.value}`)} – ${t('rank.level', { n: points.value, of: RANK_LEVELS })}`;
   const r = props.level == null ? rank.value : null;
-  const lines = r ? r.holds.map((k) => `${t(`rank.conditions.${k}`)}: ${value(k, r.values[k])}`) : [t('rank.legendLine', { n: points.value }, points.value)];
+  const lines = r ? r.holds.map((k) => `${t(`rank.conditions.${k}`)}: ${value(k, r.values[k])}${k === 'fleetPoints' && r.fleetSource ? ` (${t(`rank.source.${r.fleetSource}`)})` : ''}`) : [t('rank.legendLine', { n: points.value }, points.value)];
   return { head, lines };
 });
 const title = computed(() => [tip.value.head, ...tip.value.lines].join('\n'));

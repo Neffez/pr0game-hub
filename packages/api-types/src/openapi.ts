@@ -3879,8 +3879,13 @@ export type components = {
          * @enum {string}
          */
         RankCondition: "fleetPoints" | "researchPoints" | "buildingPoints" | "totalPoints" | "unitsDestroyed" | "resources" | "unitsLost" | "winStreak" | "profitRatio" | "playersAttacked";
-        /** @description The dynamic rank badge: each of the ten conditions is held by the member(s) with the highest value above 0 among the group's members (ties: all of them), over the whole history. `fleetPoints`, `researchPoints`, `buildingPoints`, `totalPoints` the newest synced statistics; from the member's synced battle reports (units in resource value as in the report, the member's side from the target: an own planet is a defense) `unitsDestroyed` the opponents' losses, `unitsLost` the own losses, `resources` loot of attacks plus recycled debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1), `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is one point, the points (0–10) are the rank. */
+        /** @description The dynamic rank badge: each of the ten conditions is held by the member(s) with the highest value above 0 among the group's members (ties: all of them), over the whole history. `researchPoints`, `buildingPoints`, `totalPoints` the newest synced statistics, `fleetPoints` the newer of the fleet statistics and the member's newest empire page (ships on the planets and in flight; a page without the ships in flight only without statistics), see `fleetSource`; from the member's synced battle reports (units in resource value as in the report, the member's side from the target: an own planet is a defense) `unitsDestroyed` the opponents' losses, `unitsLost` the own losses, `resources` loot of attacks plus recycled debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1), `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is one point, the points (0–10) are the rank. */
         MemberRank: {
+            /**
+             * @description Where `fleetPoints` comes from: the statistics, the empire page, null for neither
+             * @enum {string|null}
+             */
+            fleetSource: "stats" | "empire" | null;
             /** @description Held conditions, the rank: 0 none … 10 the highest */
             points: number;
             holds: components["schemas"]["RankCondition"][];

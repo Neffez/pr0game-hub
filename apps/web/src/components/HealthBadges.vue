@@ -77,7 +77,10 @@ const levels = Array.from({ length: RANK_LEVELS }, (_, i) => i + 1);
               >
               <div v-if="c.mine != null" class="muted small">{{ t('rank.you', { v: value(c.key, c.mine) }) }}</div>
             </td>
-            <td class="num">{{ c.value != null ? value(c.key, c.value) : '–' }}</td>
+            <td class="num">
+              {{ c.value != null ? value(c.key, c.value) : '–' }}
+              <div v-if="c.key === 'fleetPoints' && c.holders[0]?.rank.fleetSource" class="muted small">{{ t(`rank.source.${c.holders[0].rank.fleetSource}`) }}</div>
+            </td>
           </tr>
         </tbody>
       </table>
