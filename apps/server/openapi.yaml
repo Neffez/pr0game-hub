@@ -2673,6 +2673,9 @@ components:
         fleetDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config fleet_debris_percentage (default 40) }
         defenseDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config def_debris_percentage (default 0) }
         bigShields: { type: [boolean, 'null'], description: Shield domes must fall before other units can be hit (default false) }
+        bashPlanetLimit: { type: [integer, 'null'], minimum: 0, description: 'Bash limit: attacks on one planet or moon within `bashHours` (default 3, 0 = no limit)' }
+        bashPlayerLimit: { type: [integer, 'null'], minimum: 0, description: 'Bash limit: attacks on one player within `bashHours` (default 10, 0 = no limit)' }
+        bashHours: { type: [number, 'null'], minimum: 0, description: 'Bash limit: hours an attack counts from its impact (default 24)' }
         flightCalculatorUrl: { type: string, description: 'Legacy: flight calculator of the tools, their base is taken from it (prefer the server setting `TOOLS_URL`)' }
     Context:
       type: object
@@ -3203,8 +3206,9 @@ components:
         source: { type: string, enum: [spy, empire], description: From a spy report or the member's empire page }
     PlayerDetails:
       type: object
-      required: [player, history, ownHistory, planets, spyReports, statusLog, aliases, research, phalanx, pointsStall, inactivity]
+      required: [player, history, ownHistory, planets, spyReports, statusLog, aliases, research, phalanx, pointsStall, inactivity, bash]
       properties:
+        bash: { $ref: '#/components/schemas/BashLimits' }
         player:
           type: object
           required: [id, name, status, first_seen, last_seen]
@@ -3687,10 +3691,45 @@ components:
               points_stall: { $ref: '#/components/schemas/PointsStall' }
               members: { type: [integer, 'null'], description: Alliances only }
               tag: { type: [string, 'null'], description: Alliances only }
+    BashLimits:
+      type: [object, 'null']
+      description: >-
+        The caller's bash limit (null when the universe has none), in a player's details for that player and their
+        planets, in a solar system for its planets and their owners: their attacks whose impact lies less than `hours`
+        back, from the battle messages they synced themselves (other members have their own limits), not counting
+        battles at their own planets or where they defended. An attack stops counting at its entry in `resets`
+        (impact + `hours`); a limit is reached when as many entries as the limit are still in the future.
+      required: [hours, planetLimit, playerLimit, players, targets]
+      properties:
+        hours: { type: number, description: Hours an attack counts from its impact }
+        planetLimit: { type: integer, description: Attacks per planet or moon (0 = no limit) }
+        playerLimit: { type: integer, description: Attacks per player (0 = no limit) }
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, resets]
+            properties:
+              playerId: { type: integer }
+              resets: { type: array, items: { type: integer }, description: When each attack stops counting (Unix seconds), oldest first }
+        targets:
+          type: array
+          description: Planets and moons with counted attacks
+          items:
+            type: object
+            required: [g, s, p, planet_type, playerId, resets]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              planet_type: { type: string, enum: [planet, moon] }
+              playerId: { type: [integer, 'null'], description: Owner by the galaxy data }
+              resets: { type: array, items: { type: integer }, description: When each attack stops counting (Unix seconds), oldest first }
     GalaxySystem:
       type: object
-      required: [view, phalanx, rows]
+      required: [view, phalanx, bash, rows]
       properties:
+        bash: { $ref: '#/components/schemas/BashLimits' }
         view:
           type: [object, 'null']
           description: The newest galaxy view of the system
@@ -5813,7 +5852,8 @@ paths:
       description: >-
         One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy
         report times), recent spy reports and further intelligence of the group; `pointsStall` (see `PointsStall`) from
-        the whole score history; `inactivity` (see `Inactivity`).
+        the whole score history; `inactivity` (see `Inactivity`); `bash`: the caller's own attacks on the player that
+        count for the bash limit (see `BashLimits`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -7182,7 +7222,8 @@ paths:
       description: >-
         One system of the group's galaxy data: `rows` per position with planet, moon (`has_moon`, `moon_name`,
         `moon_diameter` in km from the moon tooltip of a synced galaxy view, null when unknown), owner, debris and the
-        newest battle; plus who synced the system when.
+        newest battle; plus who synced the system when and `bash`: the caller's own attacks on planets of the system
+        (and on their owners) that count for the bash limit (see `BashLimits`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

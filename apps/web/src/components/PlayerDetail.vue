@@ -21,6 +21,7 @@ import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange, STATS_TYPES } from '../format';
 import PointsStall from './PointsStall.vue';
 import InactivityBadge from './InactivityBadge.vue';
+import BashBadge from './BashBadge.vue';
 
 
 const { t, locale } = useI18n();
@@ -54,6 +55,11 @@ const planetRows = computed(() =>
     ...(p.has_moon ? [{ ...p, type: 'moon' as const, name: p.moon_name, spy: p.last_spy_moon }] : []),
   ]),
 );
+
+/** Own attacks on the player and on one of their planets or moons that count for the bash limit. */
+const bashPlayer = computed(() => data.value?.bash?.players[0]?.resets ?? []);
+const bashTarget = (p: { g: number; s: number; p: number; type: string }) =>
+  data.value?.bash?.targets.find((x) => x.g === p.g && x.s === p.s && x.p === p.p && x.planet_type === p.type)?.resets ?? [];
 
 const COLORS: Record<number, string> = { 1: '#f2683c', 2: '#58a6ff', 3: '#a371f7', 4: '#3fb950', 5: '#d29922' };
 
@@ -192,6 +198,11 @@ onBeforeUnmount(() => chart?.destroy());
     </p>
     <PointsStall :stall="data.pointsStall" />
     <InactivityBadge :value="data.inactivity" />
+    <p v-if="data.bash && (data.bash.playerLimit > 0 || data.bash.planetLimit > 0)" class="small m-0" data-tour="player-bash">
+      <span class="muted">{{ t('bash.label') }}:</span>
+      <BashBadge v-if="data.bash.playerLimit > 0" kind="player" :resets="bashPlayer" :limit="data.bash.playerLimit" />
+      <span class="faint"> · {{ t('bash.rule', { planet: data.bash.planetLimit || '∞', player: data.bash.playerLimit || '∞', hours: data.bash.hours }) }}</span>
+    </p>
 
     <div class="card">
       <div class="row">
@@ -237,7 +248,7 @@ onBeforeUnmount(() => chart?.destroy());
     <h2>{{ t('player.planets') }}</h2>
     <div class="table-wrap flat">
       <table v-stack="3" class="data">
-        <thead><tr><th>{{ t('common.coords') }}</th><th>{{ t('common.name') }}</th><th /><th>{{ t('player.phalanx') }}</th><th>{{ t('player.lastSpy') }}</th><th>{{ t('player.galaxySeen') }}</th></tr></thead>
+        <thead><tr><th>{{ t('common.coords') }}</th><th>{{ t('common.name') }}</th><th /><th>{{ t('player.phalanx') }}</th><th v-if="data.bash?.planetLimit" data-tour="player-bash-planets">{{ t('bash.label') }}</th><th>{{ t('player.lastSpy') }}</th><th>{{ t('player.galaxySeen') }}</th></tr></thead>
         <tbody>
           <tr v-for="p in planetRows" :key="`${p.g}:${p.s}:${p.p}:${p.type}`" :class="{ moon: p.type === 'moon' }">
             <td class="mono">{{ coords(p.g, p.s, p.p) }}</td>
@@ -256,6 +267,7 @@ onBeforeUnmount(() => chart?.destroy());
               </template>
               <span v-else-if="p.type === 'moon'" class="faint" :title="t('player.noMoonReport')">{{ t('common.unknown') }}</span>
             </td>
+            <td v-if="data.bash?.planetLimit"><BashBadge kind="planet" :resets="bashTarget(p)" :limit="data.bash.planetLimit" hide-zero /></td>
             <td class="small">
               <RouterLink v-if="p.spy" :to="{ path: `/${uni}/spy`, query: { c: `${p.g}:${p.s}:${p.p}`, type: p.type } }" :title="dateTime(p.spy)">
                 {{ ago(p.spy) }}

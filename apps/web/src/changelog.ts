@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bash-Limit: Der Hub zählt deine Angriffe aus deinen synchronisierten Kampfberichten. Im Spielerprofil siehst du z. B. „Bash 3/10“ für den Spieler und „1/3“ je Planet und Mond, dazu wann der nächste Angriff wegfällt bzw. wann du wieder angreifen darfst. In der Galaxieansicht steht es neben Planet, Mond und Spieler. Jedes Mitglied hat sein eigenes Limit; ein Angriff zählt 24 Stunden ab dem Einschlag.',
+        en: 'Bash limit: the hub counts your attacks from the battle reports you synced. The player profile shows e.g. "Bash 3/10" for the player and "1/3" per planet and moon, plus when the next attack drops out or when you may attack again. The galaxy view shows it next to planet, moon and player. Every member has their own limit; an attack counts for 24 hours from its impact.',
+      },
+      {
+        kind: 'new',
         de: 'Neues Rangabzeichen: Wer unter den Mitgliedern bei Flotten-, Forschungs-, Gebäude- oder Gesamtpunkten, zerstörten oder verlorenen Units, erbeuteten Rohstoffen, Siegesserie, Verhältnis Beute zu Verlust oder angegriffenen Spielern vorne liegt, bekommt je einen Punkt. Daraus wird ein Rang vom Gefreiten bis zum Marschall, der vor deinem Namen steht, überall im Hub. Wer welche Wertung hält, steht im Allianz-Fortschritt unter „Streaks & Abzeichen“; Beförderungen erscheinen im Recap.',
         en: 'New rank badge: whoever leads the members in fleet, research, building or total points, units destroyed or lost, resources captured, win streak, ratio of loot to losses or players attacked gets one point each. That makes a rank from private to marshal shown before your name everywhere in the hub. Who holds which ranking is listed in the alliance progress under "Streaks & badges"; promotions show in the recap.',
       },

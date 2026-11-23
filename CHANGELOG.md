@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Bash limit tracking: the hub counts each member's own attacks against the game's bash limit (by default 3 attacks
+  on one planet or moon and 10 on one player within 24 hours of each impact) from the battle messages they synced
+  themselves; other members have their own limits. Battles at the member's own planets and those where they were on
+  the defending side of the archived report (holding an ally's planet) do not count.
+  - Shown in the player profile (`Bash 3/10` with a countdown to the next attack dropping out, or to the next
+    allowed attack at the limit, and a column with `1/3` per planet and moon) and in the galaxy view (next to
+    planet, moon and player, only with counted attacks).
+  - New universe settings `bashPlanetLimit` (default 3), `bashPlayerLimit` (default 10, 0 turns a limit off) and
+    `bashHours` (default 24) in the admin form's combat group.
+  - `getPlayer` and `browseSystem` answer with `bash` (`BashLimits`: the rule and, per target and player, when
+    each counted attack stops counting); computed in `repo/bash.ts`.
+
 - New dynamic rank badge: ten conditions, each held by the member(s) leading it among the group's members (ties: all
   of them) over the whole history; every held condition is a point, the points (0–10) are a rank from private to
   marshal, drawn as a military insignia in a space style (delta-wing chevrons, hull bars, ringed planet, stars in

@@ -1,4 +1,5 @@
 import { CLASS_RESOURCES } from '@pr0hub/core/tech';
+import { bashLimits, bashOf } from '../repo/bash.js';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
@@ -164,6 +165,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     return {
       view: view ?? null,
       phalanx: phalanxCoverage(db, ctx, g, s),
+      bash: bashOf(bashLimits(db, ctx), { g, s }),
       rows: system.map((r) => ({
         ...r,
         own: own.has(`${g}:${s}:${r.p}`),

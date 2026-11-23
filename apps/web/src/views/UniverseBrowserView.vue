@@ -15,6 +15,7 @@ import type { ApiResponse, Schema } from '../apiTypes';
 import ActionMenu from '../components/ActionMenu.vue';
 import Hint from '../components/Hint.vue';
 import Section from '../components/Section.vue';
+import BashBadge from '../components/BashBadge.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
@@ -42,6 +43,10 @@ const jump = ref('');
 
 /** Moon with a sensor phalanx that reaches the shown system. */
 type Phalanx = Schema<'GalaxySystem'>['phalanx'][number];
+
+/** Own attacks that count for the bash limit on a planet or moon of the system and on a player. */
+const bashTarget = (p: number, type: 'planet' | 'moon') => system.value?.bash?.targets.find((x) => x.p === p && x.planet_type === type)?.resets ?? [];
+const bashPlayer = (id: number) => system.value?.bash?.players.find((x) => x.playerId === id)?.resets ?? [];
 
 /** reference time of the ages shown (the data's load time) */
 const now = ref(nowSec());
@@ -72,7 +77,7 @@ function syncedIn(e: DataEvent, gal: number, sys?: number) {
     return eg === gal && (sys == null || es === sys);
   });
 }
-useLiveReload(fetchSystem, (e) => syncedIn(e, g.value, s.value) || tables('spy_reports', 'players', 'empire')(e));
+useLiveReload(fetchSystem, (e) => syncedIn(e, g.value, s.value) || tables('spy_reports', 'players', 'empire', 'battle_reports')(e));
 useLiveReload(loadStrip, (e) => syncedIn(e, g.value));
 
 /** Step through systems/galaxies, wrapping around like circular universes do. */
@@ -328,6 +333,7 @@ useAutoTour('browse', () => !!system.value);
             <div v-if="it.row.player_id" class="pos-line">
               <PlayerLink :id="it.row.player_id" :name="it.row.player_name ?? ''" />
               <StatusBadges :status="it.row.status" :points="it.row.points" />
+              <BashBadge v-if="system.bash" kind="player" :resets="bashPlayer(it.row.player_id)" :limit="system.bash.playerLimit" compact hide-zero />
               <Icon v-if="it.row.note" name="edit" :size="12" class="faint" :label="it.row.note" />
               <span v-if="it.row.ally_tag ?? it.row.ally_name" class="muted small">[{{ it.row.ally_tag ?? it.row.ally_name }}]</span>
               <span class="grow" />
@@ -336,7 +342,9 @@ useAutoTour('browse', () => !!system.value);
             <div class="pos-line">
               <PlanetActions v-if="it.row.player_id" :g="g" :s="s" :p="it.p" type="planet" :label="it.row.name || t('common.planet')" />
               <span v-else-if="it.row.destroyed" class="faint small">{{ t('browse.destroyed') }}</span>
+              <BashBadge v-if="system.bash" kind="planet" :resets="bashTarget(it.p, 'planet')" :limit="system.bash.planetLimit" compact hide-zero />
               <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="it.row.moon_name || t('common.moon')" :diameter="it.row.moon_diameter" />
+              <BashBadge v-if="system.bash" kind="planet" :resets="bashTarget(it.p, 'moon')" :limit="system.bash.planetLimit" compact hide-zero />
               <span v-if="it.row.debris" class="small warn">{{ t('combat.debris') }} {{ debrisText(it.row.debris) }}</span>
               <span class="grow" />
               <span v-if="it.row.last_battle" class="small muted" :title="dateTime(it.row.last_battle)"><Icon name="attack" :size="12" /> {{ ago(it.row.last_battle) }}</span>
@@ -378,6 +386,7 @@ useAutoTour('browse', () => !!system.value);
             <td>
               <template v-if="row?.player_id">
                 <PlanetActions :g="g" :s="s" :p="p" type="planet" :label="row.name || t('common.planet')" />
+                <BashBadge v-if="system.bash" kind="planet" :resets="bashTarget(p, 'planet')" :limit="system.bash.planetLimit" compact hide-zero />
               </template>
               <span v-else-if="row?.destroyed" class="faint">{{ t('browse.destroyed') }}</span>
               <span v-else class="faint">–</span>
@@ -385,6 +394,7 @@ useAutoTour('browse', () => !!system.value);
             <td>
               <template v-if="row?.has_moon">
                 <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="row.moon_name || t('common.moon')" :diameter="row.moon_diameter" />
+                <BashBadge v-if="system.bash" kind="planet" :resets="bashTarget(p, 'moon')" :limit="system.bash.planetLimit" compact hide-zero />
               </template>
             </td>
             <td class="small" :class="{ warn: row?.debris }">{{ debrisText(row?.debris ?? null) }}</td>
@@ -392,6 +402,7 @@ useAutoTour('browse', () => !!system.value);
               <template v-if="row?.player_id">
                 <PlayerLink :id="row.player_id" :name="row.player_name ?? ''" />
                 <StatusBadges :status="row.status" :points="row.points" />
+                <BashBadge v-if="system.bash" kind="player" :resets="bashPlayer(row.player_id)" :limit="system.bash.playerLimit" compact hide-zero />
                  <Icon v-if="row.note" name="edit" :size="12" class="faint" :label="row.note" />
               </template>
             </td>

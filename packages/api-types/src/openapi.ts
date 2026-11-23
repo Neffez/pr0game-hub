@@ -944,7 +944,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy report times), recent spy reports and further intelligence of the group; `pointsStall` (see `PointsStall`) from the whole score history; `inactivity` (see `Inactivity`). */
+        /** @description One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy report times), recent spy reports and further intelligence of the group; `pointsStall` (see `PointsStall`) from the whole score history; `inactivity` (see `Inactivity`); `bash`: the caller's own attacks on the player that count for the bash limit (see `BashLimits`). */
         get: operations["getPlayer"];
         put?: never;
         post?: never;
@@ -1531,7 +1531,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description One system of the group's galaxy data: `rows` per position with planet, moon (`has_moon`, `moon_name`, `moon_diameter` in km from the moon tooltip of a synced galaxy view, null when unknown), owner, debris and the newest battle; plus who synced the system when. */
+        /** @description One system of the group's galaxy data: `rows` per position with planet, moon (`has_moon`, `moon_name`, `moon_diameter` in km from the moon tooltip of a synced galaxy view, null when unknown), owner, debris and the newest battle; plus who synced the system when and `bash`: the caller's own attacks on planets of the system (and on their owners) that count for the bash limit (see `BashLimits`). */
         get: operations["browseSystem"];
         put?: never;
         post?: never;
@@ -5639,6 +5639,12 @@ export type components = {
             defenseDebrisPercent?: number | null;
             /** @description Shield domes must fall before other units can be hit (default false) */
             bigShields?: boolean | null;
+            /** @description Bash limit: attacks on one planet or moon within `bashHours` (default 3, 0 = no limit) */
+            bashPlanetLimit?: number | null;
+            /** @description Bash limit: attacks on one player within `bashHours` (default 10, 0 = no limit) */
+            bashPlayerLimit?: number | null;
+            /** @description Bash limit: hours an attack counts from its impact (default 24) */
+            bashHours?: number | null;
             /** @description Legacy: flight calculator of the tools, their base is taken from it (prefer the server setting `TOOLS_URL`) */
             flightCalculatorUrl?: string;
         } & {
@@ -6068,6 +6074,7 @@ export type components = {
             source: "spy" | "empire";
         };
         PlayerDetails: {
+            bash: components["schemas"]["BashLimits"];
             player: {
                 id: number;
                 ingame_id?: number | null;
@@ -6548,7 +6555,34 @@ export type components = {
                 tag?: string | null;
             }[];
         };
+        /** @description The caller's bash limit (null when the universe has none), in a player's details for that player and their planets, in a solar system for its planets and their owners: their attacks whose impact lies less than `hours` back, from the battle messages they synced themselves (other members have their own limits), not counting battles at their own planets or where they defended. An attack stops counting at its entry in `resets` (impact + `hours`); a limit is reached when as many entries as the limit are still in the future. */
+        BashLimits: {
+            /** @description Hours an attack counts from its impact */
+            hours: number;
+            /** @description Attacks per planet or moon (0 = no limit) */
+            planetLimit: number;
+            /** @description Attacks per player (0 = no limit) */
+            playerLimit: number;
+            players: {
+                playerId: number;
+                /** @description When each attack stops counting (Unix seconds) */
+                resets: number[];
+            }[];
+            /** @description Planets and moons with counted attacks */
+            targets: {
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                planet_type: "planet" | "moon";
+                /** @description Owner by the galaxy data */
+                playerId: number | null;
+                /** @description When each attack stops counting (Unix seconds) */
+                resets: number[];
+            }[];
+        } | null;
         GalaxySystem: {
+            bash: components["schemas"]["BashLimits"];
             /** @description The newest galaxy view of the system */
             view: {
                 seen_at: number;

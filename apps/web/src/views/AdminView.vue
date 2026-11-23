@@ -97,6 +97,9 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'debrisCleanupDay', label: 'debrisCleanupDay', hint: true, min: 0, max: 6, placeholder: '6' },
     { key: 'debrisCleanupHour', label: 'debrisCleanupHour', hint: true, min: 0, max: 23, placeholder: '2' },
     { key: 'debrisCleanupMinute', label: 'debrisCleanupMinute', hint: true, min: 0, max: 59, placeholder: '45' },
+    { key: 'bashPlanetLimit', label: 'bashPlanetLimit', hint: true, min: 0, placeholder: '3' },
+    { key: 'bashPlayerLimit', label: 'bashPlayerLimit', hint: true, min: 0, placeholder: '10' },
+    { key: 'bashHours', label: 'bashHours', hint: true, min: 0, step: 'any', placeholder: '24' },
   ] },
   { id: 'noob', fields: [
     { key: 'noobLimit', label: 'noobLimit', hint: true, min: 0, placeholder: '0' },
