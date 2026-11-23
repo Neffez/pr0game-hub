@@ -2486,12 +2486,14 @@ components:
       properties:
         source:
           type: string
-          enum: [spy, spySum, battle, battles, incoming]
+          enum: [spy, spySum, battle, battles, incoming, empire]
           description: >-
             `spy`: newest spy report with a fleet section of one body (empty: no ships there); `spySum`: those reports
             of several bodies at most 12 hours apart added up; `battle`: the ships brought into one battle; `battles`:
             the most of each ship type over the battles of 14 days up to the newest; `incoming`: a fleet on its way to a
-            member now.
+            member now; `empire` (a member's player): the ships on their planets and moons from their newest empire page,
+            plus their fleets in flight then (as they share them) from a fleet list synced at most 1 hour before or 15
+            minutes after it.
         time: { type: integer, description: Time of the report, battle or sighting (Unix seconds) }
         units: { $ref: '#/components/schemas/UnitCounts' }
         points: { type: integer, description: Points of the ships (like the fleet statistics) }
@@ -2504,7 +2506,7 @@ components:
             s: { type: integer }
             p: { type: integer }
             type: { type: string, enum: [planet, moon] }
-        count: { type: [integer, 'null'], description: 'spySum: bodies added up; battles: battles taken into account' }
+        count: { type: [integer, 'null'], description: 'spySum: bodies added up; battles: battles taken into account; empire: fleets in flight added (null: no fleet list close enough to tell)' }
         reportId: { type: [string, 'null'], description: 'battle: the battle report (`/api/{uni}/combat-reports/{id}`)' }
     PlayerFleet:
       type: object
@@ -2513,7 +2515,8 @@ components:
         fleet:
           description: >-
             The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics):
-            what the player has at least, unless they lost ships meanwhile. Null without any sighting.
+            what the player has at least, unless they lost ships meanwhile. With an empire page (exact) only it and
+            newer sightings count. Null without any sighting.
           oneOf:
             - { $ref: '#/components/schemas/FleetSighting' }
             - { type: 'null' }
@@ -5960,8 +5963,9 @@ paths:
       description: >-
         The fleet the player has or last had, with all ships and no age limit: per body the newest spy report with a
         fleet section, bodies spied on close in time added up and checked against the fleet statistics, the ships of
-        their newest battles (by the current name or an earlier one) and the most of each type over them, and fleets of
-        theirs on their way to members now.
+        their newest battles (by the current name or an earlier one) and the most of each type over them, fleets of
+        theirs on their way to members now, and for a member's player their newest empire page with the fleets in flight
+        they share.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
