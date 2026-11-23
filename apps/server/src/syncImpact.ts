@@ -1,4 +1,5 @@
 import { localToEpoch, type HubRecord, type ParseResult } from '@pr0hub/core';
+import { UNIVERSE_DEFAULTS } from './config.js';
 import type { GroupContext } from './context.js';
 import { now, type DB } from './db.js';
 import type { IngestTarget } from './ingest.js';
@@ -34,6 +35,14 @@ const OWN_FRESH = 3600;
  */
 export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, store: Store, ctx?: GroupContext): () => { impact: SyncImpact; credits: Credit[] } {
   const g = target.groupId;
+  /** systems of the group's universe */
+  const universeSystems = () => {
+    const s = ctx?.universe.settings ?? {
+      ...UNIVERSE_DEFAULTS,
+      ...JSON.parse((db.prepare('SELECT u.settings FROM groups gr JOIN universes u ON u.id = gr.universe_id WHERE gr.id = ?').pluck().get(g) as string | undefined) || '{}'),
+    };
+    return Math.max(1, s.galaxies * s.systems);
+  };
   const epoch = (local: string | null) => (local ? localToEpoch(local, target.timezone, now()) : null);
   const records = parsed.records;
   const of = <K extends HubRecord['kind']>(kind: K) => records.filter((r): r is Extract<HubRecord, { kind: K }> => r.kind === kind);
@@ -133,8 +142,8 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
     const credits: Credit[] = [];
 
     // a universe.json brings the whole universe at once: news for the group, but no galaxy credits (one upload
-    // would outweigh weeks of pasted systems in the ranking and the cartographer badge); one that refreshed systems
-    // earns the weekly universe credit instead
+    // would outweigh weeks of pasted systems in the ranking and the cartographer badge); it earns universe credits
+    // instead: one per percent of the universe's systems it refreshed (at least 1), up to 100 a week
     const creditGalaxy = parsed.source !== 'json';
     const ages: number[] = [];
     let systems = 0;
@@ -148,7 +157,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       else ages.push(seenAt - before);
     }
     if (systems) impact.galaxy = { systems, first, age: average(ages) };
-    if (systems && !creditGalaxy) credits.push({ kind: 'universe' });
+    if (systems && !creditGalaxy) credits.push({ kind: 'universe', count: Math.max(1, Math.round((100 * systems) / universeSystems())) });
 
     const replacedAges: number[] = [];
     let spiedFirst = 0;

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Rangliste: Eine hochgeladene universe.json bringt nicht mehr pauschal 100 Punkte, sondern je nach Anteil der Systeme, die sie aufgefrischt hat: das ganze Universum frisch 100, nur ein paar Systeme entsprechend weniger (höchstens 100 pro Woche).',
+        en: 'Ranking: an uploaded universe.json no longer earns a flat 100 points but according to the share of systems it refreshed: the whole universe fresh 100, only a few systems correspondingly less (at most 100 a week).',
+      },
+      {
+        kind: 'fix',
         de: 'Rangabzeichen: Es steht jetzt auch bei den Mitgliedern, die gerade online sind, und in der Anzeige, wer dasselbe System oder Spielerprofil gerade ansieht.',
         en: 'Rank badge: it now also shows for the members currently online and in the note on who else is viewing the same system or player profile.',
       },

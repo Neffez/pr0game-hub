@@ -1840,7 +1840,7 @@ const de = {
       galaxy: 'Galaxie-System 3 (je System einmal am Tag)', spy: 'Spionagebericht 3', empire: 'Imperium 10 (einmal am Tag)', overview: 'Übersicht 5 (einmal am Tag)',
       hostile: 'Fremdspionage 3', battle: 'Kampfbericht 3', buildings: 'Gebäudeseite 2 (je Planet am Tag)', research: 'Forschung 2', market: 'Marktplatz 2 (einmal am Tag)',
       expedition: 'Expedition 1', messages: 'Ingame-Nachricht 1', stats: 'Statistik-Kategorie 1', statsFirst: 'als Erstes +2',
-      universe: 'aktuelle universe.json 100 (einmal die Woche)',
+      universe: 'universe.json 1 je Prozent der aufgefrischten Systeme (alle frisch: 100, höchstens 100 pro Woche)',
     },
   },
   contributors: {

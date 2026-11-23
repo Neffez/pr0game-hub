@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-23
 
+- Ranking: a universe.json earns one point per percent of the universe's systems it refreshed (a whole fresh
+  universe 100, a few systems at least 1) instead of a flat 100; still at most 100 a week, now summed over the uploads
+  of the week. The weekly universe credits stored before keep their 100 points (migration 101).
 - Rank badge: the insignia also shows before the names of the members online in the online list (it showed only for
   the offline ones) and in the "also viewing" badge of galaxy systems and player profiles.
 - Rank order: the explanation of each condition moves into an info tooltip next to its name.
