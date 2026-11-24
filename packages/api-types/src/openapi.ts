@@ -1627,6 +1627,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/hub-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What members did in the hub, newest first (up to 500 entries): syncs that brought the group something new (galaxy systems that were new or changed, new espionage and battle reports, statistics, player cards, hostile espionage, battle hall entries, market offers, universe.json imports), bundled per member and kind while they follow each other within 30 minutes; comments; new raid plans; target claims (those a raid plan made left out), bundled like syncs. A member's own pages, expeditions and in-game messages are not part of it. Syncs are known for the raw sync retention (`RAW_RETENTION_DAYS`, 14 days by default). A member who does not share their syncs appears without name in their syncs (`hidden`), except to themselves and global admins. */
+        get: operations["getHubActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/hostile": {
         parameters: {
             query?: never;
@@ -5443,6 +5460,41 @@ export type components = {
                 points: number;
                 time: number;
             } | null;
+        };
+        /** @description One thing members did in the hub (`GET /api/{uni}/hub-activity`) */
+        HubActivityEntry: {
+            /** @description Stable key of the entry */
+            id: string;
+            /** @enum {string} */
+            kind: "sync" | "comment" | "plan" | "claim";
+            /** @description sync: `galaxy`, `spy`, `stats`, `battle`, `combat`, `hostile`, `playerCard`, `battleHall`, `market`, `universe`; comment: `player`, `planet`, `plan`; plan: `attack`, `hold`; claim: `farm`, `attack`, `spy`, `recycle` */
+            what: string | null;
+            /** @description First sync/claim of the bundle or when it was made (Unix seconds) */
+            time: number;
+            /** @description Last sync/claim of the bundle (Unix seconds) */
+            end: number;
+            /** @description The member (null when hidden or deleted) */
+            user_id: number | null;
+            /** @description Display name of the member */
+            member: string | null;
+            /** @description The member does not share their syncs */
+            hidden: boolean;
+            /** @description How many new things (galaxy systems, reports, statistics rows, player cards, offers, claimed targets); 1 for comments and plans */
+            count: number;
+            /** @description Labels of the first new things (up to 100): systems `g:s`, spied planets `name g:s:p`, battle and claim coordinates, player names, statistics `who:type` */
+            items: string[];
+            /** @description Comment excerpt */
+            text: string | null;
+            player_id: number | null;
+            player_name: string | null;
+            g: number | null;
+            s: number | null;
+            p: number | null;
+            planet_type: string | null;
+            /** @description Raid plan (plans */
+            plan_id: number | null;
+            /** @description Arrival of a raid plan */
+            target_time: number | null;
         };
         ActivityEvent: {
             /** @description Best estimate (Unix seconds) */
@@ -11760,6 +11812,40 @@ export interface operations {
                             ally_tag: string | null;
                             ally_name: string | null;
                         }[];
+                    };
+                };
+            };
+        };
+    };
+    getHubActivity: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+                /** @description Start (Unix seconds */
+                from?: number;
+                /** @description End (Unix seconds */
+                to?: number;
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        entries: components["schemas"]["HubActivityEntry"][];
                     };
                 };
             };

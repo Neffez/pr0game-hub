@@ -4,7 +4,9 @@ import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import HubActivityList from '../components/HubActivityList.vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -43,14 +45,29 @@ const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
 const { t } = useI18n();
 const { uni } = useUni();
+
+/** Two tabs: the activity log (default) and what members did in the hub. The tab from the link (`?tab=`), else log. */
+const TABS = ['log', 'hub'] as const;
+type Tab = (typeof TABS)[number];
+const route = useRoute();
+const router = useRouter();
+const tab = computed<Tab>({
+  get: () => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'log'),
+  set: (v) => router.replace({ query: { ...route.query, tab: v === 'log' ? undefined : v } }),
+});
+const hub = ref<{ ready: boolean }>();
+
 const kindLabel = (kind: string) => t(`activity.kinds.${kind}`);
 const days = useStored('activity.days', 3);
 /** hidden kinds (per viewer) */
 const hidden = useStored<string[]>('activity.hidden', []);
 const minHours = useStored('activity.minHours', 6);
-const { data, error, load } = useLoader(() =>
+const { data, error, load: loadLog } = useLoader(() =>
   uniApi<Activity>(uni.value, `/activity?from=${nowSec() - days.value * 86400}`),
 );
+/** The log loads while its tab is shown (the hub tab loads its own data). */
+const load = () => (tab.value === 'log' ? loadLog() : Promise.resolve());
+watch(tab, (v) => v === 'log' && !data.value && loadLog());
 onMounted(load);
 useLiveReload(load, tables('activity_log', 'players', 'player_scores', 'spy_reports', 'galaxy_systems', 'market_offers'));
 watch(days, load);
@@ -132,13 +149,17 @@ function text(e: Entry) {
   }
   return e.kind;
 }
-useAutoTour('activity', () => !!data.value);
+useAutoTour('activity', () => (tab.value === 'log' ? !!data.value : !!hub.value?.ready), tab);
 </script>
 
 <template>
-  <PageHeader :title="t('activity.title')" tour="activity" sync>
+  <PageHeader :title="t('nav.activity')" tour="activity" sync>
     <template #hint>
-      <Hint>
+      <Hint v-if="tab === 'hub'">
+        <p>{{ t('hubActivity.hint1') }}</p>
+        <p>{{ t('hubActivity.hint2') }}</p>
+      </Hint>
+      <Hint v-else>
         <p>{{ t('activity.hint1') }}</p>
         <p>
           <b>{{ t('activity.hintPhalanx') }}</b> {{ t('activity.hintPhalanxText') }}
@@ -152,60 +173,67 @@ useAutoTour('activity', () => !!data.value);
         <p>{{ t('activity.hintFilter') }}</p>
       </Hint>
     </template>
+    <div class="seg">
+      <button data-tour="activity-tab-log" :class="{ active: tab === 'log' }" @click="tab = 'log'">{{ t('activity.tabLog') }}</button>
+      <button data-tour="activity-tab-hub" :class="{ active: tab === 'hub' }" @click="tab = 'hub'">{{ t('activity.tabHub') }}</button>
+    </div>
   </PageHeader>
 
-  <div class="card">
-    <div class="row" data-tour="activity-range">
-      <RangePicker v-model="days" />
-      <label v-if="!hidden.includes('no_growth')">
-        {{ t('activity.noGrowthFrom') }}
-        <select v-model.number="minHours">
-          <option v-for="h in [6, 12, 18, 24]" :key="h" :value="h">{{ h }} h</option>
-        </select>
-      </label>
-    </div>
-    <div class="row chips" data-tour="activity-kinds">
-      <button
-        v-for="k in KINDS"
-        :key="k.kind"
-        class="chip"
-        :class="{ off: hidden.includes(k.kind) }"
-        :aria-pressed="!hidden.includes(k.kind)"
-        :title="hidden.includes(k.kind) ? t('activity.show') : t('activity.hide')"
-        @click="toggle(k.kind)"
-      >
-        <Icon :name="k.icon" :size="13" :style="{ color: k.color }" /> {{ kindLabel(k.kind) }}
-        <span class="faint">{{ data?.counts[k.kind] ?? 0 }}</span>
-      </button>
-    </div>
-  </div>
-
-  <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="data && !entries.length" class="card muted">{{ t('activity.empty') }}</div>
-
-  <!-- one section per day, the newest open -->
-  <Section v-for="(d, i) in days_" :key="d.day" data-tour="activity-days" :title="d.day" :count="d.entries.length" :card="false" :default-open="i === 0" class="day">
-    <div class="card" style="padding: 4px 0">
-      <div v-for="e in d.entries" :key="e.id" class="entry">
-        <span class="mono small faint">{{ time(e.time) }}</span>
-        <span class="kind-icon" :style="{ color: META[e.kind]?.color }"><Icon :name="META[e.kind]?.icon ?? 'activity'" :size="15" :label="kindLabel(e.kind)" /></span>
-        <span class="who">
-          <template v-if="e.player_id">
-            <PlayerLink :id="e.player_id" :name="e.player_name ?? '?'" />
-            <StatusBadges :status="e.status" :points="e.points" />
-            <span v-if="e.ally_tag || e.ally_name" class="muted small"> [{{ e.ally_tag ?? e.ally_name }}]</span>
-          </template>
-          <span v-else class="faint">–</span>
-        </span>
-        <span class="what">{{ text(e) }}</span>
-        <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="t('activity.showInBrowser')">
-          <Icon v-if="e.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(e.g, e.s!, e.p!) }}
-        </RouterLink>
-        <RouterLink v-else-if="e.kind === 'market_offer'" class="small" :to="`/${uni}/market`">{{ t('nav.market') }}</RouterLink>
-        <span v-else />
+  <HubActivityList v-if="tab === 'hub'" ref="hub" />
+  <template v-else>
+    <div class="card">
+      <div class="row" data-tour="activity-range">
+        <RangePicker v-model="days" />
+        <label v-if="!hidden.includes('no_growth')">
+          {{ t('activity.noGrowthFrom') }}
+          <select v-model.number="minHours">
+            <option v-for="h in [6, 12, 18, 24]" :key="h" :value="h">{{ h }} h</option>
+          </select>
+        </label>
+      </div>
+      <div class="row chips" data-tour="activity-kinds">
+        <button
+          v-for="k in KINDS"
+          :key="k.kind"
+          class="chip"
+          :class="{ off: hidden.includes(k.kind) }"
+          :aria-pressed="!hidden.includes(k.kind)"
+          :title="hidden.includes(k.kind) ? t('activity.show') : t('activity.hide')"
+          @click="toggle(k.kind)"
+        >
+          <Icon :name="k.icon" :size="13" :style="{ color: k.color }" /> {{ kindLabel(k.kind) }}
+          <span class="faint">{{ data?.counts[k.kind] ?? 0 }}</span>
+        </button>
       </div>
     </div>
-  </Section>
+
+    <div v-if="error" class="error">{{ error }}</div>
+    <div v-else-if="data && !entries.length" class="card muted">{{ t('activity.empty') }}</div>
+
+    <!-- one section per day, the newest open -->
+    <Section v-for="(d, i) in days_" :key="d.day" data-tour="activity-days" :title="d.day" :count="d.entries.length" :card="false" :default-open="i === 0" class="day">
+      <div class="card" style="padding: 4px 0">
+        <div v-for="e in d.entries" :key="e.id" class="entry">
+          <span class="mono small faint">{{ time(e.time) }}</span>
+          <span class="kind-icon" :style="{ color: META[e.kind]?.color }"><Icon :name="META[e.kind]?.icon ?? 'activity'" :size="15" :label="kindLabel(e.kind)" /></span>
+          <span class="who">
+            <template v-if="e.player_id">
+              <PlayerLink :id="e.player_id" :name="e.player_name ?? '?'" />
+              <StatusBadges :status="e.status" :points="e.points" />
+              <span v-if="e.ally_tag || e.ally_name" class="muted small"> [{{ e.ally_tag ?? e.ally_name }}]</span>
+            </template>
+            <span v-else class="faint">–</span>
+          </span>
+          <span class="what">{{ text(e) }}</span>
+          <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="t('activity.showInBrowser')">
+            <Icon v-if="e.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(e.g, e.s!, e.p!) }}
+          </RouterLink>
+          <RouterLink v-else-if="e.kind === 'market_offer'" class="small" :to="`/${uni}/market`">{{ t('nav.market') }}</RouterLink>
+          <span v-else />
+        </div>
+      </div>
+    </Section>
+  </template>
 </template>
 
 <style scoped>

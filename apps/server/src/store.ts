@@ -57,11 +57,20 @@ export function withRecycleTotals(r: RecycleRecord, capacity: () => number): Rec
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
 const EMPIRE_KEEP = 7 * 86400;
 
+/** labels kept per kind of news of one sync (Store.news) */
+const NEWS_SAMPLE = 100;
+
 /** Writes parsed records of one sync into the group's tables (and the activity log). */
 export class Store {
   private players: Players;
   /** a galaxy system of this sync was new or changed for the group (its fingerprint), see repo/syncCount.ts */
   galaxyNews = false;
+  /**
+   * What this sync brought that the group did not have, per count key (a galaxy system only when new or changed, not
+   * when it looks as before), with labels of the first few (systems, spied planets, players): kept in the raw sync's
+   * summary for the hub's activity (repo/hubActivity.ts).
+   */
+  news: Record<string, { n: number; items: string[] }> = {};
 
   constructor(
     private db: DB,
@@ -81,10 +90,18 @@ export class Store {
     }
   }
 
-  private count(kind: string, isNew: boolean) {
+  private count(kind: string, isNew: boolean, label?: string) {
     const c = (this.summary.counts[kind] ??= { new: 0, duplicate: 0 });
     if (isNew) c.new++;
     else c.duplicate++;
+    // a galaxy system counts as news only when it changed (see galaxy)
+    if (isNew && kind !== 'galaxy_systems') this.noteNews(kind, label);
+  }
+
+  private noteNews(kind: string, label?: string) {
+    const n = (this.news[kind] ??= { n: 0, items: [] });
+    n.n++;
+    if (label && n.items.length < NEWS_SAMPLE && !n.items.includes(label)) n.items.push(label);
   }
 
   private epoch(local: string | null): number | null {
@@ -208,7 +225,7 @@ export class Store {
         this.t.groupId, this.t.userId, r.msgId, r.coords.g, r.coords.s, r.coords.p, r.planetType, r.planetName,
         r.playerName, playerId, time, JSON.stringify(r.sections), r.destroyChance,
       );
-    this.count('spy_reports', res.changes > 0);
+    this.count('spy_reports', res.changes > 0, `${r.playerName ?? '?'} ${r.coords.g}:${r.coords.s}:${r.coords.p}${r.planetType === 'moon' ? ' (M)' : ''}`);
     if (res.changes > 0 && r.planetType === 'moon' && r.sections[0]) this.phalanxEvent(r, time, playerId);
     if ((r.planetType === 'planet' || r.planetType === 'moon') && this.newestAt(r.coords, time)) {
       this.upsertPlanet(r.coords.g, r.coords.s, r.coords.p, {
@@ -332,11 +349,11 @@ export class Store {
     const planet = this.db
       .prepare('SELECT player_id, name FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ?')
       .get(this.t.groupId, g, s, p) as { player_id: number | null; name: string | null } | undefined;
-    if (!planet && viewed) return this.count('player_cards', combat);
-    if (planet?.player_id != null && planet.player_id !== playerId) return this.count('player_cards', combat);
+    if (!planet && viewed) return this.count('player_cards', combat, r.name);
+    if (planet?.player_id != null && planet.player_id !== playerId) return this.count('player_cards', combat, r.name);
     const same = planet != null && planet.player_id === playerId && (r.planetName == null || r.planetName === planet.name);
     if (!same) this.upsertPlanet(g, s, p, { name: r.planetName, playerId, hasMoon: null });
-    this.count('player_cards', !same || combat);
+    this.count('player_cards', !same || combat, r.name);
   }
 
   /** Stores the fight statistics of a player card unless they equal the player's newest ones; true when stored. */
@@ -405,7 +422,7 @@ export class Store {
         this.t.groupId, this.t.userId, key, r.msgId, r.reportId, time, r.coords.g, r.coords.s, r.coords.p, r.planetType,
         r.outcome, r.lostAttacker, r.lostDefender, r.loot.metal, r.loot.crystal, r.loot.deuterium, r.debris.metal, r.debris.crystal,
       );
-    this.count('battle_reports', res.changes > 0);
+    this.count('battle_reports', res.changes > 0, `${r.coords.g}:${r.coords.s}:${r.coords.p}${r.planetType === 'moon' ? ' (M)' : ''}`);
   }
 
   private expedition(r: ExpeditionRecord) {
@@ -479,7 +496,10 @@ export class Store {
       return;
     }
     const fingerprint = galaxyFingerprint(r);
-    if (fingerprint !== view?.fingerprint) this.galaxyNews = true;
+    if (fingerprint !== view?.fingerprint) {
+      this.galaxyNews = true;
+      this.noteNews('galaxy_systems', `${r.g}:${r.s}`);
+    }
     db.prepare(
       `INSERT INTO galaxy_views (group_id, g, s, seen_at, user_id, fingerprint) VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT (group_id, g, s) DO UPDATE SET seen_at = excluded.seen_at, user_id = excluded.user_id, fingerprint = excluded.fingerprint`,

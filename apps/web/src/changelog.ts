@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-24',
     items: [
       {
+        kind: 'new',
+        de: 'Aktivität hat jetzt Tabs: Neben dem Aktivitätslog zeigt „Hub-Aktivität“, was die Mitglieder im Hub tun – wer welche neuen Galaxie-Systeme, Spionageberichte oder Statistiken synchronisiert hat, wer kommentiert, Angriffe plant und Ziele reserviert. Mehrere Synchronisierungen kurz hintereinander stehen zusammen in einem Eintrag.',
+        en: 'Activity now has tabs: next to the activity log, "Hub activity" shows what members do in the hub – who synced which new galaxy systems, espionage reports or statistics, who comments, plans attacks and claims targets. Several syncs in a row make one entry.',
+      },
+      {
         kind: 'fix',
         de: 'Ankommende Rohstoffe: Der Rückflug eines eigenen Transports wird dem Startplaneten nicht mehr mit der Ladung gutgeschrieben – die Rohstoffe werden ja am Ziel abgeladen. Ein zurückgerufener Transport bringt seine Ladung weiterhin zurück.',
         en: 'Incoming resources: the return flight of an own transport no longer credits its cargo to the planet it left, since the resources are unloaded at the target. A recalled transport still brings its cargo back.',
