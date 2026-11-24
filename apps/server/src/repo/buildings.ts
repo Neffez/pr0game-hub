@@ -69,6 +69,8 @@ export interface BuildingsState {
   storageFactor: number;
   empireTime: number | null;
   fleetsTime: number | null;
+  /** own colonizations flying out (newest fleet list): target, arrival, cargo; the build order founds its planets with them */
+  colonizing: { coords: Coords; at: number; resources: Record<number, number> }[];
   /** ships and defense of the universe */
   units: UnitCatalog;
 }
@@ -86,6 +88,9 @@ export interface BuildingAlert {
 
 const keyOf = (c: Coords, type: string) => `${c.g}:${c.s}:${c.p}:${type}`;
 const same = (a: Coords, b: Coords) => a.g === b.g && a.s === b.s && a.p === b.p;
+
+/** game mission id of a colonization */
+const COLONIZE = 7;
 
 /** Missions whose fleets unload at their target (transport, deploy) when flying out. */
 const UNLOAD = [3, 4];
@@ -302,6 +307,10 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     storageFactor,
     empireTime: empire?.time ?? null,
     fleetsTime: fleets?.time ?? null,
+    colonizing: (fleets?.data ?? [])
+      .filter((f) => f.owner === 'own' && f.phase === 'out' && f.mission === COLONIZE && f.to && f.arrival > t)
+      .map((f) => ({ coords: f.to!.coords, at: f.arrival, resources: { ...(f.resources ?? {}) } }))
+      .sort((a, b) => a.at - b.at),
     units: catalogOf(ctx.universe),
   };
 }

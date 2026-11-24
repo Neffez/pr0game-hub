@@ -4228,6 +4228,16 @@ export type components = {
             storageFactor: number;
             empireTime: number | null;
             fleetsTime: number | null;
+            /** @description Own colonizations flying out (newest fleet list), first landing first: the build order founds its planned planet with the cargo when the colony ship lands */
+            colonizing: {
+                coords: components["schemas"]["PageCoords"];
+                /** @description Arrival (Unix seconds) */
+                at: number;
+                /** @description Cargo, 901-903 */
+                resources: {
+                    [key: string]: number;
+                };
+            }[];
             alerts: components["schemas"]["BuildingAlert"][];
             /** @description Building ids the caller hid on the buildings page */
             hidden: number[];
