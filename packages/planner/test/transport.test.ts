@@ -299,6 +299,29 @@ describe('planned planets', () => {
     expect(detectDone(o, hubOf([planet(HOME)]), [{ ...fleets[0], mission: 3 }], NOW)).toEqual([]);
   });
 
+  describe('with a checked-off colonization (colony ship on its way, planet not synced yet)', () => {
+    const robot = (cargo: Record<number, number>, colonizing?: HubState['colonizing']) => {
+      const o = order([{ ...colonize({ resources: cargo }), done: true }]);
+      o.planets[PLANNED] = [{ id: 'robot', kind: 'building', element: 14 }];
+      return run(o, hubOf([planet(HOME, { 1: 20, 2: 18 })], { research: { 117: 3, 124: 1 }, colonizing })).steps.find((s) => s.id === 'robot')!;
+    };
+
+    it('found the planet when the synced colony ship lands, with its cargo', () => {
+      // the robot factory needs deuterium: a new planet has none, the colony ship brings it
+      const r = robot({ 903: 300 }, [{ coords: { g: 1, s: 120, p: 4 }, at: NOW + 5000, resources: { 901: 100, 903: 300 } }]);
+      expect(r).toMatchObject({ state: 'planned', start: NOW + 5000, wait: 'colony' });
+      expect(r.before).toEqual({ 901: 600, 902: 500, 903: 300 });
+    });
+
+    it('take the step\'s cargo once landed (no synced fleet any more)', () => {
+      const r = robot({ 903: 300 });
+      expect(r).toMatchObject({ state: 'planned', start: NOW });
+      expect(r.before).toEqual({ 901: 500, 902: 500, 903: 300 });
+      // fleets to other positions do not count
+      expect(robot({}, [{ coords: { g: 1, s: 120, p: 5 }, at: NOW + 5000, resources: { 903: 300 } }])).toMatchObject({ state: 'invalid', wait: 'resources' });
+    });
+  });
+
   it('get the next free key', () => {
     expect(freePlannedKey({ planets: {} })).toBe(plannedKey(1));
     expect(freePlannedKey({ planets: { [plannedKey(1)]: [], [plannedKey(3)]: [] } })).toBe(plannedKey(2));

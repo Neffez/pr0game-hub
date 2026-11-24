@@ -30,6 +30,11 @@ export interface HubState {
   universityFactor: number;
   catchUp: number | null;
   storageFactor: number;
+  /**
+   * own colonizations on their way (colony ships flying out to a free position): where, when they land and their
+   * cargo. A colonization of the build order that is checked off founds its planned planet then, with the cargo.
+   */
+  colonizing?: { coords: { g: number; s: number; p: number }; at: number; resources: Record<number, number> }[];
 }
 
 /** Building levels after the build queue and unit counts with the shipyard queue of a planet. */

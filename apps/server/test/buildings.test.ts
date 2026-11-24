@@ -81,6 +81,18 @@ describe('buildings page', () => {
     expect((await call('GET', '/u8/buildings', h.dave)).json().planets).toEqual([]);
   });
 
+  it('lists the own colonizations flying out, with their cargo', async () => {
+    const fleet = (arrival: number, p: number, mission = 7) => ({
+      owner: 'own', player: null, mission, missionName: 'Kolonisieren', phase: 'out', ships: { 208: 1 }, resources: { 901: 0, 902: 0, 903: 300 },
+      arrival, from: { coords: { g: 1, s: 1, p: 9 }, type: 'planet', name: null }, to: { coords: { g: 1, s: 2, p }, type: 'planet', name: null },
+    });
+    // landed already, a transport, the one still flying
+    const list = [fleet(t - 60, 3), fleet(t + 600, 4, 3), fleet(t + 900, 5)];
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, t - 120, JSON.stringify(list));
+    expect((await call('GET', '/u8/buildings', h.dave)).json().colonizing).toEqual([{ coords: { g: 1, s: 2, p: 5 }, at: t + 900, resources: { 901: 0, 902: 0, 903: 300 } }]);
+    expect((await call('GET', '/u8/buildings', h.carol)).json().colonizing).toEqual([]);
+  });
+
   it('validates alerts: own synced planets and buildings of the planet type only', async () => {
     expect((await call('PUT', '/u8/buildings/alerts', h.carol, { g: 1, s: 1, p: 1, type: 'planet', id: 41, level: 1 })).statusCode).toBe(400);
     expect((await call('PUT', '/u8/buildings/alerts', h.carol, { g: 1, s: 1, p: 2, type: 'planet', id: 1, level: 11 })).statusCode).toBe(404);

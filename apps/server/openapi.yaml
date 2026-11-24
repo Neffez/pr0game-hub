@@ -1294,7 +1294,7 @@ components:
         created_at: { type: integer }
     Buildings:
       type: object
-      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, shipyardSpeed, resourceSpeed, storageFactor, empireTime, fleetsTime, alerts, hidden]
+      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, shipyardSpeed, resourceSpeed, storageFactor, empireTime, fleetsTime, colonizing, alerts, hidden]
       properties:
         planets:
           type: array
@@ -1364,6 +1364,18 @@ components:
         storageFactor: { type: number }
         empireTime: { type: [integer, 'null'] }
         fleetsTime: { type: [integer, 'null'] }
+        colonizing:
+          type: array
+          description: >-
+            Own colonizations flying out (newest fleet list), first landing first: the build order founds its planned
+            planet with the cargo when the colony ship lands
+          items:
+            type: object
+            required: [coords, at, resources]
+            properties:
+              coords: { $ref: '#/components/schemas/PageCoords' }
+              at: { type: integer, description: Arrival (Unix seconds) }
+              resources: { type: object, additionalProperties: { type: number }, description: 'Cargo, 901-903' }
         alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         hidden: { type: array, items: { type: integer }, description: Building ids the caller hid on the buildings page }
     OwnAttack:

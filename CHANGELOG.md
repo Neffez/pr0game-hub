@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-24
 
+- Build order: a colonization that is already checked off (colony ship on its way, planet not synced yet) now founds
+  the planned planet with its cargo. Until now the planet worked from now on with the start resources only, so steps
+  needing the brought resources (e.g. the robot factory with the deuterium of the colony ship) ended as invalid.
+  - The planet is founded when the synced colony ship lands, with the fleet's cargo; once landed (or without a synced
+    fleet) it starts with the start resources plus the cargo (the fleet's, else the step's fixed amounts).
+  - `GET /api/{uni}/buildings` lists the own colonizations flying out (`colonizing`: target, arrival, cargo); the
+    planner's `HubState` takes them as optional `colonizing`.
+
 - Build order: the delete button no longer deletes the whole build order of every planet. It is now "Clear this
   planet's build order" and removes only the steps of the planet shown (those listed when clicked); the other planets,
   the planned planets and the base stay. The page offers no way to delete the whole build order any more (the API's

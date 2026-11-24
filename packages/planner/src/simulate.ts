@@ -27,7 +27,9 @@ import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } fr
  * research is only further down a list, the ship leaves without blocking the list and its arrival is set once the
  * research starts: it lands right after the research is done, at the slowest speed that makes it (automatic, the
  * step has no speed) or at the step's own speed, leaving as late as it can. Transports and deployments to such a
- * planet leave only once it is founded.
+ * planet leave only once it is founded. A checked-off colonization whose planet is not synced yet founds it when its
+ * colony ship lands (`hub.colonizing`), with the fleet's cargo; once landed (or without a synced fleet) the planet
+ * works from now on with its start resources plus the cargo (the fleet's, else the step's fixed amounts).
  *
  * Planned planets are start planets or colonies to come. While the hub has no synced planet of the member, the first
  * `maxInitialPlanets` planned planets without a colonization (by number; pr0plan's planet 1 is the home planet) are
@@ -230,6 +232,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const colonized = new Set<string>();
   /** planned planets whose colonization is checked off: flown, the planet exists (not synced yet) */
   const flown = new Set<string>();
+  /** the fixed cargo of the checked-off colonizations, by planned planet */
+  const flownCargo = new Map<string, Record<number, number>>();
   const targeted = new Set<string>();
   for (const list of Object.values(order.planets))
     for (const s of list) {
@@ -237,6 +241,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       if (!target || s.deactivated) continue;
       targeted.add(target);
       if (s.transport!.mission === 'colonize') (s.done ? flown : colonized).add(target);
+      if (s.transport!.mission === 'colonize' && s.done) flownCargo.set(target, fixedOf(s.transport!));
     }
   const { unscheduled } = plannedRoles(order, hub, new Set([...colonized, ...flown]), o.universe);
   // empty placeholders (no steps, no transports to them) are not simulated
@@ -269,16 +274,25 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       shipyard.push({ id: Number(id), count: n, end: yard });
     }
     const at = order.planned?.[hp.key]?.coords ?? (hp.coords.g > 0 ? hp.coords : null);
-    // a planned planet with a colonization still to fly is founded by it; start planets and unscheduled colonies
-    // work from now on (the latter without counting as a planet)
-    const active = !(isPlannedKey(hp.key) && colonized.has(hp.key));
+    // a checked-off colonization of a planet not synced yet: its colony ship lands (synced fleet) or has landed
+    const landing = flown.has(hp.key) && isPlannedKey(hp.key) && at ? colonizingTo(hub, at) : null;
+    const pending: Planet['arrivals'] = [];
+    if (landing && landing.at > o.now) pending.push({ at: landing.at, resources: { ...landing.resources }, found: true });
+    else if (flown.has(hp.key) && isPlannedKey(hp.key)) {
+      // landed: the planet has its start resources plus the cargo (that of the fleet, else the step's fixed amounts)
+      const cargo = landing?.resources ?? flownCargo.get(hp.key) ?? {};
+      for (const r of RES) res[r] += cargo[r] ?? 0;
+    }
+    // a planned planet with a colonization still to fly (or flying) is founded by it; start planets and unscheduled
+    // colonies work from now on (the latter without counting as a planet)
+    const active = !(isPlannedKey(hp.key) && (colonized.has(hp.key) || pending.length));
     const founded = active ? {} : newPlanetResources;
     planets.push({
       key: hp.key, type: hp.type, levels, res: active ? res : { 901: 0, 902: 0, 903: 0 }, rate: { 901: 0, 902: 0, 903: 0 }, cap,
       coords: at ? [at.g, at.s, at.p] : null, active, founded, counts: !unscheduled.includes(hp.key),
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
       temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
-      arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),
+      arrivals: [...hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })), ...pending],
       steps: order.planets[hp.key] ?? [], head: 0, waitUntil: o.now, founding: false, wait: null, full: {},
     });
   }
@@ -922,6 +936,12 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     }
   }
   return { steps, next: nextOf, unscheduled, ...(final ? { final } : {}) };
+}
+
+/** The own colonization flying to `c` as the hub synced it, the one landing first. */
+function colonizingTo(hub: HubState, c: { g: number; s: number; p: number }): NonNullable<HubState['colonizing']>[number] | null {
+  const list = (hub.colonizing ?? []).filter((f) => f.coords.g === c.g && f.coords.s === c.s && f.coords.p === c.p);
+  return list.sort((a, b) => a.at - b.at)[0] ?? null;
 }
 
 /**
