@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ankommende Rohstoffe: Der Rückflug eines eigenen Transports wird dem Startplaneten nicht mehr mit der Ladung gutgeschrieben – die Rohstoffe werden ja am Ziel abgeladen. Ein zurückgerufener Transport bringt seine Ladung weiterhin zurück.',
+        en: 'Incoming resources: the return flight of an own transport no longer credits its cargo to the planet it left, since the resources are unloaded at the target. A recalled transport still brings its cargo back.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Ist die Kolonisierung schon unterwegs, wird der geplante Planet jetzt mit den Rohstoffen gegründet, die das Kolonieschiff mitbringt – bei der Landung bzw. sofort, wenn es schon gelandet ist. Schritte wie die Roboterfabrik, die das mitgebrachte Deuterium brauchen, sind damit gleich am Anfang planbar.',
         en: 'Build order: when the colonization is already on its way, the planned planet is now founded with the resources the colony ship brings, at its landing or right away once it has landed. Steps like the robot factory that need the deuterium brought along can be planned right at the start.',
       },

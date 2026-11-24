@@ -93,6 +93,27 @@ describe('buildings page', () => {
     expect((await call('GET', '/u8/buildings', h.carol)).json().colonizing).toEqual([]);
   });
 
+  it('does not count the cargo shown on the return of a transport whose outward flight is listed', async () => {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('erin', hashPassword('erinpass'));
+    const erin = db.prepare('SELECT id FROM users WHERE username = ?').pluck().get('erin') as number;
+    db.prepare('INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, ?)').run(group, erin, 'Erin');
+    const he = { cookie: await login('erin'), 'x-hub-group': String(group) };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, erin, T0, JSON.stringify(empire({ 1: 10 })));
+    const home = { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: 'Home' };
+    const other = { coords: { g: 1, s: 5, p: 5 }, type: 'planet', name: null };
+    const fleet = (phase: string, arrival: number, ships: Record<number, number>, from = home, to = other) => ({
+      owner: 'own', player: null, mission: 3, missionName: 'Transport', phase, ships, resources: { 901: 1000, 902: 0, 903: 0 }, arrival, from, to,
+    });
+    const list = [
+      fleet('out', t + 600, { 203: 1 }), fleet('return', t + 1200, { 203: 1 }, other, home),
+      // a recalled transport: only its return is listed, it brings the cargo back
+      fleet('return', t + 300, { 202: 2 }, other, home),
+    ];
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, erin, t - 60, JSON.stringify(list));
+    const state = (await call('GET', '/u8/buildings', he)).json();
+    expect(state.planets[0].arrivals).toMatchObject([{ at: t + 300, resources: { 901: 1000 }, back: true }]);
+  });
+
   it('validates alerts: own synced planets and buildings of the planet type only', async () => {
     expect((await call('PUT', '/u8/buildings/alerts', h.carol, { g: 1, s: 1, p: 1, type: 'planet', id: 41, level: 1 })).statusCode).toBe(400);
     expect((await call('PUT', '/u8/buildings/alerts', h.carol, { g: 1, s: 1, p: 2, type: 'planet', id: 1, level: 11 })).statusCode).toBe(404);

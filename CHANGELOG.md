@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-24
 
+- Incoming resources: the return flight of an own transport no longer counts its cargo when the outward flight is in
+  the same fleet list. The game shows the cargo on the return too, but the transport unloads it at the target, so the
+  planet it left was credited with resources that never come back (build page, build order, full storages). A
+  recalled transport (only its return listed) still brings its cargo back.
+
 - Build order: a colonization that is already checked off (colony ship on its way, planet not synced yet) now founds
   the planned planet with its cargo. Until now the planet worked from now on with the start resources only, so steps
   needing the brought resources (e.g. the robot factory with the deuterium of the colony ship) ended as invalid.
