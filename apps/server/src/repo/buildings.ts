@@ -11,6 +11,7 @@ import type { DB } from '../db.js';
 import { events } from '../events.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
+import { shipsKey } from './hostile.js';
 import { memberPlayer } from './members.js';
 import { CATCH_UP_WEIGHTS, catchUpLeader, latestScores } from './stats.js';
 
@@ -95,11 +96,35 @@ const COLONIZE = 7;
 /** Missions whose fleets unload at their target (transport, deploy) when flying out. */
 const UNLOAD = [3, 4];
 
+/** game mission id of a transport */
+const TRANSPORT = 3;
+
+const bodyKey = (b: StoredFleet['from'] | null) => (b ? `${b.coords.g}:${b.coords.s}:${b.coords.p}:${b.type ?? 'planet'}` : '-');
+
+/**
+ * Return flights of own transports whose outward flight is in the same list: the game shows the cargo on the return
+ * too, but the transport unloads it at the target and comes back empty. (A recalled transport has no outward flight
+ * listed any more and brings its cargo back.)
+ */
+function emptyReturns(list: StoredFleet[]): Set<StoredFleet> {
+  const out = new Set<StoredFleet>();
+  for (const f of list) {
+    if (f.owner !== 'own' || f.phase !== 'return' || f.mission !== TRANSPORT) continue;
+    const outward = list.some(
+      (x) =>
+        x.owner === 'own' && x.phase === 'out' && x.mission === TRANSPORT && x.arrival < f.arrival && bodyKey(x.from) === bodyKey(f.to) &&
+        bodyKey(x.to) === bodyKey(f.from) && shipsKey(x.ships) === shipsKey(f.ships),
+    );
+    if (outward) out.add(f);
+  }
+  return out;
+}
+
 /** Resources a fleet brings to one of the member's planets: own transports/deployments, return flights, transports of others. */
-function landing(f: StoredFleet): boolean {
-  if (!f.to || !f.resources || !Object.values(f.resources).some((n) => n > 0)) return false;
+function landing(f: StoredFleet, empty: Set<StoredFleet>): boolean {
+  if (!f.to || !f.resources || !Object.values(f.resources).some((n) => n > 0) || empty.has(f)) return false;
   if (f.owner === 'own') return f.phase === 'return' || (f.phase === 'out' && f.mission != null && UNLOAD.includes(f.mission));
-  return f.owner === 'foreign' && f.phase === 'out' && f.mission === 3;
+  return f.owner === 'foreign' && f.phase === 'out' && f.mission === TRANSPORT;
 }
 
 export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ctx.now): BuildingsState {
@@ -125,6 +150,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
       .all(ctx.groupId, userId) as { time: number; data: string }[]
   ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as ShipyardRecord }));
   const fleets = sharedFleets(db, ctx.groupId, userId, userId);
+  const empty = emptyReturns(fleets?.data ?? []);
   const settings = ctx.universe.settings;
 
   const storageFactor = storageFactorOf(empire?.rec ?? null, pages[0]?.rec ?? null) ?? settings.storageMultiplier;
@@ -277,7 +303,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
       bp.planet.values[done.id] = levelAfter(done);
     }
     for (const f of fleets?.data ?? []) {
-      if (!landing(f) || !same(f.to!.coords, bp.coords) || (f.to!.type ?? 'planet') !== bp.type) continue;
+      if (!landing(f, empty) || !same(f.to!.coords, bp.coords) || (f.to!.type ?? 'planet') !== bp.type) continue;
       bp.arrivals.push({ at: f.arrival, resources: f.resources!, mission: f.mission, back: f.phase === 'return', missionName: f.missionName, from: f.from.coords });
     }
     bp.arrivals.sort((a, b) => a.at - b.at);
