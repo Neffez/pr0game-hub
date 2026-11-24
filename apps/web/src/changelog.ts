@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-24',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Bauliste: Der Löschen-Knopf löscht nicht mehr die ganze Bauliste aller Planeten, sondern leert nur noch die Schritte des gerade angezeigten Planeten. Andere und geplante Planeten bleiben erhalten.',
+        en: 'Build order: the delete button no longer deletes the whole build order of every planet; it only clears the steps of the planet shown. Other and planned planets stay.',
+      },
+    ],
+  },
+  {
     date: '2026-11-23',
     items: [
       {

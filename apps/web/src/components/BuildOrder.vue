@@ -272,11 +272,15 @@ function clean(s: Step): Step {
   if (!out.deactivated) delete out.deactivated;
   return out;
 }
-async function removeAll() {
-  if (!confirm(t('buildOrder.deleteConfirm'))) return;
-  // changed elsewhere since: not deleted unseen, the current one is shown
-  const revision = stored.value?.revision;
-  await send((s) => (s?.revision === revision ? { method: 'DELETE' } : null));
+/**
+ * Empties the steps of the planet shown, nothing else: the other planets, the planned planets and the base stay. The
+ * whole build order is never deleted from the page (one click lost every planet's list); the steps removed are the
+ * ones shown, so steps added elsewhere in between stay.
+ */
+async function clearPlanet() {
+  const ids = new Set(steps.value.map((s) => s.id));
+  if (!ids.size || !confirm(t('buildOrder.deleteConfirm', { n: ids.size, planet: planetLabel(planetKey.value) }))) return;
+  await save((list) => list.filter((s) => !ids.has(s.id)));
 }
 
 // ------------------------------------------------------------------ adding steps
@@ -527,7 +531,7 @@ function onDrop(i: number) {
       <button v-if="planetKey" class="small" :class="{ active: addOpen }" data-tour="build-order-add" @click="addOpen = !addOpen"><Icon name="plus" :size="14" /> {{ t('buildOrder.add') }}</button>
       <button class="small" data-tour="build-order-auto" :title="t('autoPlan.buttonTitle')" @click="autoOpen = true"><Icon name="bolt" :size="14" /> {{ t('autoPlan.button') }}</button>
       <button class="primary small" @click="importOpen = true"><Icon name="plus" :size="14" /> {{ t('buildOrder.import') }}</button>
-      <button v-if="stored" class="small" @click="removeAll">{{ t('buildOrder.delete') }}</button>
+      <button v-if="stored && steps.length" class="small" @click="clearPlanet">{{ t('buildOrder.delete') }}</button>
     </div>
     <div v-if="diffs.length" class="bo-warn small">
       <b class="warn">{{ t('buildOrder.settingsDiffer') }}</b>

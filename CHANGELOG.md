@@ -2,6 +2,13 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-24
+
+- Build order: the delete button no longer deletes the whole build order of every planet. It is now "Clear this
+  planet's build order" and removes only the steps of the planet shown (those listed when clicked); the other planets,
+  the planned planets and the base stay. The page offers no way to delete the whole build order any more (the API's
+  `DELETE /api/{uni}/build-order` is unchanged).
+
 ## 2026-11-23
 
 - Activity pattern: a member's syncs and open hub tab are one source "In the hub / synced" and count at most once
