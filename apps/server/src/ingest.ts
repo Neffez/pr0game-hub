@@ -198,7 +198,7 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
       input.url ?? null,
       keep && input.html ? gzipSync(input.html) : null,
       keep && input.text ? gzipSync(input.text) : null,
-      JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
+      JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records), news: store.news }),
     );
   })();
   try {

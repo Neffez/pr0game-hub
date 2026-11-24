@@ -10,6 +10,7 @@ import { moonChances } from '../repo/moons.js';
 import { catalogOfGroup } from '../context.js';
 import { events } from '../events.js';
 import { blackHoleLosses, cleanShips } from '../repo/expeditionLosses.js';
+import { hubActivity } from '../repo/hubActivity.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -90,6 +91,13 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
       counts: Object.fromEntries((counts as { kind: string; n: number }[]).map((c) => [c.kind, c.n])),
       entries: rows.map((r) => ({ ...r, data: JSON.parse(r.data), status: r.status ? JSON.parse(r.status) : [], points: scores.get(r.player_id)?.[1]?.points ?? null })),
     };
+  });
+
+  /** What members did in the hub: syncs that brought something new, comments, raid plans, target claims. */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/hub-activity', async (req) => {
+    const ctx = ctxOf(req);
+    const { from, to } = range(req.query);
+    return hubActivity(db, ctx, from, to);
   });
 
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/raids', async (req) => {

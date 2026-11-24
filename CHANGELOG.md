@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-24
 
+- Activity page: tabs. The activity log stays the default tab; the new tab "Hub activity" shows what members did in
+  the hub: syncs that brought the alliance something new (e.g. "X synced 13 galaxy systems", "Y synced 3 espionage
+  reports"), comments, new raid plans and target claims, per day with filters by kind and member.
+  - Syncs and claims of one member and kind no more than 30 minutes apart make one entry, with the systems, spied
+    planets, players or targets behind "Details". A member's own pages (empire, buildings, fleets, …), expeditions and
+    in-game messages are left out; members who do not share their syncs (`share_syncs`) appear without name, except to
+    themselves and global admins.
+  - Read from the stored raw syncs (as long as `RAW_RETENTION_DAYS`), comments, raid plans and claims; no migration.
+    A sync's stored summary now also holds its `news`: what was really new per kind (a galaxy system only when new or
+    changed, not when it looks as before) with labels of the first 100. Syncs saved before fall back to their counts.
+  - New endpoint `GET /api/{uni}/hub-activity` (schema `HubActivityEntry`).
+
 - Incoming resources: the return flight of an own transport no longer counts its cargo when the outward flight is in
   the same fleet list. The game shows the cargo on the return too, but the transport unloads it at the target, so the
   planet it left was credited with resources that never come back (build page, build order, full storages). A

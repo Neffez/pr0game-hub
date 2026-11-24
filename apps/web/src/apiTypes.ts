@@ -53,6 +53,7 @@ export type Contributors = ApiResponse<'/api/{uni}/contributors'>;
 export type Stats = ApiResponse<'/api/{uni}/stats'>;
 export type Freshness = Schema<'Freshness'>;
 export type Activity = ApiResponse<'/api/{uni}/activity'>;
+export type HubActivity = ApiResponse<'/api/{uni}/hub-activity'>;
 export type AllianceHealth = ApiResponse<'/api/{uni}/alliance-health'>;
 export type HealthMember = AllianceHealth['members'][number];
 export type Goals = ApiResponse<'/api/{uni}/goals'>;

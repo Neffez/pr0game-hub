@@ -2560,6 +2560,44 @@ components:
           properties:
             points: { type: integer }
             time: { type: integer }
+    HubActivityEntry:
+      type: object
+      description: One thing members did in the hub (`GET /api/{uni}/hub-activity`)
+      required: [id, kind, what, time, end, user_id, member, hidden, count, items, text, player_id, player_name, g, s, p, planet_type, plan_id, target_time]
+      properties:
+        id: { type: string, description: Stable key of the entry }
+        kind: { type: string, enum: [sync, comment, plan, claim] }
+        what:
+          type: [string, 'null']
+          description: >-
+            sync: `galaxy`, `spy`, `stats`, `battle`, `combat`, `hostile`, `playerCard`, `battleHall`, `market`,
+            `universe`; comment: `player`, `planet`, `plan`; plan: `attack`, `hold`; claim: `farm`, `attack`, `spy`,
+            `recycle`
+        time: { type: integer, description: First sync/claim of the bundle or when it was made (Unix seconds) }
+        end: { type: integer, description: Last sync/claim of the bundle (Unix seconds) }
+        user_id: { type: [integer, 'null'], description: The member (null when hidden or deleted) }
+        member: { type: [string, 'null'], description: Display name of the member }
+        hidden: { type: boolean, description: The member does not share their syncs }
+        count:
+          type: integer
+          description: >-
+            How many new things (galaxy systems, reports, statistics rows, player cards, offers, claimed targets);
+            1 for comments and plans
+        items:
+          type: array
+          description: >-
+            Labels of the first new things (up to 100): systems `g:s`, spied planets `name g:s:p`, battle and claim
+            coordinates, player names, statistics `who:type`
+          items: { type: string }
+        text: { type: [string, 'null'], description: Comment excerpt }
+        player_id: { type: [integer, 'null'] }
+        player_name: { type: [string, 'null'] }
+        g: { type: [integer, 'null'] }
+        s: { type: [integer, 'null'] }
+        p: { type: [integer, 'null'] }
+        planet_type: { type: [string, 'null'] }
+        plan_id: { type: [integer, 'null'], description: Raid plan (plans, comments on a loot settlement) }
+        target_time: { type: [integer, 'null'], description: Arrival of a raid plan }
     ActivityEvent:
       type: object
       required: [time, spread, source]
@@ -7546,6 +7584,33 @@ paths:
                         points: { type: [number, 'null'], description: Newest synced total points of the player }
                         ally_tag: { type: [string, 'null'] }
                         ally_name: { type: [string, 'null'] }
+  /api/{uni}/hub-activity:
+    get:
+      tags: [Intelligence]
+      operationId: getHubActivity
+      description: >-
+        What members did in the hub, newest first (up to 500 entries): syncs that brought the group something new
+        (galaxy systems that were new or changed, new espionage and battle reports, statistics, player cards, hostile
+        espionage, battle hall entries, market offers, universe.json imports), bundled per member and kind while they
+        follow each other within 30 minutes; comments; new raid plans; target claims (those a raid plan made left out),
+        bundled like syncs. A member's own pages, expeditions and in-game messages are not part of it. Syncs are
+        known for the raw sync retention (`RAW_RETENTION_DAYS`, 14 days by default). A member who does not share their
+        syncs appears without name in their syncs (`hidden`), except to themselves and global admins.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: from, in: query, schema: { type: integer }, description: Start (Unix seconds, default 8 days before `to`) }
+        - { name: to, in: query, schema: { type: integer }, description: End (Unix seconds, default tomorrow) }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries: { type: array, items: { $ref: '#/components/schemas/HubActivityEntry' } }
   /api/{uni}/hostile:
     get:
       tags: [Intelligence]

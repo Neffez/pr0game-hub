@@ -185,9 +185,14 @@ export const TOURS = {
   activity: {
     steps: [
       { key: 'intro' },
-      { key: 'range', el: 'activity-range', side: 'bottom' },
-      { key: 'kinds', el: 'activity-kinds', side: 'bottom' },
-      { key: 'days', el: 'activity-days', side: 'top' },
+      { key: 'log', el: 'activity-tab-log', side: 'bottom', head: 'log' },
+      { key: 'hub', el: 'activity-tab-hub', side: 'bottom', head: 'hub' },
+      { key: 'range', el: 'activity-range', side: 'bottom', tabs: ['log'] },
+      { key: 'kinds', el: 'activity-kinds', side: 'bottom', tabs: ['log'] },
+      { key: 'days', el: 'activity-days', side: 'top', tabs: ['log'] },
+      { key: 'hubRange', el: 'activity-hub-range', side: 'bottom', tabs: ['hub'] },
+      { key: 'hubKinds', el: 'activity-hub-kinds', side: 'bottom', tabs: ['hub'] },
+      { key: 'hubDays', el: 'activity-hub-days', side: 'top', tabs: ['hub'] },
     ],
   },
   messages: {
