@@ -180,7 +180,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
         <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name ?? ''" @click.stop />
         <span v-else>{{ r.player_name }}</span>
         <span class="muted small al-ellipsis">{{ r.planet_name }}</span>
-        <span v-if="r.fleetSave" class="badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
+        <span v-if="r.fleetSave" class="badge fs-badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
       </span>
       <span class="m-line small">
         <span class="mono"><span class="faint">{{ t('overview.resShort.901') }}</span> {{ short(res(r, 901)) }}</span>
@@ -207,7 +207,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
           </td>
           <td class="muted">
             {{ r.planet_name }}
-            <span v-if="r.fleetSave" class="badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
+            <span v-if="r.fleetSave" class="badge fs-badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
           </td>
           <td class="num">{{ fmt(res(r, 901)) }}</td>
           <td class="num">{{ fmt(res(r, 902)) }}</td>
@@ -225,6 +225,8 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 .field-v { display: flex; flex-direction: column; gap: 3px; }
 .field-v input { width: 120px; }
 .spy-found { margin-top: 8px; }
+/* reports with a worked-back fleet save stand out in the list */
+.fs-badge { color: var(--pos); background: color-mix(in srgb, var(--pos) 18%, transparent); border: 1px solid color-mix(in srgb, var(--pos) 55%, transparent); }
 @media (max-width: 800px) { .field-v { flex: 1 1 100px; } .field-v input, .field-v select { width: 100%; margin: 0; } }
 /* mobile list of recent reports */
 .m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }

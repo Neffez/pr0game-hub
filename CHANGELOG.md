@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Spy reports: the "Fleet save" badge in the latest reports is green (green text, tinted background and border) so
+  it stands out in the list.
 - Spy reports: fleet saves worked back. A planet's spy report whose metal and crystal both point to the same second as
   the last time the planet was empty (a fleet save that took everything) gets a `fleetSave` guess in
   `GET /api/{uni}/spy/{g}/{s}/{p}` and `GET /api/{uni}/spy-reports`: departure window, whether deuterium fits too,
