@@ -464,7 +464,7 @@ const de = {
     ratio: '{x}× Median der Rangnachbarn',
     endPhase: 'Endphase (letzte 7 Tage vor dem Ende am {time}), getrennt gezählt – Spieler kommen vor dem Schließen zurück: {days} Tag, {positives}× hoher Score | Endphase (letzte 7 Tage vor dem Ende am {time}), getrennt gezählt – Spieler kommen vor dem Schließen zurück: {days} Tage, {positives}× hoher Score',
     causes: 'Zuerst widerlegt durch (≤ 72 h):',
-    cause: { gain: 'Punktezuwachs', attack: 'Angriff', spy: 'Spionage', message: 'Nachricht', fleet: 'Flottenstart', recall: 'Flottenrückruf', manual: 'Meldung', fleetGone: 'verschickte Flotte' },
+    cause: { gain: 'Punktezuwachs', attack: 'Angriff', spy: 'Spionage', message: 'Nachricht', fleet: 'Flottenstart', recall: 'Flottenrückruf', manual: 'Meldung', fleetGone: 'verschickte Flotte', fleetSave: 'Fleetsave' },
     weights: 'Gewichte:',
   },
   bash: {
@@ -499,6 +499,7 @@ const de = {
       recall: 'Flottenrückruf gesehen: {time}',
       manual: 'Von einem Mitglied als online gemeldet: {time}',
       fleetGone: 'Flotte zwischen zwei Spionageberichten verschickt (nach {time})',
+      fleetSave: 'Fleetsave aus Spionageberichten zurückgerechnet: {time}',
     },
   },
   search: {
@@ -914,7 +915,7 @@ const de = {
       filter: { title: 'Filter', text: 'Nur wahrscheinlich Inaktive, ohne Verteidigung oder Flotte, ohne Urlaubsmodus oder von anderen reservierte Ziele.' },
       loot: { title: 'Beute jetzt', text: 'Die Hälfte der erwarteten Rohstoffe. Das Warnzeichen heißt: ein Speicher ist voll, mehr kommt nicht dazu. Der Tooltip zeigt die Rohstoffe einzeln und die Produktion pro Stunde.' },
       rank: { title: 'Beute pro Flugstunde', text: 'Beute geteilt durch Hin- und Rückflug: so vergleichst du nahe kleine mit fernen großen Zielen. Innerhalb gleicher Inaktivität und gleichen Risikos entscheidet sie die Reihenfolge.' },
-      inactivity: { title: 'Inaktivität', text: 'Wie sicher der Hub ist, dass der Spieler inaktiv ist: aus dem Status des Spiels, Statistik-Updates ohne Punkte, zuletzt gesehener Aktivität (Flotten, Spionage) und wiederholten erfolgreichen Farm-Angriffen von Mitgliedern. Aktivitätsmarken in der Galaxie zählen nicht: Gefarmte bekommen sie auch durch Angriffe anderer.' },
+      inactivity: { title: 'Inaktivität', text: 'Wie sicher der Hub ist, dass der Spieler inaktiv ist: aus dem Status des Spiels, Statistik-Updates ohne Punkte, zuletzt gesehener Aktivität (Flotten, Spionage, zurückgerechnete Fleetsaves) und wiederholten erfolgreichen Farm-Angriffen von Mitgliedern. Aktivitätsmarken in der Galaxie zählen nicht: Gefarmte bekommen sie auch durch Angriffe anderer.' },
       risk: { title: 'Risiko', text: 'Stärke des Ziels im Verhältnis zu deiner Flotte: Flotte plus doppelt gezählte Verteidigung aus dem neuesten Bericht (sonst Statistik, „≤“). sicher: nichts, was kämpft; schwach: bis 30 % deiner Flotte; vertretbar: bis 50 %; stark: mehr. „Flotte steht“: lange inaktiv, die Flotte lohnt sich zum Zerstören. Klick sortiert die Schwächsten nach oben.' },
       sim: { title: 'Simulieren', text: 'Simuliert deine ganze Flotte aus dem Imperium gegen die ersten Ziele der Liste auf der Kampf-Engine des Spiels. Danach entscheidet das Ergebnis das Risiko, nur bei Sieg in allen Durchläufen mit Gewinn: Verluste bis 10 % deiner Flotte schwach, bis 30 % vertretbar, bis 50 % riskant, sonst stark. Der Tooltip zeigt Sieg, Beute, Verluste und Gewinn.' },
       list: { title: 'Aktionen', text: 'Über das Menü eines Ziels spionierst du im Spiel, öffnest den Flugrechner oder reservierst das Ziel für dich, damit niemand doppelt fliegt.' },

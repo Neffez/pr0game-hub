@@ -463,7 +463,7 @@ const en: typeof de = {
     ratio: '{x}× the median around the rank',
     endPhase: 'End phase (last 7 days before the end on {time}), counted apart – players come back before a universe closes: {days} day, {positives}× a high score | End phase (last 7 days before the end on {time}), counted apart – players come back before a universe closes: {days} days, {positives}× a high score',
     causes: 'Disproved first by (≤ 72 h):',
-    cause: { gain: 'points gain', attack: 'attack', spy: 'espionage', message: 'message', fleet: 'fleet launch', recall: 'fleet recall', manual: 'report', fleetGone: 'fleet sent away' },
+    cause: { gain: 'points gain', attack: 'attack', spy: 'espionage', message: 'message', fleet: 'fleet launch', recall: 'fleet recall', manual: 'report', fleetGone: 'fleet sent away', fleetSave: 'fleet save' },
     weights: 'Weights:',
   },
   bash: {
@@ -498,6 +498,7 @@ const en: typeof de = {
       recall: 'Fleet recall seen: {time}',
       manual: 'Reported online by a member: {time}',
       fleetGone: 'Sent a fleet between two spy reports (after {time})',
+      fleetSave: 'Fleet save worked back from spy reports: {time}',
     },
   },
   search: {
@@ -913,7 +914,7 @@ const en: typeof de = {
       filter: { title: 'Filters', text: 'Only probably inactive players, no defense or fleet, no vacation mode or targets claimed by others.' },
       loot: { title: 'Loot now', text: 'Half of the expected resources. The warning sign means a storage is full and nothing more comes in. The tooltip shows each resource and the production per hour.' },
       rank: { title: 'Loot per flight hour', text: 'Loot divided by the flight there and back: compare near small targets with far big ones. Within the same inactivity and risk it decides the order.' },
-      inactivity: { title: 'Inactivity', text: "How sure the hub is that the player is inactive: from the game's status, statistics updates without points, activity seen last (fleets, espionage) and repeated successful farm raids by members. Galaxy activity marks don't count: farmed players get them from others' attacks too." },
+      inactivity: { title: 'Inactivity', text: "How sure the hub is that the player is inactive: from the game's status, statistics updates without points, activity seen last (fleets, espionage, worked-back fleet saves) and repeated successful farm raids by members. Galaxy activity marks don't count: farmed players get them from others' attacks too." },
       risk: { title: 'Risk', text: 'Strength of the target against your fleet: fleet plus defense counted twice from the newest report (else the statistics, "≤"). safe: nothing that fights; weak: up to 30 % of your fleet; acceptable: up to 50 %; strong: more. "Fleet standing": inactive for long, the fleet is worth destroying. A click sorts the weakest to the top.' },
       sim: { title: 'Simulate', text: "Simulates your whole fleet from the empire against the first targets of the list on the game's battle engine. Then the outcome decides the risk, only for a win in every run with a profit: losses up to 10 % of your fleet weak, up to 30 % acceptable, up to 50 % risky, else strong. The tooltip shows wins, loot, losses and profit." },
       list: { title: 'Actions', text: "A target's menu spies in the game, opens the flight calculator or claims the target for you so nobody flies twice." },

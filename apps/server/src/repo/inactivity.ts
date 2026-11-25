@@ -4,6 +4,7 @@ import { inactiveDaysOf } from '../config.js';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { economyOf, type Economy } from './economy.js';
+import { fleetSavesBetween } from './fleetSave.js';
 import { SHARED } from './messages.js';
 
 /**
@@ -13,6 +14,7 @@ import { SHARED } from './messages.js';
  * Signs of activity, latest one wins:
  * - proven: the player attacked (combat reports, battle hall), spied on a member, sent a message a member synced,
  *   launched or recalled a fleet seen in members' overviews or by phalanx, or a member reported them online;
+ *   a fleet save worked back from spy reports (metal and crystal emptied at the same second, see `fleetSaveTime`);
  *   in the spy history a fleet that shrank between two reports without a battle there (sent away);
  * - a relevant points gain: total points grew in a statistics update by more than a small share of what the active
  *   players around the same rank gained (smaller gains are builds finishing from a queue, not activity).
@@ -38,7 +40,7 @@ export interface Inactivity {
   reasons: InactivityReason[];
 }
 
-export type ProofSource = 'attack' | 'spy' | 'message' | 'fleet' | 'recall' | 'manual' | 'fleetGone';
+export type ProofSource = 'attack' | 'spy' | 'message' | 'fleet' | 'recall' | 'manual' | 'fleetGone' | 'fleetSave';
 
 export type InactivityReason =
   | { code: 'flag'; status: 'inactive' | 'longinactive'; time: number | null }
@@ -246,6 +248,8 @@ export function provenActivity(db: DB, ctx: GroupContext, names: Names, from: nu
     .all(g, from, asOf) as { player_id: number; source: 'fleet' | 'recall' | 'manual'; time: number }[]) {
     add(r.player_id, r.time, r.source);
   }
+  // fleet saves worked back from spy reports: the player was online at the departure (its earliest possible second)
+  for (const f of fleetSavesBetween(db, ctx, from, asOf)) add(f.playerId ?? undefined, f.from, 'fleetSave');
   return out;
 }
 

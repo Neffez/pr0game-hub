@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Inactivity check: a fleet save worked back from spy reports counts as proven activity (source `fleetSave`, time
+  the earliest second of the departure), like fleet launches, recalls and members' reports; in the reasons, the
+  inactivity check's causes and the API enums.
 - Fleet saves: reports of the same save count as one, the departure narrowed to what all of them allow. Two probes
   during one save pointed to 18:49:43 and 18:49:42-43, which the history showed as two saves, one of them reading like
   a save of one second.

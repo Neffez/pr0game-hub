@@ -217,7 +217,7 @@ components:
                 required: [code, source, time]
                 properties:
                   code: { const: proven }
-                  source: { type: string, enum: [attack, spy, message, fleet, recall, manual, fleetGone] }
+                  source: { type: string, enum: [attack, spy, message, fleet, recall, manual, fleetGone, fleetSave], description: 'fleetSave: a fleet save worked back from spy reports (time: earliest second of the departure)' }
                   time: { type: integer }
               - type: object
                 description: 'A relevant points gain: `size` the points of that update, `ratio` against the median gain of the active players around the rank'
@@ -5989,7 +5989,7 @@ paths:
                                 score: { type: integer }
                                 hours: { type: integer, description: Earliest horizon within which activity showed }
                                 activeAt: { type: integer, description: Time of the cause }
-                                cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone)' }
+                                cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone, fleetSave)' }
                                 gain:
                                   type: [object, 'null']
                                   required: [size, ratio, categories]

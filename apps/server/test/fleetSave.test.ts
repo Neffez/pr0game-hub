@@ -110,6 +110,15 @@ describe('fleet save guess', () => {
     db.prepare('DELETE FROM spy_reports WHERE id = ?').run(later);
   });
 
+  it('counts a fleet save as proven activity in the inactivity check', async () => {
+    const res = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${farm}`, headers: carol })).json();
+    const proven = res.inactivity.reasons.find((r: { code: string }) => r.code === 'proven');
+    const departure = t - 60 - (3 * 3600 + 25 * 60 + 7);
+    expect(proven.source).toBe('fleetSave');
+    expect(Math.abs(proven.time - departure)).toBeLessThanOrEqual(3);
+    expect(res.inactivity.lastActive).toBe(proven.time);
+  });
+
   it('filters the recent reports to fleet saves, page by page', async () => {
     const all = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports?fleetSave=1', headers: carol })).json();
     expect(all.length).toBeGreaterThan(0);

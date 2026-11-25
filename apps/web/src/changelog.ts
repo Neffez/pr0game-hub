@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Inaktivität: Ein zurückgerechneter Fleetsave zählt jetzt als bewiesene Aktivität des Spielers – wer gerade gesavet hat, gilt nicht als inaktiv.',
+        en: 'Inactivity: a worked-back fleet save now counts as proven activity of the player – someone who just saved is not considered inactive.',
+      },
+      {
+        kind: 'new',
         de: 'Fleetsaves auf der Aktivitätsseite: Zurückgerechnete Fleetsaves erscheinen im Aktivitätslog als eigene Art „Fleetsave“ und führen zum Spionageverlauf des Planeten. In den neuesten Spionageberichten lässt sich mit „Nur Fleetsaves“ auf solche Berichte filtern.',
         en: 'Fleet saves on the activity page: worked-back fleet saves show in the activity log as their own kind "Fleet save" and lead to the spy history of the planet. The latest spy reports can be filtered to them with "Only fleet saves".',
       },

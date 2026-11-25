@@ -3097,8 +3097,11 @@ export type components = {
             } | {
                 /** @constant */
                 code: "proven";
-                /** @enum {string} */
-                source: "attack" | "spy" | "message" | "fleet" | "recall" | "manual" | "fleetGone";
+                /**
+                 * @description fleetSave: a fleet save worked back from spy reports (time: earliest second of the departure)
+                 * @enum {string}
+                 */
+                source: "attack" | "spy" | "message" | "fleet" | "recall" | "manual" | "fleetGone" | "fleetSave";
                 time: number;
             } | {
                 /** @constant */
@@ -9618,7 +9621,7 @@ export interface operations {
                                 hours: number;
                                 /** @description Time of the cause */
                                 activeAt: number;
-                                /** @description gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone) */
+                                /** @description gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone, fleetSave) */
                                 cause: string;
                                 gain: {
                                     /** @description Points of the gain */
