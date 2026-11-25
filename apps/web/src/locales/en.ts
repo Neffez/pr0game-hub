@@ -1860,7 +1860,7 @@ const en: typeof de = {
   },
   rank: {
     title: 'Rank order',
-    hint: 'The dynamic rank badge: whoever leads one of the ten rankings among the hub members gets a point for it (all of them on a tie). The points make the rank, from private to marshal. It counts the whole history of the statistics and pasted battle and recycling reports; when someone overtakes you, the point moves on at once.',
+    hint: 'The dynamic rank badge: whoever leads one of the ten rankings among the hub members gets a point for it (all of them on a tie). The points make the rank, from private to marshal. It counts the whole history of the statistics and pasted battle and recycling reports, the ratio of loot to losses only the last 30 days; when someone overtakes you, the point moves on at once.',
     level: 'Rank {n} of {of}',
     legendLine: '{n} ranking led | {n} rankings led',
     wins: '{n} win | {n} wins',
@@ -1894,7 +1894,7 @@ const en: typeof de = {
       resources: 'Loot of your attacks plus recycled debris',
       unitsLost: 'What your own fleets lost (metal + crystal, like "actually" on the player card). Exact with a pasted player card, otherwise from battle reports. Expedition fights do not count',
       winStreak: 'Wins in a row in which the opponent lost units; a defeat against someone outside the alliance ends it, draws do not count',
-      profitRatio: 'Resources captured divided by your own losses',
+      profitRatio: 'Resources captured divided by your own losses, from the last 30 days only',
       playersAttacked: 'Different players outside the alliance whose planets you attacked',
     },
   },

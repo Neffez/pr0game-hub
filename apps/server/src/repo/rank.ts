@@ -11,8 +11,11 @@ import { latestScores } from './stats.js';
  * The dynamic rank badge: ten conditions, each held by the member(s) leading it among the group's members (all who
  * tie get it). Every held condition is one point; the points (0–10) are the rank, shown like a military rank before
  * the other badges. Read from the group's tables over the whole history (no stored state), so a rank moves as soon
- * as someone overtakes.
+ * as someone overtakes; `profitRatio` looks only at the last `PROFIT_WINDOW` before each instant.
  */
+
+/** The window of `profitRatio` (seconds): one perfect battle must not hold it forever. */
+export const PROFIT_WINDOW = 30 * 86_400;
 
 export const RANK_CONDITIONS = [
   /** most fleet points: the newer of the fleet statistics and the empire page (ships on the planets and in flight) */
@@ -34,7 +37,7 @@ export const RANK_CONDITIONS = [
   'unitsLost',
   /** longest win streak: wins where the opponent lost units, broken by a defeat against someone outside the alliance */
   'winStreak',
-  /** best ratio of resources gained to units lost (gained / max(lost, 1)) */
+  /** best ratio of resources gained to units lost in the last 30 days (gained / max(lost, 1), see `PROFIT_WINDOW`) */
   'profitRatio',
   /** most different players attacked (outside the own alliance) */
   'playersAttacked',
@@ -170,6 +173,14 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
   for (const end of ends) {
     const values = new Map<number, Record<RankCondition, number>>(userIds.map((u) => [u, Object.fromEntries(RANK_CONDITIONS.map((k) => [k, 0])) as Record<RankCondition, number>]));
     const gained = new Map<number, number>();
+    /** resources gained and units lost within the profit window */
+    const recent = new Map<number, { gained: number; lost: number }>();
+    const since = end - PROFIT_WINDOW;
+    const recentOf = (u: number) => {
+      let r = recent.get(u);
+      if (!r) recent.set(u, (r = { gained: 0, lost: 0 }));
+      return r;
+    };
     const attacked = new Map<number, Set<number>>();
     const streak = new Map<number, { n: number; best: number }>();
 
@@ -208,16 +219,21 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
       // what the member's own fleets destroyed and lost: from the combat report when stored (an ACS shares the side),
       // else the side of the battle message; battles before the player card are in it already
       const card = cards.get(b.user_id);
-      if (card == null || b.at > card) {
+      const inWindow = b.at >= since;
+      if (card == null || b.at > card || inWindow) {
         const fleets = b.report_id ? reportFleets(b.report_id) : null;
         const real = fleets ? withUnits(catalog, () => realUnits(fleets, defense ? 1 : 0, names.get(b.user_id) ?? new Set(), destroyed)) : null;
-        v.unitsDestroyed += real?.destroyed ?? destroyed;
-        v.unitsLost += real?.lost ?? lost;
+        if (card == null || b.at > card) {
+          v.unitsDestroyed += real?.destroyed ?? destroyed;
+          v.unitsLost += real?.lost ?? lost;
+        }
+        if (inWindow) recentOf(b.user_id).lost += real?.lost ?? lost;
       }
       /** the opponent is known to be of the own alliance */
       let friendly = false;
       if (!defense) {
         gained.set(b.user_id, (gained.get(b.user_id) ?? 0) + b.loot);
+        if (inWindow) recentOf(b.user_id).gained += b.loot;
         const target = ownerOf.get(g, b.g, b.s, b.p) as number | undefined;
         if (target != null) {
           friendly = sideIds.has(target);
@@ -238,12 +254,17 @@ export function ranksAt(db: DB, ctx: GroupContext, userIds: number[], ends: numb
       else if (b.outcome === 'lose' && !friendly) st.n = 0;
       streak.set(b.user_id, st);
     }
-    for (const r of recycled) if (r.t < end && values.has(r.user_id)) gained.set(r.user_id, (gained.get(r.user_id) ?? 0) + r.n);
+    for (const r of recycled) {
+      if (r.t >= end || !values.has(r.user_id)) continue;
+      gained.set(r.user_id, (gained.get(r.user_id) ?? 0) + r.n);
+      if (r.t >= since) recentOf(r.user_id).gained += r.n;
+    }
 
     for (const [u, v] of values) {
       const gain = gained.get(u) ?? 0;
       v.resources = gain;
-      v.profitRatio = Math.round((gain / Math.max(v.unitsLost, 1)) * 100) / 100;
+      const r = recent.get(u);
+      v.profitRatio = r ? Math.round((r.gained / Math.max(r.lost, 1)) * 100) / 100 : 0;
       v.winStreak = streak.get(u)?.best ?? 0;
       v.playersAttacked = attacked.get(u)?.size ?? 0;
     }

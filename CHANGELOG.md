@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Rank badge: the condition "best ratio of loot to losses" (`profitRatio`) counts only the last 30 days (loot,
+  recycling and the battles' own losses before each instant, without the player card), so a single perfect battle no
+  longer holds it forever; the other conditions keep the whole history.
 - Activity log: new kind `vacation_end` when a player known before leaves vacation mode, the counterpart of
   `vacation_start`; shown and filterable on the activity page.
 - Inactivity check: a fleet save worked back from spy reports counts as proven activity (source `fleetSave`, time

@@ -1861,7 +1861,7 @@ const de = {
   },
   rank: {
     title: 'Rangordnung',
-    hint: 'Das dynamische Rangabzeichen: Wer eine der zehn Wertungen unter den Hub-Mitgliedern anführt, bekommt dafür einen Punkt (bei Gleichstand alle). Die Punkte ergeben den Rang, vom Gefreiten bis zum Marschall. Gezählt wird die ganze Historie aus Statistik und eingefügten Kampf- und Recyclingberichten; überholt dich jemand, wandert der Punkt sofort weiter.',
+    hint: 'Das dynamische Rangabzeichen: Wer eine der zehn Wertungen unter den Hub-Mitgliedern anführt, bekommt dafür einen Punkt (bei Gleichstand alle). Die Punkte ergeben den Rang, vom Gefreiten bis zum Marschall. Gezählt wird die ganze Historie aus Statistik und eingefügten Kampf- und Recyclingberichten, beim Verhältnis Beute zu Verlust nur die letzten 30 Tage; überholt dich jemand, wandert der Punkt sofort weiter.',
     level: 'Rang {n} von {of}',
     legendLine: '{n} Wertung angeführt | {n} Wertungen angeführt',
     wins: '{n} Sieg | {n} Siege',
@@ -1895,7 +1895,7 @@ const de = {
       resources: 'Beute deiner Angriffe plus abgebautes Trümmerfeld',
       unitsLost: 'Was deine eigenen Flotten verloren haben (Metall + Kristall, wie „real“ auf der Spielerkarte). Mit eingefügter Spielerkarte exakt, sonst aus Kampfberichten. Expeditionskämpfe zählen nicht',
       winStreak: 'Siege in Folge, bei denen der Gegner Units verloren hat; eine Niederlage gegen jemanden außerhalb der Allianz beendet sie, Unentschieden zählen nicht',
-      profitRatio: 'Erbeutete Rohstoffe geteilt durch eigene Verluste',
+      profitRatio: 'Erbeutete Rohstoffe geteilt durch eigene Verluste, nur aus den letzten 30 Tagen',
       playersAttacked: 'Verschiedene Spieler außerhalb der Allianz, deren Planeten du angegriffen hast',
     },
   },

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Rangabzeichen: Die Wertung „Bestes Verhältnis Beute zu Verlust“ zählt nur noch die letzten 30 Tage – ein einzelner perfekter Kampf hält den Rang nicht mehr für immer.',
+        en: 'Rank badge: the ranking "Best ratio of loot to losses" now counts only the last 30 days – a single perfect battle no longer keeps it forever.',
+      },
+      {
+        kind: 'new',
         de: 'Aktivität: Neben dem Wechsel in den Urlaubsmodus erscheint jetzt auch, wenn ein Spieler aus dem Urlaub zurückkommt.',
         en: 'Activity: besides entering vacation mode, the log now also shows when a player comes back from vacation.',
       },

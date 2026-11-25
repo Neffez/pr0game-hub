@@ -1016,7 +1016,8 @@ components:
         synced battle reports without expedition fights (the member's side from the target: an own planet is a
         defense) `resources` loot of attacks plus recycled
         debris, `winStreak` the longest run of wins in which the opponent lost units (a defeat breaks it unless the
-        opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1),
+        opponent is known to be of the own alliance; draws are neutral), `profitRatio` resources / max(units lost, 1)
+        over the last 30 days only (loot, recycling and the battles' own losses in that window, without the player card),
         `playersAttacked` different players (outside the own alliance) owning attacked planets. Each held condition is
         one point, the points (0–10) are the rank.
       required: [points, holds, values, fleetSource, combatCard]

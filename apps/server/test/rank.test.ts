@@ -109,6 +109,22 @@ describe('rank badge', () => {
     expect(ranks.get(carolId)!.values.winStreak).toBe(2);
   });
 
+  it('counts only the last 30 days for the ratio of loot to losses', () => {
+    // carol's battles take place at T + 0…5, dave's at T + 6…10: 30 days after T + 8 only dave's last three remain
+    const end = T + 30 * 86_400 + 8;
+    const ranks = ranksAt(db, ctx(), [carolId, daveId], [end]).get(end)!;
+    // dave: loot 200 + 0 + 50000 against the draw's 50 lost
+    expect(ranks.get(daveId)!.values.profitRatio).toBe(1004);
+    expect(ranks.get(carolId)!.values.profitRatio).toBe(0);
+    expect(ranks.get(daveId)!.holds).toContain('profitRatio');
+    // the other conditions keep the whole history
+    expect(ranks.get(carolId)!.values.resources).toBe(31500);
+    // nothing left in the window: nobody holds it
+    const later = T + 40 * 86_400;
+    const none = ranksAt(db, ctx(), [carolId, daveId], [later]).get(later)!;
+    expect([...none.values()].some((r) => r.holds.includes('profitRatio'))).toBe(false);
+  });
+
   it('shares a tie and leaves a condition nobody has open', () => {
     db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(group, Number(db.prepare("INSERT INTO users (username, password_hash) VALUES ('erin', 'x')").run().lastInsertRowid));
     const erin = db.prepare("SELECT id FROM users WHERE username = 'erin'").pluck().get() as number;
