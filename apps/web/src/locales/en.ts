@@ -1251,7 +1251,7 @@ const en: typeof de = {
     active: 'active',
     activity: {
       title: 'Activity pattern',
-      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, activity marks in the galaxy and reports by members; for players of the alliance also their syncs and when they had the hub open, together at most once an hour (if they share their online status or syncs). The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
+      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, fleet saves worked back from spy reports, activity marks in the galaxy and reports by members; for players of the alliance also their syncs and when they had the hub open, together at most once an hour (if they share their online status or syncs). The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
       hintPoints: 'The grey stepped area is the point gain per statistics update (every 6 h) compared with their other windows: no points, no activity; many points, much activity. Hours without known statistics stay empty.',
       hintGalaxy: 'Galaxy activity: one mark on one planet counts little, several planets in the same hour count more (up to the former maximum); foreign actions on the planet can set a mark. Own espionage or battles there drop only that planet; an offline report drops the marks in that hour.',
       empty: 'No evidence in this period yet.',
@@ -1271,6 +1271,7 @@ const en: typeof de = {
       sources: {
         spy: 'Espionage', attack: 'Attack', defense: 'Defense', message: 'Message', galaxy: 'Galaxy activity',
         fleet: 'Fleet launch', recall: 'Recall', manual: 'Online', offline: 'Offline', hub: 'In the hub / synced',
+        fleetSave: 'Fleet save',
       },
     },
   },

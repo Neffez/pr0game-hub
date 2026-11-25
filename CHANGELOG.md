@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Activity pattern: fleet saves worked back from spy reports are proven activity of the player and count as their
+  own source "Fleet save" (yellow ticks, full weight, coordinates in the tooltip). `GET /api/{uni}/players/{id}/activity`
+  returns them as `source: fleetSave` with the planet's coordinates, computed when served from the player's planet
+  reports of the period; several reports after the same save make one event per planet and departure.
 - Spy reports: the "Fleet save" badge in the latest reports is green (green text, tinted background and border) so
   it stands out in the list.
 - Spy reports: fleet saves worked back. A planet's spy report whose metal and crystal both point to the same second as

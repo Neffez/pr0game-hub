@@ -73,6 +73,19 @@ describe('fleet save guess', () => {
     expect(res.reports[1].fleetSave).toBeNull();
   });
 
+  it('adds the departure to the activity pattern, once per planet and departure', async () => {
+    // a second probe 30 s later sees the same save
+    const seconds = 3 * 3600 + 25 * 60 + 7;
+    spy(4, t - 30, { 900: { ...shown(4, seconds + 30, 0.6), 903: 10 }, 0: MINES, 200: { 212: 0 } });
+    const res = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${farm}/activity`, headers: carol })).json();
+    const saves = res.events.filter((e: { source: string; p: number }) => e.source === 'fleetSave' && e.p === 4);
+    expect(saves).toHaveLength(1);
+    const departure = t - 60 - seconds;
+    expect(Math.abs(saves[0].time - departure)).toBeLessThanOrEqual(saves[0].spread + 1);
+    expect(saves[0]).toMatchObject({ g: 1, s: 100 });
+    db.prepare("DELETE FROM spy_reports WHERE report_time = ? AND p = 4 AND planet_type = 'planet'").run(t - 30);
+  });
+
   it('marks the guesses in the list of recent reports', async () => {
     const rows = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports', headers: carol })).json();
     const by = (p: number, type = 'planet') => rows.find((r: { p: number; planet_type: string }) => r.p === p && r.planet_type === type);

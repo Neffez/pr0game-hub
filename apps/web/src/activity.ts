@@ -1,6 +1,6 @@
 /** Activity pattern of a player: evidence of online times laid over one day and smoothed (see `activityCurve`). */
 
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'hub';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'hub' | 'fleetSave';
 
 export interface ActivityEvent {
   time: number;
@@ -22,7 +22,7 @@ export interface ActivityEvent {
  * is around but not necessarily in the game (an hour with a sync carries weight 1 from the server).
  */
 export const SOURCE_WEIGHT: Record<ActivitySource, number> = {
-  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, offline: 0, galaxy: 0.4, hub: 0.5,
+  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, offline: 0, galaxy: 0.4, hub: 0.5, fleetSave: 1,
 };
 
 /** Evidence of yesterday counts about 0.7, of a week ago about 0.1. */

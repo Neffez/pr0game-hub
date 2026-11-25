@@ -1,5 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { fleetSaveGuesses, type SpyRow } from './fleetSave.js';
 import { DISPLAY } from './sql.js';
 import type { StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
@@ -8,11 +9,12 @@ import { SHARED } from './messages.js';
 
 /**
  * Evidence of when a player was online, for their activity pattern: stored reports (espionage on members, battles,
- * messages; for members' players their syncs and hub presence, together once per hour) read when served, and `player_activity` for what would
+ * messages, fleet saves worked back from spy reports; for members' players their syncs and hub presence, together once
+ * per hour) read when served, and `player_activity` for what would
  * be lost otherwise (galaxy activity marks, fleet launches and recalls) or is entered by hand. Point gains are no
  * events: a stat window spans 6 hours, so they only tell how active the player was per window (`activityScores`).
  */
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'hub';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'hub' | 'fleetSave';
 
 export interface ActivityEvent {
   time: number;
@@ -21,7 +23,7 @@ export interface ActivityEvent {
   source: ActivitySource;
   /** contribution to the activity curve (galaxy marks: scaled by planets per hour) */
   weight?: number;
-  /** galaxy marks: coordinates and when the galaxy view was synced */
+  /** galaxy marks and fleet saves: coordinates; galaxy marks also when the galaxy view was synced */
   g?: number;
   s?: number;
   p?: number;
@@ -304,6 +306,27 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     .pluck()
     .all(ctx.groupId, from, ctx.user.id, names) as number[]) {
     exact(time, 'message');
+  }
+
+  // fleet saves worked back from spy reports of the player's planets: the departure is a proven action. Several reports
+  // after the same save point to the same second: one event per planet and departure.
+  const spyRows = (
+    db
+      .prepare(
+        `SELECT id, g, s, p, planet_type, player_id, report_time, sections FROM spy_reports
+         WHERE group_id = ? AND player_id = ? AND planet_type = 'planet' AND report_time >= ? AND json_extract(sections, '$."900"') IS NOT NULL
+         ORDER BY report_time`,
+      )
+      .all(ctx.groupId, playerId, from) as (Omit<SpyRow, 'sections'> & { sections: string })[]
+  ).map((r) => ({ ...r, sections: JSON.parse(r.sections) as SpyRow['sections'] }));
+  const saves: { key: string; from: number; to: number }[] = [];
+  for (const r of fleetSaveGuesses(db, ctx, spyRows)) {
+    const f = r.fleetSave;
+    if (!f || f.to < from) continue;
+    const key = `${r.g}:${r.s}:${r.p}`;
+    if (saves.some((x) => x.key === key && x.from <= f.to && x.to >= f.from)) continue;
+    saves.push({ key, from: f.from, to: f.to });
+    out.push({ time: Math.round((f.from + f.to) / 2), spread: Math.ceil((f.to - f.from) / 2), source: 'fleetSave', g: r.g, s: r.s, p: r.p });
   }
 
   // a member's player: pages they synced (copied from the game, so online there) and an active hub tab, as far as the

@@ -12,7 +12,7 @@ import type { ApiResponse } from '../apiTypes';
 import { activityCurve, minuteOfDay, pointsRate, tickEvents, type ActivityEvent, type ActivitySource } from '../activity';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { dateTime } from '../format';
+import { coords, dateTime } from '../format';
 import { fromLocalInput, toLocalInput } from '../plans';
 import { toast } from '../toast';
 
@@ -25,6 +25,7 @@ const { uni } = useUni();
 const COLORS: Record<ActivitySource, string> = {
   spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7',
   galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', offline: '#6e7681', hub: '#56d4dd',
+  fleetSave: '#ffe14d',
 };
 const CURVE = '#7c6cf0';
 const POINTS = '#8b98a9';
@@ -136,6 +137,7 @@ function draw() {
               const e = (item.raw as { e?: ActivityEvent }).e!;
               const parts = [sourceLabel(e.source)];
               if (e.spread >= 120) parts.push(t('player.activity.spread', { min: Math.round(e.spread / 60) }));
+              if (e.source === 'fleetSave' && e.g != null) parts.push(coords(e.g, e.s!, e.p!));
               if (e.reporter) parts.push(e.reporter);
               return parts.join(' · ');
             },
@@ -184,7 +186,7 @@ onMounted(reload);
 watch(() => props.player, reload);
 // the canvas is only there while the section is open
 watch([days, locale, canvas], () => nextTick(draw));
-useLiveReload(reload, tables('player_activity', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_messages', 'galaxy_systems', 'fleets', 'player_scores'));
+useLiveReload(reload, tables('player_activity', 'spy_reports', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_messages', 'galaxy_systems', 'fleets', 'player_scores'));
 onBeforeUnmount(() => chart?.destroy());
 </script>
 

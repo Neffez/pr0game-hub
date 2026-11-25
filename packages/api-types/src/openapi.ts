@@ -5529,17 +5529,17 @@ export type components = {
             /** @description Half width of the uncertainty in seconds (0 = exact) */
             spread: number;
             /**
-             * @description hub: a member's syncs and open hub tab, together once per hour
+             * @description hub: a member's syncs and open hub tab, together once per hour; fleetSave: departure of a fleet save worked back from a spy report of the player's planet (see FleetSaveGuess), one per planet and departure
              * @enum {string}
              */
-            source: "spy" | "attack" | "defense" | "message" | "galaxy" | "fleet" | "recall" | "manual" | "offline" | "hub";
+            source: "spy" | "attack" | "defense" | "message" | "galaxy" | "fleet" | "recall" | "manual" | "offline" | "hub" | "fleetSave";
             /** @description Contribution to the activity curve (galaxy marks scaled by planets per hour) */
             weight?: number;
-            /** @description Galaxy mark only – galaxy coordinate */
+            /** @description Galaxy mark and fleet save only – galaxy coordinate */
             g?: number;
-            /** @description Galaxy mark only – system coordinate */
+            /** @description Galaxy mark and fleet save only – system coordinate */
             s?: number;
-            /** @description Galaxy mark only – position */
+            /** @description Galaxy mark and fleet save only – position */
             p?: number;
             /** @description Galaxy mark only – when the galaxy view was seen (server time of the page, else the time of the sync; Unix seconds) */
             syncedAt?: number;
