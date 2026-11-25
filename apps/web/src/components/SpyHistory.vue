@@ -4,8 +4,9 @@ import type { Schema } from '../apiTypes';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import ActionMenu, { type MenuItem } from './ActionMenu.vue';
+import Hint from './Hint.vue';
 import {
-  battleSimLink, distance, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3, type SimFleet,
+  battleSimLink, clockTime, distance, duration, flightCalcLink, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3, type SimFleet,
   type UniverseSettings,
 } from '../format';
 
@@ -81,6 +82,33 @@ const simMenu = computed<MenuItem[]>(() => {
   ].filter(Boolean) as MenuItem[];
 });
 
+/**
+ * Fleet save traces: reports whose metal and crystal both point to the same second as the last time the planet was
+ * emptied (server `fleetSave`), newest first; each links to the flight calculator with the planet as start, the
+ * departure and the player's drives, to work out when the saved fleet is back.
+ */
+const FLEET_SAVES_SHOWN = 5;
+const fleetSaves = computed(() => {
+  if (props.moon || !props.target || !ctx.value) return [];
+  const u = ctx.value.universe.settings;
+  const research = props.reports.find((r) => r.sections['100'])?.sections['100'] ?? {};
+  return props.reports
+    .filter((r): r is SpyReport & { fleetSave: NonNullable<SpyReport['fleetSave']> } => !!r.fleetSave)
+    .slice(0, FLEET_SAVES_SHOWN)
+    .map((r) => ({
+      report: r,
+      save: r.fleetSave,
+      href: flightCalcLink(u, props.target!, null, research, { m: 'flight', dep: r.fleetSave.from, mis: 'none' }),
+    }));
+});
+const clock = (epoch: number) => clockTime(new Date(epoch * 1000), true);
+const saveTitle = (s: NonNullable<SpyReport['fleetSave']>) =>
+  [
+    t('spyHistory.fleetSavePerHour', { m: fmt(s.perHour[901]), k: fmt(s.perHour[902]), d: fmt(s.perHour[903]) }),
+    t('spyHistory.fleetSaveSources', { buildings: timeWithAge(s.buildingsTime) }),
+    s.researchTime ? t('spyHistory.fleetSaveResearch', { time: timeWithAge(s.researchTime) }) : t('spyHistory.fleetSaveNoResearch'),
+  ].join('\n');
+
 /** IPM calculator with the newest report: defense, interceptors (of the planet for a moon) and armour, own research. */
 const ipm = computed(() => {
   if (!props.target || !ctx.value) return null;
@@ -116,6 +144,21 @@ const ipm = computed(() => {
       </template>
       <template v-if="ipm"> · <a :href="ipm.href" :title="ipm.title" target="_blank" rel="noopener">{{ t('spyHistory.ipm') }}</a></template>
     </p>
+    <div v-if="fleetSaves.length" class="card fs-card" data-tour="spy-fleetsave">
+      <h3>{{ t('spyHistory.fleetSave') }} <Hint>{{ t('spyHistory.fleetSaveHint') }}</Hint></h3>
+      <div v-for="x in fleetSaves" :key="x.report.id" class="fs-row small" :title="saveTitle(x.save)">
+        <span>
+          <strong class="mono">{{ timeWithAge(x.save.from) }}</strong>
+          <template v-if="x.save.to > x.save.from"> {{ t('spyHistory.fleetSaveUntil', { time: clock(x.save.to) }) }}</template>
+        </span>
+        <span class="muted">{{ t('spyHistory.fleetSaveBefore', { d: duration(x.report.report_time - x.save.to), time: timeWithAge(x.report.report_time) }) }}</span>
+        <span :class="x.save.deuterium ? 'pos' : 'muted'">
+          {{ x.save.deuterium === true ? t('spyHistory.fleetSaveDeut') : x.save.deuterium === false ? t('spyHistory.fleetSaveDeutUsed') : '' }}
+        </span>
+        <span v-if="x.save.researchTime == null" class="warn">{{ t('spyHistory.fleetSaveNoResearchShort') }}</span>
+        <a :href="x.href" target="_blank" rel="noopener">{{ t('spyHistory.fleetSaveCalc') }}</a>
+      </div>
+    </div>
     <!-- mobile: per section one block per report, values as name/value list -->
     <template v-if="mobile">
       <div v-for="tbl in tables" :key="tbl.cls" class="card sh-card">
@@ -161,6 +204,10 @@ const ipm = computed(() => {
 </template>
 
 <style scoped>
+.fs-card { padding: 10px 12px; margin-bottom: 10px; }
+.fs-card h3 { margin: 0 0 6px; }
+.fs-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 3px 0; }
+.fs-row + .fs-row { border-top: 1px dashed var(--border); }
 .sh-card { padding: 10px 12px; margin-bottom: 10px; }
 .sh-card h3 { margin: 0 0 6px; }
 .sh-report + .sh-report { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }

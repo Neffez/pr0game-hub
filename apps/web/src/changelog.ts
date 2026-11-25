@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-25',
+    items: [
+      {
+        kind: 'new',
+        de: 'Spionageberichte rechnen Fleetsaves zurück: Zeigen Metall und Kristall eines Berichts auf dieselbe Sekunde, zu der der Planet leer war, hat der Spieler vermutlich alles in den Fleetsave mitgenommen. Der Verlauf des Ziels zeigt die Abflugzeit (mit Produktionsmaximierung, Positionsbonus und Rohstoffgeschwindigkeit gerechnet), ob Deuterium auch passt, und übernimmt sie per Link mit Koordinaten und Antrieben in den Flugzeitrechner. In den neuesten Berichten markiert „Fleetsave“ solche Berichte.',
+        en: 'Spy reports work back fleet saves: when metal and crystal of a report point to the same second the planet was empty, the player probably took everything along on a fleet save. The target\'s history shows the departure (calculated with mining research, position bonus and resource speed), whether deuterium fits too, and takes it with coordinates and drives into the flight calculator by link. In the latest reports "Fleet save" marks such reports.',
+      },
+    ],
+  },
+  {
     date: '2026-11-24',
     items: [
       {

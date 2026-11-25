@@ -2,6 +2,23 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-25
+
+- Spy reports: fleet saves worked back. A planet's spy report whose metal and crystal both point to the same second as
+  the last time the planet was empty (a fleet save that took everything) gets a `fleetSave` guess in
+  `GET /api/{uni}/spy/{g}/{s}/{p}` and `GET /api/{uni}/spy-reports`: departure window, whether deuterium fits too,
+  production used and the reports its buildings and research came from.
+  - `fleetSaveTime` in `@pr0hub/core/production`: per resource the whole seconds `t` with
+    `shown - 1 < t * perSecond < shown + 1` (the game loads only whole units, leaving less than 1, and shows amounts
+    rounded down); a guess when metal and crystal overlap, none with a full storage or without production.
+  - `productionOf` takes the position bonus (`bonus`, percent per resource) on the mines like the game's
+    `ReBuildCache`, not on the basic income.
+  - Production from the report's or the position's nearest report with buildings (satellites included), the player's
+    nearest research report (else without mining research), the universe's position bonus and resource speed.
+  - Spy history: a "Fleet save worked back" card with the departure, the time before the report, the deuterium check
+    and a link to the flight calculator (planet as start, departure, the player's drives); recent reports get a
+    "Fleet save" badge; spy tour step. `flightCalcLink` takes no target (the calculator keeps its own).
+
 ## 2026-11-24
 
 - Activity page: tabs. The activity log stays the default tab; the new tab "Hub activity" shows what members did in

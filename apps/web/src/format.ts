@@ -228,14 +228,14 @@ export function setMarketRate(rate: { m: number; k: number } | null | undefined)
 export const rateText = (m: number | null | undefined, k: number | null | undefined) => `${fmt(m, 2)} : ${fmt(k, 2)} : ${fmt(1, 2)}`;
 
 /**
- * Link into the flight calculator: start/target, drive research and the universe layout are
- * passed via its share-link hash (sg/ss/sp, tg/ts/tp, c/i/h/fe/ex, mg/ms/…); `extra` adds further keys of the
- * share link (mode, ships, times, see `applyHash` in the calculator).
+ * Link into the flight calculator: start/target (no target: the calculator keeps its own), drive research and the
+ * universe layout are passed via its share-link hash (sg/ss/sp, tg/ts/tp, c/i/h/fe/ex, mg/ms/…); `extra` adds further
+ * keys of the share link (mode, ships, times, see `applyHash` in the calculator).
  */
 export function flightCalcLink(
   u: UniverseSettings,
   from: Coords3 | null,
-  to: Coords3,
+  to: Coords3 | null,
   research: Record<string, number> = {},
   extra: Record<string, string | number> = {},
 ): string {
@@ -245,9 +245,11 @@ export function flightCalcLink(
     p.set('ss', String(from[1]));
     p.set('sp', String(from[2]));
   }
-  p.set('tg', String(to[0]));
-  p.set('ts', String(to[1]));
-  p.set('tp', String(to[2]));
+  if (to) {
+    p.set('tg', String(to[0]));
+    p.set('ts', String(to[1]));
+    p.set('tp', String(to[2]));
+  }
   // combustion, impulse, hyperspace drive, fuel efficiency, astrophysics
   for (const [key, id] of [['c', 115], ['i', 117], ['h', 118], ['fe', 134], ['ex', 124]] as const) {
     if (research[id] != null) p.set(key, String(research[id]));

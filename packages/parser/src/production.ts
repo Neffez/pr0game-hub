@@ -35,6 +35,11 @@ export interface ProductionInput {
   /** game `energy_multiplier`, default 1 */
   energySpeed?: number;
   basicIncome?: Record<number, number>;
+  /**
+   * Production bonus of the planet in percent per resource (901-903; the game's `*_bonus_percent` of the position with
+   * `planet_ressource_bonus`): it raises the mines like the game's `ReBuildCache`, not the basic income.
+   */
+  bonus?: Record<number, number>;
 }
 
 export interface Production {
@@ -78,7 +83,8 @@ export function productionOf(i: ProductionInput): Production {
   const out: Production = { 901: 0, 902: 0, 903: 0, energy, energyUsed };
   const level = energyUsed === 0 ? 0 : Math.min(1, energy / energyUsed);
   ([901, 902, 903] as const).forEach((r, k) => {
-    const mine = energyUsed === 0 ? 0 : (plus[r] * (1 + 0.02 * tech(131 + k)) * level - minus[r]) * i.resourceSpeed;
+    const bonus = 1 + (i.bonus?.[r] ?? 0) / 100;
+    const mine = energyUsed === 0 ? 0 : (plus[r] * bonus * (1 + 0.02 * tech(131 + k)) * level - minus[r]) * i.resourceSpeed;
     out[r] = mine + (income[r] ?? 0) * i.resourceSpeed;
   });
   return out;
@@ -185,4 +191,70 @@ export function deriveResourceSpeed(planets: { levels: Record<string, number>; r
   ratios.sort((a, b) => a - b);
   const mid = ratios[Math.floor(ratios.length / 2)];
   return Math.round(mid * 100) / 100;
+}
+
+export interface FleetSaveInput {
+  /** metal, crystal, deuterium a spy report showed (the game shows them rounded down) */
+  resources: Record<number, number>;
+  /** building levels and the number of solar satellites (212) */
+  levels: Record<string, number>;
+  /** research levels (113 energy, 131-133 mining); unknown = 0 */
+  research?: Record<string, number>;
+  /** max temperature; `positionTemp` when unknown (only the energy of satellites and deuterium depend on it) */
+  temp: number;
+  /** resource multiplier as a factor (game `resource_multiplier` / 2500) */
+  resourceSpeed: number;
+  /** storage capacity factor of the universe, default 1 */
+  storageFactor?: number;
+  /** production bonus of the position in percent per resource (901-903) */
+  bonus?: Record<number, number>;
+}
+
+/** Whole seconds before a report, earliest and latest, both included. */
+export interface SecondsAgo {
+  min: number;
+  max: number;
+}
+
+export interface FleetSave {
+  /** seconds before the report when metal and crystal were both at 0: the departure of a fleet that took them all */
+  ago: SecondsAgo;
+  /** per resource the seconds that fit it alone; null without production or with a full storage */
+  byResource: Record<901 | 902 | 903, SecondsAgo | null>;
+  /** deuterium fits the same second too; null when it cannot tell (no production, full storage) */
+  deuterium: boolean | null;
+  /** production per hour used */
+  perHour: Record<901 | 902 | 903, number>;
+}
+
+/**
+ * When a player last took all metal and crystal from a planet (a fleet save that loaded everything), from the
+ * resources of a spy report and the production since: the game's `ShowFleetStep3Page` loads at most the whole units
+ * on the planet, so less than 1 of each stays behind; `ResourceUpdate` then adds the production per second until the
+ * spy report, which shows the amount rounded down. So for each resource the elapsed whole seconds `t` satisfy
+ * `shown - 1 < t * perSecond < shown + 1`. When the seconds of metal and crystal overlap, both were emptied at the
+ * same second, which a player rarely does by anything else. Null when they do not overlap or either cannot tell (no
+ * production, storage full: production stopped).
+ */
+export function fleetSaveTime(i: FleetSaveInput): FleetSave | null {
+  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp: i.temp, resourceSpeed: i.resourceSpeed, bonus: i.bonus });
+  const byResource: FleetSave['byResource'] = { 901: null, 902: null, 903: null };
+  const perHour: FleetSave['perHour'] = { 901: 0, 902: 0, 903: 0 };
+  for (const r of [901, 902, 903] as const) {
+    perHour[r] = prod[r];
+    const shown = i.resources[r];
+    const capacity = storageCapacity(i.levels[STORAGE[r]] ?? 0, i.storageFactor ?? 1);
+    if (shown == null || shown < 0 || prod[r] <= 0 || shown + 1 >= capacity) continue;
+    const perSecond = prod[r] / 3600;
+    const min = Math.max(0, Math.floor((shown - 1) / perSecond) + 1);
+    const max = Math.ceil((shown + 1) / perSecond) - 1;
+    if (max >= min) byResource[r] = { min, max };
+  }
+  const m = byResource[901];
+  const k = byResource[902];
+  if (!m || !k) return null;
+  const ago = { min: Math.max(m.min, k.min), max: Math.min(m.max, k.max) };
+  if (ago.min > ago.max) return null;
+  const d = byResource[903];
+  return { ago, byResource, deuterium: d ? d.min <= ago.max && d.max >= ago.min : null, perHour };
 }

@@ -11,7 +11,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { readError, uniApi } from '../api';
-import type { ApiResponse } from '../apiTypes';
+import type { ApiResponse, Schema } from '../apiTypes';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
 import { useLoader, useMobile, useProgressive, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -115,6 +115,9 @@ useLiveReload(() => {
 watch([type, limit], load);
 
 const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
+/** Badge tooltip of a report whose metal and crystal point to one departure (details in the history of the target). */
+const fleetSaveTitle = (f: NonNullable<Schema<'FleetSaveGuess'>>) =>
+  t('spy.fleetSaveTitle', { time: timeWithAge(f.from), window: f.to - f.from + 1 });
 useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 </script>
 
@@ -177,6 +180,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
         <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name ?? ''" @click.stop />
         <span v-else>{{ r.player_name }}</span>
         <span class="muted small al-ellipsis">{{ r.planet_name }}</span>
+        <span v-if="r.fleetSave" class="badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
       </span>
       <span class="m-line small">
         <span class="mono"><span class="faint">{{ t('overview.resShort.901') }}</span> {{ short(res(r, 901)) }}</span>
@@ -201,7 +205,10 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
             <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name ?? ''" />
             <span v-else>{{ r.player_name }}</span>
           </td>
-          <td class="muted">{{ r.planet_name }}</td>
+          <td class="muted">
+            {{ r.planet_name }}
+            <span v-if="r.fleetSave" class="badge" :title="fleetSaveTitle(r.fleetSave)">{{ t('spy.fleetSave') }}</span>
+          </td>
           <td class="num">{{ fmt(res(r, 901)) }}</td>
           <td class="num">{{ fmt(res(r, 902)) }}</td>
           <td class="num">{{ fmt(res(r, 903)) }}</td>

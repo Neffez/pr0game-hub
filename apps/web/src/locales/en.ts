@@ -798,7 +798,8 @@ const en: typeof de = {
     spy: {
       intro: { title: 'Espionage reports', text: 'All espionage reports of the alliance in one place: every report a member syncs ends up here.' },
       form: { title: 'Find a target', text: 'Enter coordinates, choose planet or moon and how many reports: you see all reports of the target with the changes to the previous report, plus the action menu and comments on the target.' },
-      recent: { title: 'Latest reports', text: 'The latest reports of all members; a click shows the history of that target.' },
+      fleetSave: { title: 'Fleet save worked back', text: 'When metal and crystal of a report point to the same second the planet was empty, the player probably took everything along on a fleet save. The link takes the departure, the coordinates and their drives into the flight calculator: enter target and ships to see when the fleet is back.' },
+      recent: { title: 'Latest reports', text: 'The latest reports of all members; a click shows the history of that target. "Fleet save" marks reports with a worked-back departure.' },
     },
     hostile: {
       intro: { title: 'Hostile espionage', text: 'Who is after you and the alliance? From the "espionage activity" messages, battle reports and fleet movements members sync.' },
@@ -1155,6 +1156,18 @@ const en: typeof de = {
     ipmTitle: 'Defense, interceptors and armour from the newest report',
     ipmMoonTitle: "Defense and armour from the newest report; interceptors from the planet ({planet})",
     ipmMoonNoPlanet: 'no report of the planet, please enter them yourself',
+    fleetSave: 'Fleet save worked back',
+    fleetSaveHint: 'When a player takes all resources along on a fleet save, less than 1 of each stays on the planet. From the production since (mines, energy, mining research, position bonus of the universe, resource speed) the hub works back how many seconds ago metal and crystal were empty. When both point to the same second, the player very likely took everything. Deuterium often does not fit because it was used for the galaxy view afterwards. If resources were left behind or production changed, nothing shows.',
+    fleetSaveUntil: 'to {time}',
+    fleetSaveBefore: '{d} before the report of {time}',
+    fleetSaveDeut: 'deuterium fits too',
+    fleetSaveDeutUsed: 'deuterium used since',
+    fleetSaveNoResearchShort: 'calculated without mining research',
+    fleetSaveCalc: 'Return in the flight calculator',
+    fleetSavePerHour: 'Production per hour: {m} metal, {k} crystal, {d} deuterium',
+    fleetSaveSources: 'Buildings from the report of {buildings}',
+    fleetSaveResearch: 'Research from the report of {time}',
+    fleetSaveNoResearch: 'No research known: calculated without mining research',
   },
   universeJson: {
     invalidJson: 'The file is not valid JSON.',
@@ -1339,6 +1352,8 @@ const en: typeof de = {
     recent: 'Latest reports',
     body: 'Planet or moon',
     count: 'Reports',
+    fleetSave: 'Fleet save',
+    fleetSaveTitle: 'Metal and crystal were last empty at the same second: probably a fleet save at {time} (window {window} s). Details in the history of the target.',
   },
   activity: {
     title: 'Activity log',

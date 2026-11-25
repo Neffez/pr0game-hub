@@ -165,6 +165,7 @@ export const TOURS = {
     steps: [
       { key: 'intro' },
       { key: 'form', el: 'spy-form', side: 'bottom' },
+      { key: 'fleetSave', el: 'spy-fleetsave', side: 'bottom' },
       { key: 'recent', el: 'spy-recent', side: 'top' },
     ],
   },

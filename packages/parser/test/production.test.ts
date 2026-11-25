@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calibrate, deriveResourceSpeed, positionTemp, productionOf, projectResources } from '../src/production.js';
+import { calibrate, deriveResourceSpeed, fleetSaveTime, positionTemp, productionOf, projectResources } from '../src/production.js';
 import { storageCapacity } from '../src/tech.js';
 import { missileSpace, requirementsOf, shipsOf, shipyardTime, type BuildPlanet } from '../src/buildings.js';
 
@@ -138,5 +138,59 @@ describe('deriveResourceSpeed', () => {
     expect(deriveResourceSpeed([{ levels, research: {}, temp: null, perHour: { 901: shown[901] } }, { levels: {}, research: {}, temp: 50, perHour: { 901: 60 } }])).toBeNull();
     // a page without the power plants: the formula's mines get no energy, the planet tells nothing
     expect(deriveResourceSpeed([{ levels: { 1: 25 }, research: {}, temp: 42, perHour: { 901: 38_369 } }])).toBeNull();
+  });
+});
+
+describe('fleetSaveTime', () => {
+  const levels = { 1: 22, 2: 18, 3: 15, 4: 22, 12: 0, 22: 6, 23: 5, 24: 4 };
+  const research = { 113: 8, 131: 4, 132: 3 };
+  const base = { levels, research, temp: 30, resourceSpeed: 1 };
+  /** what a spy report shows `seconds` after a fleet took everything but `left` (< 1) of each resource */
+  const shownAfter = (seconds: number, left: number, input: Parameters<typeof productionOf>[0] = { ...base }) => {
+    const p = productionOf(input);
+    return { 901: Math.floor(left + (seconds * p[901]) / 3600), 902: Math.floor(left + (seconds * p[902]) / 3600), 903: Math.floor(left + (seconds * p[903]) / 3600) };
+  };
+
+  it('finds the second of a fleet save that took all resources', () => {
+    for (const [seconds, left] of [[3 * 3600 + 17, 0], [5 * 3600 + 1234, 0.97], [42, 0.5], [11 * 3600 + 59, 0.2]] as const) {
+      const res = fleetSaveTime({ ...base, resources: shownAfter(seconds, left) });
+      expect(res).not.toBeNull();
+      expect(res!.ago.min).toBeLessThanOrEqual(seconds);
+      expect(res!.ago.max).toBeGreaterThanOrEqual(seconds);
+      expect(res!.ago.max - res!.ago.min).toBeLessThan(5);
+      expect(res!.deuterium).toBe(true);
+    }
+  });
+
+  it('tells when deuterium was used after the departure', () => {
+    const shown = shownAfter(4 * 3600, 0.3);
+    const res = fleetSaveTime({ ...base, resources: { ...shown, 903: Math.floor(shown[903] / 2) } });
+    expect(res?.ago.min).toBeLessThanOrEqual(4 * 3600);
+    expect(res?.deuterium).toBe(false);
+  });
+
+  it('finds nothing when resources were left behind', () => {
+    const shown = shownAfter(2 * 3600, 0);
+    expect(fleetSaveTime({ ...base, resources: { ...shown, 902: shown[902] + 5000 } })).toBeNull();
+  });
+
+  it('applies the mining research and the position bonus to the mines only', () => {
+    const bonus = { 901: 0, 902: 15, 903: 0 };
+    const shown = shownAfter(6 * 3600 + 321, 0.4, { ...base, bonus });
+    const res = fleetSaveTime({ ...base, bonus, resources: shown });
+    expect(res!.ago.min).toBeLessThanOrEqual(6 * 3600 + 321);
+    expect(res!.ago.max).toBeGreaterThanOrEqual(6 * 3600 + 321);
+    // without the bonus crystal points to another second
+    expect(fleetSaveTime({ ...base, resources: shown })).toBeNull();
+    const p = productionOf({ ...base, bonus });
+    const plain = productionOf({ ...base });
+    expect(p[902] - 10).toBeCloseTo((plain[902] - 10) * 1.15);
+    expect(p[901]).toBeCloseTo(plain[901]);
+  });
+
+  it('cannot tell with a full storage or without production', () => {
+    const full = storageCapacity(5);
+    expect(fleetSaveTime({ ...base, resources: { 901: 1000, 902: full, 903: 0 } })).toBeNull();
+    expect(fleetSaveTime({ ...base, levels: {}, resourceSpeed: 0, resources: { 901: 0, 902: 0, 903: 0 } })).toBeNull();
   });
 });

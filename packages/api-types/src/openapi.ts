@@ -5238,7 +5238,34 @@ export type components = {
             destroy_chance: number | null;
             /** @description Hub name of the member who synced it */
             reporter: string | null;
+            fleetSave: components["schemas"]["FleetSaveGuess"];
         };
+        /**
+         * @description When the player last took all metal and crystal from the planet (a fleet save that loaded everything): the
+         *     seconds since the departure that the shown metal and crystal fit, given the production since (mines, power
+         *     plants and satellites of the report or the position's nearest report with buildings, mining research of the
+         *     player's nearest report with research, position bonus and resource speed of the universe; the game leaves less
+         *     than 1 of each behind and shows the amounts rounded down). Null for moons, without resources or buildings, with
+         *     a full storage and when metal and crystal do not point to the same second.
+         */
+        FleetSaveGuess: {
+            /** @description Earliest second of the departure (epoch seconds) */
+            from: number;
+            /** @description Latest second of the departure (epoch seconds) */
+            to: number;
+            /** @description Deuterium points to the same second too (false: deuterium was used since, e.g. for the galaxy view); null when it cannot tell */
+            deuterium: boolean | null;
+            /** @description Production per hour used (resource id -> amount) */
+            perHour: {
+                901: number;
+                902: number;
+                903: number;
+            };
+            /** @description Report time of the buildings used */
+            buildingsTime: number;
+            /** @description Report time of the research used; null when unknown (calculated without mining research) */
+            researchTime: number | null;
+        } | null;
         /** @description One way at full speed from where the fleet was seen, else the owner's nearest planet */
         DefenseFlight: {
             from: components["schemas"]["PageCoords"];
@@ -6360,6 +6387,7 @@ export type components = {
             sections: components["schemas"]["SpySections"];
             /** @description Hub name of the member who synced it */
             reporter: string | null;
+            fleetSave: components["schemas"]["FleetSaveGuess"];
         };
         Comment: {
             id: number;

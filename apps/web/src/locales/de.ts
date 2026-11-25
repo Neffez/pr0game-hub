@@ -799,7 +799,8 @@ const de = {
     spy: {
       intro: { title: 'Spionageberichte', text: 'Alle Spionageberichte der Allianz an einem Ort: Jeder synchronisierte Bericht eines Mitglieds landet hier.' },
       form: { title: 'Ziel suchen', text: 'Koordinate eingeben, Planet oder Mond wählen und wie viele Berichte: Du siehst alle Berichte zum Ziel mit den Veränderungen zum vorherigen Bericht, dazu das Aktionsmenü und Kommentare zum Ziel.' },
-      recent: { title: 'Neueste Berichte', text: 'Die neuesten Berichte aller Mitglieder; ein Klick zeigt den Verlauf dieses Ziels.' },
+      fleetSave: { title: 'Fleetsave zurückgerechnet', text: 'Zeigen Metall und Kristall eines Berichts auf dieselbe Sekunde, zu der der Planet leer war, hat der Spieler vermutlich alles in den Fleetsave mitgenommen. Der Link übernimmt Abflugzeit, Koordinaten und seine Antriebe in den Flugzeitrechner: Ziel und Schiffe eintragen und sehen, wann die Flotte zurück ist.' },
+      recent: { title: 'Neueste Berichte', text: 'Die neuesten Berichte aller Mitglieder; ein Klick zeigt den Verlauf dieses Ziels. „Fleetsave“ markiert Berichte mit zurückgerechnetem Abflug.' },
     },
     hostile: {
       intro: { title: 'Fremdspionage', text: 'Wer hat es auf dich und auf die Allianz abgesehen? Aus den „Spionage-Aktivität“-Nachrichten, Kampfberichten und Flottenbewegungen, die Mitglieder synchronisieren.' },
@@ -1156,6 +1157,18 @@ const de = {
     ipmTitle: 'Verteidigung, Abfangraketen und Panzerung aus dem neuesten Bericht',
     ipmMoonTitle: 'Verteidigung und Panzerung aus dem neuesten Bericht; Abfangraketen vom Planeten ({planet})',
     ipmMoonNoPlanet: 'kein Bericht vom Planeten, bitte selbst eintragen',
+    fleetSave: 'Fleetsave zurückgerechnet',
+    fleetSaveHint: 'Nimmt ein Spieler beim Fleetsave alle Rohstoffe mit, bleibt weniger als 1 von jedem auf dem Planeten. Aus der Produktion seitdem (Minen, Energie, Produktionsmaximierung, Positionsbonus des Universums, Rohstoffgeschwindigkeit) rechnet der Hub zurück, vor wie vielen Sekunden Metall und Kristall leer waren. Zeigen beide auf dieselbe Sekunde, hat er sehr wahrscheinlich alles mitgenommen. Deuterium passt oft nicht, weil es danach für die Galaxieansicht verbraucht wurde. Lässt er Rohstoffe liegen oder ändert die Produktion, erscheint nichts.',
+    fleetSaveUntil: 'bis {time}',
+    fleetSaveBefore: '{d} vor dem Bericht vom {time}',
+    fleetSaveDeut: 'Deuterium passt auch',
+    fleetSaveDeutUsed: 'Deuterium seitdem verbraucht',
+    fleetSaveNoResearchShort: 'ohne Produktionsmaximierung gerechnet',
+    fleetSaveCalc: 'Rückkehr im Flugzeitrechner',
+    fleetSavePerHour: 'Produktion pro Stunde: {m} Metall, {k} Kristall, {d} Deuterium',
+    fleetSaveSources: 'Gebäude aus dem Bericht vom {buildings}',
+    fleetSaveResearch: 'Forschung aus dem Bericht vom {time}',
+    fleetSaveNoResearch: 'Keine Forschung bekannt: ohne Produktionsmaximierung gerechnet',
   },
   universeJson: {
     invalidJson: 'Die Datei ist kein gültiges JSON.',
@@ -1340,6 +1353,8 @@ const de = {
     recent: 'Neueste Berichte',
     body: 'Planet oder Mond',
     count: 'Berichte',
+    fleetSave: 'Fleetsave',
+    fleetSaveTitle: 'Metall und Kristall waren zuletzt zur selben Sekunde leer: vermutlich Fleetsave um {time} (Spanne {window} s). Details im Verlauf des Ziels.',
   },
   activity: {
     title: 'Aktivitätslog',

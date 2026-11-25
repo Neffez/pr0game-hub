@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { DB } from '../db.js';
+import { fleetSaveGuesses, type SpyRow } from '../repo/fleetSave.js';
 import { clampInt, contextOf, DISPLAY, parseSections, type Q } from './util.js';
 
 export function spyRoutes(app: FastifyInstance, db: DB) {
@@ -9,19 +10,23 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const type = req.query.type === 'moon' ? 'moon' : 'planet';
     const limit = clampInt(req.query.limit, 20, 1, 500);
-    const reports = db
+    const [g, s, p] = [Number(req.params.g), Number(req.params.s), Number(req.params.p)];
+    const rows = db
       .prepare(
         `SELECT sr.id, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections, sr.destroy_chance, ${DISPLAY} AS reporter
          FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id
          WHERE sr.group_id = ? AND sr.g = ? AND sr.s = ? AND sr.p = ? AND sr.planet_type = ?
          ORDER BY sr.report_time DESC LIMIT ?`,
       )
-      .all(ctx.groupId, Number(req.params.g), Number(req.params.s), Number(req.params.p), type, limit)
-      .map(parseSections);
+      .all(ctx.groupId, g, s, p, type, limit)
+      .map(parseSections) as Omit<SpyRow, 'g' | 's' | 'p' | 'planet_type'>[];
     const total = db
       .prepare('SELECT COUNT(*) FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?')
       .pluck()
-      .get(ctx.groupId, Number(req.params.g), Number(req.params.s), Number(req.params.p), type);
+      .get(ctx.groupId, g, s, p, type);
+    const reports = fleetSaveGuesses(db, ctx, rows.map((r) => ({ ...r, g, s, p, planet_type: type })))
+      // the position is the request's: not repeated per report
+      .map(({ g: _g, s: _s, p: _p, planet_type: _t, ...r }) => r);
     return { reports, total };
   });
 
@@ -33,7 +38,7 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
     const before = req.query.before?.match(/^(\d+):(\d+)$/);
     const after = before ? 'AND (sr.report_time < ? OR (sr.report_time = ? AND sr.id < ?))' : '';
     const args = before ? [Number(before[1]), Number(before[1]), Number(before[2])] : [];
-    return db
+    const rows = db
       .prepare(
         `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
            ${DISPLAY} AS reporter
@@ -41,6 +46,7 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
          WHERE sr.group_id = ? ${after} ORDER BY sr.report_time DESC, sr.id DESC LIMIT ? OFFSET ?`,
       )
       .all(ctx.groupId, ...args, limit, before ? 0 : offset)
-      .map(parseSections);
+      .map(parseSections) as SpyRow[];
+    return fleetSaveGuesses(db, ctx, rows);
   });
 }

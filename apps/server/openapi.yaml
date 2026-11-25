@@ -2307,7 +2307,7 @@ components:
     SpyHistoryReport:
       type: object
       description: A spy report of one position
-      required: [id, planet_name, player_name, player_id, report_time, sections, destroy_chance, reporter]
+      required: [id, planet_name, player_name, player_id, report_time, sections, destroy_chance, reporter, fleetSave]
       properties:
         id: { type: integer }
         planet_name: { type: [string, 'null'] }
@@ -2317,6 +2317,31 @@ components:
         sections: { $ref: '#/components/schemas/SpySections' }
         destroy_chance: { type: [number, 'null'], description: Chance the probes were destroyed (percent) }
         reporter: { type: [string, 'null'], description: Hub name of the member who synced it }
+        fleetSave: { $ref: '#/components/schemas/FleetSaveGuess' }
+    FleetSaveGuess:
+      type: [object, 'null']
+      description: |
+        When the player last took all metal and crystal from the planet (a fleet save that loaded everything): the
+        seconds since the departure that the shown metal and crystal fit, given the production since (mines, power
+        plants and satellites of the report or the position's nearest report with buildings, mining research of the
+        player's nearest report with research, position bonus and resource speed of the universe; the game leaves less
+        than 1 of each behind and shows the amounts rounded down). Null for moons, without resources or buildings, with
+        a full storage and when metal and crystal do not point to the same second.
+      required: [from, to, deuterium, perHour, buildingsTime, researchTime]
+      properties:
+        from: { type: integer, description: Earliest second of the departure (epoch seconds) }
+        to: { type: integer, description: Latest second of the departure (epoch seconds) }
+        deuterium: { type: [boolean, 'null'], description: 'Deuterium points to the same second too (false: deuterium was used since, e.g. for the galaxy view); null when it cannot tell' }
+        perHour:
+          type: object
+          description: Production per hour used (resource id -> amount)
+          required: ['901', '902', '903']
+          properties:
+            '901': { type: integer }
+            '902': { type: integer }
+            '903': { type: integer }
+        buildingsTime: { type: integer, description: Report time of the buildings used }
+        researchTime: { type: [integer, 'null'], description: Report time of the research used; null when unknown (calculated without mining research) }
     DefenseFlight:
       type: object
       description: One way at full speed from where the fleet was seen, else the owner's nearest planet
@@ -3468,7 +3493,7 @@ components:
         username: { type: [string, 'null'], description: Hub name of the member who synced the system last }
     SpyReportRow:
       type: object
-      required: [id, g, s, p, planet_type, player_name, player_id, report_time, sections, reporter]
+      required: [id, g, s, p, planet_type, player_name, player_id, report_time, sections, reporter, fleetSave]
       properties:
         id: { type: integer }
         g: { type: integer }
@@ -3481,6 +3506,7 @@ components:
         report_time: { type: integer }
         sections: { $ref: '#/components/schemas/SpySections' }
         reporter: { type: [string, 'null'], description: Hub name of the member who synced it }
+        fleetSave: { $ref: '#/components/schemas/FleetSaveGuess' }
     Comment:
       type: object
       required: [id, user_id, member, body, created_at, edited_at]
