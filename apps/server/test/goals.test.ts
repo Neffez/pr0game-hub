@@ -125,15 +125,20 @@ describe('alliance goals', () => {
     score(fleet, carolPlayer, 300, 10_000);
     const friend = player('Friend', ally);
     score(total, friend, 1, 1_000_000);
+    // in the top quarter of 500 ranked players by total points: worthwhile without a fleet
     const topTotal = player('TopTotal', null);
     score(total, topTotal, 10, 900_000);
     score(fleet, topTotal, 400, 100);
+    const big = player('Big', null);
+    score(fleet, big, 20, 50_000);
     const topFleet = player('TopFleet', null);
     score(fleet, topFleet, 5, 500_000);
     const mid = player('Mid', null);
     score(fleet, mid, 200, 2_500);
     const small = player('Small', null);
-    score(total, small, 500, 50_000);
+    // rank 200 of 500: neither top quarter nor fleet
+    score(total, small, 200, 50_000);
+    score(total, player('Last', null), 500, 10);
     score(fleet, small, 500, 1_000);
     const away = player('Away', null, '["vacation"]');
     score(fleet, away, 1, 900_000);
@@ -141,12 +146,13 @@ describe('alliance goals', () => {
       db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 2, ?, 5, 'planet', ?, '{}', ?)").run(group, s, time, playerId);
     report(friend, 1, t - H);
     report(topTotal, 2, t - H);
+    report(big, 6, t - H);
     report(topFleet, 3, t - 2 * DAY);
     report(small, 4, t - H);
     report(away, 5, t - H);
-    // worthwhile: TopTotal (spied), TopFleet (report too old), Mid (none)
+    // worthwhile: TopTotal and Big (spied), TopFleet (report too old), Mid (none)
     const spy = (await getJson('u8/goals')).goals.find((x: any) => x.key === 'spy');
-    expect(spy).toMatchObject({ done: 1, total: 3, value: 33 });
+    expect(spy).toMatchObject({ done: 2, total: 4, value: 50 });
   });
 
   it('lets the alliance admins change the goals, not the members', async () => {

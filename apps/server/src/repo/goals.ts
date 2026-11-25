@@ -45,8 +45,8 @@ const DAY = 86400;
 const WEEK = 7 * DAY;
 /** A spy report younger than this counts as fresh. */
 const SPY_FRESH = DAY;
-/** Spy goal: players up to this rank in fleet or total points are worthwhile. */
-const SPY_TOP_RANK = 50;
+/** Spy goal: players in this top share of the total points statistics are worthwhile (resources, whatever their fleet). */
+const SPY_TOP_SHARE = 0.25;
 /** Spy goal: players whose fleet points reach this share of the alliance's average fleet are worthwhile. */
 const SPY_FLEET_SHARE = 0.2;
 /** Spy goal: statistics older than this are not used. */
@@ -142,11 +142,13 @@ export function allianceGoals(db: DB, ctx: GroupContext): Goal[] {
 }
 
 /**
- * The spy goal's worthwhile players outside the alliance, from each player's newest statistics: the top fleets and
- * total points (rank up to `SPY_TOP_RANK`) and every fleet of at least `SPY_FLEET_SHARE` of the alliance's average
- * fleet points. Players in vacation mode or banned are left out (they can't be attacked). The alliance is the
- * group's (its members' players and their in-game alliances), not the viewer's, so every member and the Discord
- * recap count the same.
+ * The spy goal's worthwhile players outside the alliance, from each player's newest statistics: the top
+ * `SPY_TOP_SHARE` of the total points ranking (a big player is worth a report for the resources, fleet or not) and
+ * every player whose fleet points reach `SPY_FLEET_SHARE` of the alliance's average fleet points (this takes in the
+ * top fleets). Both are relative, so they fit small and large universes alike. The ranking's size is the highest rank
+ * seen. Players in vacation mode or banned are left out (they can't be attacked). The alliance is the group's (its
+ * members' players and their in-game alliances), not the viewer's, so every member and the Discord recap count the
+ * same.
  */
 function spyGoalPlayers(db: DB, ctx: GroupContext): number[] {
   const g = ctx.groupId;
@@ -157,30 +159,34 @@ function spyGoalPlayers(db: DB, ctx: GroupContext): number[] {
        WHERE s.group_id = ? AND s.who = 'player' AND s.type IN (1, 2) AND s.stat_time >= ? GROUP BY ps.player_id, ps.type`,
     )
     .all(g, ctx.now - SPY_STATS_AGE) as { id: number; type: number; points: number; rank: number }[];
-  const scores = new Map<number, { total?: { points: number; rank: number }; fleet?: { points: number; rank: number } }>();
-  for (const r of rows) scores.set(r.id, { ...scores.get(r.id), [r.type === 1 ? 'total' : 'fleet']: { points: r.points, rank: r.rank } });
+  const totalRank = new Map<number, number>();
+  const fleets = new Map<number, number>();
+  for (const r of rows) {
+    if (r.type === 1) totalRank.set(r.id, r.rank);
+    else fleets.set(r.id, r.points);
+  }
+  const ranked = Math.max(0, ...totalRank.values());
+  const topRank = Math.ceil(ranked * SPY_TOP_SHARE);
 
   const members = new Set([...memberPlayers(db, ctx).values()].filter((id): id is number => id != null));
-  const memberFleets = [...members].map((id) => scores.get(id)?.fleet?.points).filter((p): p is number => p != null);
-  const average = memberFleets.length ? memberFleets.reduce((a, b) => a + b, 0) / memberFleets.length : null;
-  const minFleet = average != null ? Math.max(1, average * SPY_FLEET_SHARE) : null;
+  const memberFleets = [...members].map((id) => fleets.get(id)).filter((p): p is number => p != null);
+  const minFleet = memberFleets.length ? Math.max(1, (memberFleets.reduce((a, b) => a + b, 0) / memberFleets.length) * SPY_FLEET_SHARE) : null;
 
-  const ids = [...scores.keys()];
-  const players = ids.length
-    ? (db.prepare('SELECT p.id, p.alliance_id, p.status FROM json_each(?) id JOIN players p ON p.id = id.value AND p.group_id = ?').all(JSON.stringify(ids), g) as {
-        id: number; alliance_id: number | null; status: string;
-      }[])
-    : [];
+  const ids = [...new Set([...totalRank.keys(), ...fleets.keys()])].filter(
+    (id) => !members.has(id) && ((totalRank.get(id) ?? Infinity) <= topRank || (minFleet != null && (fleets.get(id) ?? 0) >= minFleet)),
+  );
+  if (!ids.length) return [];
   const allies = new Set(
     [...members].map((id) => db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(id, g) as number | null).filter((a) => a != null),
   );
+  const players = db
+    .prepare('SELECT p.id, p.alliance_id, p.status FROM json_each(?) id JOIN players p ON p.id = id.value AND p.group_id = ?')
+    .all(JSON.stringify(ids), g) as { id: number; alliance_id: number | null; status: string }[];
   return players
     .filter((p) => {
-      if (members.has(p.id) || (p.alliance_id != null && allies.has(p.alliance_id))) return false;
+      if (p.alliance_id != null && allies.has(p.alliance_id)) return false;
       const status = JSON.parse(p.status || '[]') as string[];
-      if (status.includes('vacation') || status.includes('banned')) return false;
-      const s = scores.get(p.id)!;
-      return (s.total != null && s.total.rank <= SPY_TOP_RANK) || (s.fleet != null && s.fleet.rank <= SPY_TOP_RANK) || (minFleet != null && (s.fleet?.points ?? 0) >= minFleet);
+      return !status.includes('vacation') && !status.includes('banned');
     })
     .map((p) => p.id);
 }

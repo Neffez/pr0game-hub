@@ -1820,7 +1820,7 @@ const en: typeof de = {
       title: 'Spy reports up to date',
       detail: '{done} of {total} worthwhile players with a report younger than 24 h',
       unknown: 'No worthwhile players: this needs pasted statistics',
-      what: 'Share of the worthwhile players (top 50 in fleet or total points, fleet from 20 % of the alliance average) with a report under 24 h',
+      what: 'Share of the worthwhile players (best 25 % in total points or a fleet of at least 20 % of the average fleet points of the alliance) with a report under 24 h',
     },
   },
   overviewSync: {

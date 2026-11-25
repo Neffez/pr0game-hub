@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Alliance goals: worthwhile players of the spy goal are relative instead of the absolute top-50 ranks (too many in
+  a universe of 100–200 players): the best 25 % of the total points ranking (worth a report for the resources, fleet
+  or not; the ranking's size is the highest rank seen) and every player whose fleet points reach 20 % of the members'
+  average fleet (this takes in the top fleets).
 - Alliance goals: the spy goal counts the worthwhile players outside the alliance with a spy report younger than a
   day instead of the likely inactive farm targets. Worthwhile are the top 50 in fleet or total points and every
   player whose fleet points reach 20 % of the members' average fleet (newest statistics of the last two weeks;

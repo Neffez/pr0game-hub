@@ -1821,7 +1821,7 @@ const de = {
       title: 'Spionage aktuell',
       detail: '{done} von {total} lohnenswerten Spielern mit Bericht jünger als 24 h',
       unknown: 'Keine lohnenswerten Spieler: dafür braucht es eingefügte Statistiken',
-      what: 'Anteil der lohnenswerten Spieler (Top 50 bei Flotte oder Gesamtpunkten, Flotte ab 20 % des Allianz-Durchschnitts) mit Bericht unter 24 h',
+      what: 'Anteil der lohnenswerten Spieler (beste 25 % der Gesamtpunkte oder Flotte ab 20 % der durchschnittlichen Flottenpunkte der Allianz) mit Bericht unter 24 h',
     },
   },
   overviewSync: {

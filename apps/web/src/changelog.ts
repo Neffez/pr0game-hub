@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Allianz-Ziele: Das Spionage-Ziel zählt jetzt die lohnenswerten Spieler statt der Inaktiven – die Top 50 bei Flotte oder Gesamtpunkten und alle mit einer Flotte ab 20 % des Allianz-Durchschnitts.',
-        en: 'Alliance goals: the espionage goal now counts the worthwhile players instead of the inactive ones – the top 50 in fleet or total points and everyone with a fleet of at least 20 % of the alliance average.',
+        de: 'Allianz-Ziele: Das Spionage-Ziel zählt jetzt die lohnenswerten Spieler statt der Inaktiven – die besten 25 % der Gesamtpunkte und alle mit einer Flotte ab 20 % der durchschnittlichen Flottenpunkte der Allianz.',
+        en: 'Alliance goals: the espionage goal now counts the worthwhile players instead of the inactive ones – the best 25 % in total points and everyone with a fleet of at least 20 % of the average fleet points of the alliance.',
       },
       {
         kind: 'new',
