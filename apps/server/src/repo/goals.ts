@@ -1,8 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { TYPES } from '../domain/stats.js';
-import { spiedTargets } from './farm.js';
-import { inactivities } from './inactivity.js';
 import { memberPlayers } from './members.js';
 import { freshnessOf } from './freshness.js';
 import { SAME_UPDATE, statInterval } from './syncHints.js';
@@ -35,7 +33,7 @@ export interface Goal {
   target: number;
   /** progress in percent (0–100), null while it can't be told (e.g. no learned statistics interval yet) */
   value: number | null;
-  /** what is counted: systems, statistics updates, members at the target, farm targets */
+  /** what is counted: systems, statistics updates, members at the target, worthwhile players */
   done: number | null;
   total: number | null;
   /** galaxy: the time window */
@@ -47,6 +45,12 @@ const DAY = 86400;
 const WEEK = 7 * DAY;
 /** A spy report younger than this counts as fresh. */
 const SPY_FRESH = DAY;
+/** Spy goal: players up to this rank in fleet or total points are worthwhile. */
+const SPY_TOP_RANK = 50;
+/** Spy goal: players whose fleet points reach this share of the alliance's average fleet are worthwhile. */
+const SPY_FLEET_SHARE = 0.2;
+/** Spy goal: statistics older than this are not used. */
+const SPY_STATS_AGE = 2 * WEEK;
 
 export function goalSettings(db: DB, groupId: number): GoalSettings {
   const raw = db.prepare('SELECT goals FROM groups WHERE id = ?').pluck().get(groupId) as string | null | undefined;
@@ -127,32 +131,56 @@ export function allianceGoals(db: DB, ctx: GroupContext): Goal[] {
   }
 
   if (settings.spy.on) {
-    const targets = spyGoalTargets(db, ctx, t - WEEK);
-    const done = targets.filter((time) => time >= t - SPY_FRESH).length;
+    const targets = spyGoalPlayers(db, ctx);
+    const spied = new Set(
+      db.prepare('SELECT DISTINCT player_id FROM spy_reports WHERE group_id = ? AND report_time >= ? AND player_id IS NOT NULL').pluck().all(g, t - SPY_FRESH) as number[],
+    );
+    const done = targets.filter((id) => spied.has(id)).length;
     goals.push({ key: 'spy', target: settings.spy.target, value: percent(done, targets.length), done, total: targets.length });
   }
   return goals;
 }
 
 /**
- * The spy goal's farm targets: planets and moons of likely inactive players with a spy report with resources since
- * `since` (the farm finder's list), outside the alliance; the time of each newest report. The alliance is the group's
- * (its members' players and their in-game alliances), not the viewer's, so every member and the Discord recap count
- * the same.
+ * The spy goal's worthwhile players outside the alliance, from each player's newest statistics: the top fleets and
+ * total points (rank up to `SPY_TOP_RANK`) and every fleet of at least `SPY_FLEET_SHARE` of the alliance's average
+ * fleet points. Players in vacation mode or banned are left out (they can't be attacked). The alliance is the
+ * group's (its members' players and their in-game alliances), not the viewer's, so every member and the Discord
+ * recap count the same.
  */
-function spyGoalTargets(db: DB, ctx: GroupContext, since: number): number[] {
-  const { owned, players } = spiedTargets(db, ctx, since);
+function spyGoalPlayers(db: DB, ctx: GroupContext): number[] {
+  const g = ctx.groupId;
+  const rows = db
+    .prepare(
+      `SELECT ps.player_id AS id, ps.type, ps.points, ps.rank, MAX(ps.stat_time) AS time
+       FROM stat_snapshots s JOIN player_scores ps ON ps.snapshot_id = s.id
+       WHERE s.group_id = ? AND s.who = 'player' AND s.type IN (1, 2) AND s.stat_time >= ? GROUP BY ps.player_id, ps.type`,
+    )
+    .all(g, ctx.now - SPY_STATS_AGE) as { id: number; type: number; points: number; rank: number }[];
+  const scores = new Map<number, { total?: { points: number; rank: number }; fleet?: { points: number; rank: number } }>();
+  for (const r of rows) scores.set(r.id, { ...scores.get(r.id), [r.type === 1 ? 'total' : 'fleet']: { points: r.points, rank: r.rank } });
+
   const members = new Set([...memberPlayers(db, ctx).values()].filter((id): id is number => id != null));
+  const memberFleets = [...members].map((id) => scores.get(id)?.fleet?.points).filter((p): p is number => p != null);
+  const average = memberFleets.length ? memberFleets.reduce((a, b) => a + b, 0) / memberFleets.length : null;
+  const minFleet = average != null ? Math.max(1, average * SPY_FLEET_SHARE) : null;
+
+  const ids = [...scores.keys()];
+  const players = ids.length
+    ? (db.prepare('SELECT p.id, p.alliance_id, p.status FROM json_each(?) id JOIN players p ON p.id = id.value AND p.group_id = ?').all(JSON.stringify(ids), g) as {
+        id: number; alliance_id: number | null; status: string;
+      }[])
+    : [];
   const allies = new Set(
-    [...members].map((id) => db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(id, ctx.groupId) as number | null).filter((a) => a != null),
+    [...members].map((id) => db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(id, g) as number | null).filter((a) => a != null),
   );
-  const inactive = inactivities(db, ctx, [...players.keys()]);
-  return owned
-    .filter((r) => {
-      const player = players.get(r.playerId);
-      if (!player || members.has(player.id) || (player.alliance_id != null && allies.has(player.alliance_id))) return false;
-      const level = inactive.get(player.id)?.level;
-      return level === 'inactive' || level === 'likely';
+  return players
+    .filter((p) => {
+      if (members.has(p.id) || (p.alliance_id != null && allies.has(p.alliance_id))) return false;
+      const status = JSON.parse(p.status || '[]') as string[];
+      if (status.includes('vacation') || status.includes('banned')) return false;
+      const s = scores.get(p.id)!;
+      return (s.total != null && s.total.rank <= SPY_TOP_RANK) || (s.fleet != null && s.fleet.rank <= SPY_TOP_RANK) || (minFleet != null && (s.fleet?.points ?? 0) >= minFleet);
     })
-    .map((r) => r.report_time);
+    .map((p) => p.id);
 }

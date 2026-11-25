@@ -1818,9 +1818,9 @@ const en: typeof de = {
     },
     spy: {
       title: 'Spy reports up to date',
-      detail: '{done} of {total} farm targets with a report younger than 24 h',
-      unknown: 'No farm targets: no likely inactive players with a report of the last 7 days',
-      what: 'Share of the farm targets (likely inactive) with a report under 24 h',
+      detail: '{done} of {total} worthwhile players with a report younger than 24 h',
+      unknown: 'No worthwhile players: this needs pasted statistics',
+      what: 'Share of the worthwhile players (top 50 in fleet or total points, fleet from 20 % of the alliance average) with a report under 24 h',
     },
   },
   overviewSync: {

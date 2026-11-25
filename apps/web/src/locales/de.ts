@@ -1819,9 +1819,9 @@ const de = {
     },
     spy: {
       title: 'Spionage aktuell',
-      detail: '{done} von {total} Farm-Zielen mit Bericht jünger als 24 h',
-      unknown: 'Keine Farm-Ziele: keine wahrscheinlich Inaktiven mit Bericht der letzten 7 Tage',
-      what: 'Anteil der Farm-Ziele (wahrscheinlich inaktiv) mit Bericht unter 24 h',
+      detail: '{done} von {total} lohnenswerten Spielern mit Bericht jünger als 24 h',
+      unknown: 'Keine lohnenswerten Spieler: dafür braucht es eingefügte Statistiken',
+      what: 'Anteil der lohnenswerten Spieler (Top 50 bei Flotte oder Gesamtpunkten, Flotte ab 20 % des Allianz-Durchschnitts) mit Bericht unter 24 h',
     },
   },
   overviewSync: {

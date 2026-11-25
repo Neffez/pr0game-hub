@@ -725,7 +725,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description The alliance goals switched on by its admins, each with its target and progress in percent: `galaxy` systems synced within `days` of all systems, `stats` statistics updates of the last week with every category synced of those the learned interval expects (null while no interval is known), `freshness` the members' average freshness (`done`: members at the target), `spy` farm targets (likely inactive, report of the last week) with a report younger than a day. */
+        /** @description The alliance goals switched on by its admins, each with its target and progress in percent: `galaxy` systems synced within `days` of all systems, `stats` statistics updates of the last week with every category synced of those the learned interval expects (null while no interval is known), `freshness` the members' average freshness (`done`: members at the target), `spy` worthwhile players outside the alliance (top 50 in fleet or total points, or fleet points of at least 20 % of the members' average fleet; not in vacation mode or banned) with a spy report younger than a day. */
         get: operations["getGoals"];
         put?: never;
         post?: never;

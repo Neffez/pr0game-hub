@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Alliance goals: the spy goal counts the worthwhile players outside the alliance with a spy report younger than a
+  day instead of the likely inactive farm targets. Worthwhile are the top 50 in fleet or total points and every
+  player whose fleet points reach 20 % of the members' average fleet (newest statistics of the last two weeks;
+  vacation mode and banned left out).
 - Rank badge: the condition "best ratio of loot to losses" (`profitRatio`) counts only the last 30 days (loot,
   recycling and the battles' own losses before each instant, without the player card), so a single perfect battle no
   longer holds it forever; the other conditions keep the whole history.

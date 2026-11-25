@@ -109,25 +109,44 @@ describe('alliance goals', () => {
     expect(stats).toMatchObject({ done: 2, total: 28, value: 7 });
   });
 
-  it('counts inactive farm targets outside the alliance of the group with a fresh spy report', async () => {
+  it('counts the worthwhile players outside the alliance of the group with a spy report of the last day', async () => {
     const t = now();
     const ally = Number(db.prepare("INSERT INTO alliances (group_id, name, tag) VALUES (?, 'Wir', 'WIR')").run(group).lastInsertRowid);
-    const player = (name: string, allianceId: number | null, status: string) =>
+    const player = (name: string, allianceId: number | null, status = '[]') =>
       Number(db.prepare('INSERT INTO players (group_id, name, alliance_id, status, first_seen, last_seen) VALUES (?, ?, ?, ?, 0, 0)').run(group, name, allianceId, status).lastInsertRowid);
-    // carol's player is in the alliance: an inactive player of it is no target, whoever looks
-    player('Carol', ally, '[]');
-    const friend = player('Friend', ally, '["inactive"]');
-    const fresh = player('Fresh', null, '["inactive"]');
-    const old = player('Old', null, '["inactive"]');
-    const busy = player('Busy', null, '[]');
+    const snapshot = (type: number) =>
+      Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(group, type, t - 30).lastInsertRowid);
+    const total = snapshot(1);
+    const fleet = snapshot(2);
+    const score = (snap: number, playerId: number, rank: number, points: number) =>
+      db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, ?, ?)').run(snap, playerId, rank, points);
+    // carol's player is in the alliance: its fleet sets the average (10 000, worthwhile from 2 000 fleet points)
+    const carolPlayer = player('Carol', ally);
+    score(fleet, carolPlayer, 300, 10_000);
+    const friend = player('Friend', ally);
+    score(total, friend, 1, 1_000_000);
+    const topTotal = player('TopTotal', null);
+    score(total, topTotal, 10, 900_000);
+    score(fleet, topTotal, 400, 100);
+    const topFleet = player('TopFleet', null);
+    score(fleet, topFleet, 5, 500_000);
+    const mid = player('Mid', null);
+    score(fleet, mid, 200, 2_500);
+    const small = player('Small', null);
+    score(total, small, 500, 50_000);
+    score(fleet, small, 500, 1_000);
+    const away = player('Away', null, '["vacation"]');
+    score(fleet, away, 1, 900_000);
     const report = (playerId: number, s: number, time: number) =>
-      db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 2, ?, 5, 'planet', ?, '{\"900\":{\"901\":1}}', ?)").run(group, s, time, playerId);
+      db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 2, ?, 5, 'planet', ?, '{}', ?)").run(group, s, time, playerId);
     report(friend, 1, t - H);
-    report(fresh, 2, t - H);
-    report(old, 3, t - 3 * DAY);
-    report(busy, 4, t - H);
+    report(topTotal, 2, t - H);
+    report(topFleet, 3, t - 2 * DAY);
+    report(small, 4, t - H);
+    report(away, 5, t - H);
+    // worthwhile: TopTotal (spied), TopFleet (report too old), Mid (none)
     const spy = (await getJson('u8/goals')).goals.find((x: any) => x.key === 'spy');
-    expect(spy).toMatchObject({ done: 1, total: 2, value: 50 });
+    expect(spy).toMatchObject({ done: 1, total: 3, value: 33 });
   });
 
   it('lets the alliance admins change the goals, not the members', async () => {

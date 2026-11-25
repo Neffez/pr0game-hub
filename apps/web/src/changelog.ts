@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianz-Ziele: Das Spionage-Ziel zählt jetzt die lohnenswerten Spieler statt der Inaktiven – die Top 50 bei Flotte oder Gesamtpunkten und alle mit einer Flotte ab 20 % des Allianz-Durchschnitts.',
+        en: 'Alliance goals: the espionage goal now counts the worthwhile players instead of the inactive ones – the top 50 in fleet or total points and everyone with a fleet of at least 20 % of the alliance average.',
+      },
+      {
+        kind: 'new',
         de: 'Rangabzeichen: Die Wertung „Bestes Verhältnis Beute zu Verlust“ zählt nur noch die letzten 30 Tage – ein einzelner perfekter Kampf hält den Rang nicht mehr für immer.',
         en: 'Rank badge: the ranking "Best ratio of loot to losses" now counts only the last 30 days – a single perfect battle no longer keeps it forever.',
       },
