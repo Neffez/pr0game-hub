@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calibrate, deriveResourceSpeed, fleetSaveTime, positionTemp, productionOf, projectResources } from '../src/production.js';
+import { calibrate, deriveResourceSpeed, fleetSaveTime, mergeFleetSaves, positionTemp, productionOf, projectResources } from '../src/production.js';
 import { storageCapacity } from '../src/tech.js';
 import { missileSpace, requirementsOf, shipsOf, shipyardTime, type BuildPlanet } from '../src/buildings.js';
 
@@ -192,5 +192,22 @@ describe('fleetSaveTime', () => {
     const full = storageCapacity(5);
     expect(fleetSaveTime({ ...base, resources: { 901: 1000, 902: full, 903: 0 } })).toBeNull();
     expect(fleetSaveTime({ ...base, levels: {}, resourceSpeed: 0, resources: { 901: 0, 902: 0, 903: 0 } })).toBeNull();
+  });
+});
+
+describe('mergeFleetSaves', () => {
+  it('narrows reports of one save to the second they all allow, per planet', () => {
+    // the case of two probes during one save: 43 exactly and 42-43
+    const merged = mergeFleetSaves([
+      { key: '1:2:3', from: 43, to: 43, id: 1 },
+      { key: '1:2:3', from: 42, to: 43, id: 2 },
+      { key: '1:2:3', from: 900, to: 902, id: 3 },
+      { key: '1:2:4', from: 42, to: 43, id: 4 },
+    ]);
+    expect(merged.map((m) => [m.key, m.from, m.to, m.items.map((i) => i.id)])).toEqual([
+      ['1:2:3', 43, 43, [1, 2]],
+      ['1:2:3', 900, 902, [3]],
+      ['1:2:4', 42, 43, [4]],
+    ]);
   });
 });

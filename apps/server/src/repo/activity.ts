@@ -1,6 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { fleetSaveGuesses, type SpyRow } from './fleetSave.js';
+import { fleetSavesBetween } from './fleetSave.js';
 import { DISPLAY } from './sql.js';
 import type { StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
@@ -309,24 +309,9 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   }
 
   // fleet saves worked back from spy reports of the player's planets: the departure is a proven action. Several reports
-  // after the same save point to the same second: one event per planet and departure.
-  const spyRows = (
-    db
-      .prepare(
-        `SELECT id, g, s, p, planet_type, player_id, report_time, sections FROM spy_reports
-         WHERE group_id = ? AND player_id = ? AND planet_type = 'planet' AND report_time >= ? AND json_extract(sections, '$."900"') IS NOT NULL
-         ORDER BY report_time`,
-      )
-      .all(ctx.groupId, playerId, from) as (Omit<SpyRow, 'sections'> & { sections: string })[]
-  ).map((r) => ({ ...r, sections: JSON.parse(r.sections) as SpyRow['sections'] }));
-  const saves: { key: string; from: number; to: number }[] = [];
-  for (const r of fleetSaveGuesses(db, ctx, spyRows)) {
-    const f = r.fleetSave;
-    if (!f || f.to < from) continue;
-    const key = `${r.g}:${r.s}:${r.p}`;
-    if (saves.some((x) => x.key === key && x.from <= f.to && x.to >= f.from)) continue;
-    saves.push({ key, from: f.from, to: f.to });
-    out.push({ time: Math.round((f.from + f.to) / 2), spread: Math.ceil((f.to - f.from) / 2), source: 'fleetSave', g: r.g, s: r.s, p: r.p });
+  // after the same save count once, with the departure all of them allow.
+  for (const f of fleetSavesBetween(db, ctx, from, ctx.now, playerId)) {
+    out.push({ time: Math.round((f.from + f.to) / 2), spread: Math.ceil((f.to - f.from) / 2), source: 'fleetSave', g: f.g, s: f.s, p: f.p });
   }
 
   // a member's player: pages they synced (copied from the game, so online there) and an active hub tab, as far as the

@@ -13,7 +13,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { readError, uniApi } from '../api';
 import type { ApiResponse, Schema } from '../apiTypes';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
-import { useLoader, useMobile, useProgressive, useUni } from '../composables';
+import { useLoader, useMobile, useProgressive, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, fmt, name, short, timeWithAge } from '../format';
 
@@ -29,6 +29,8 @@ const recent = ref<ApiResponse<'/api/{uni}/spy-reports'>>([]);
 const recentDone = ref(false);
 let recentLoading = false;
 const RECENT_BATCH = 100;
+/** only reports with a worked-back fleet save (filtered by the server, so paging keeps working) */
+const onlySaves = useStored('spy.onlyFleetSaves', false);
 const { shown: recentShown, more: recentMore, sentinel: recentSentinel } = useProgressive(recent, 50);
 /** More rows in the DOM or more pages on the server — keep the scroll sentinel mounted for both. */
 const recentScrollMore = computed(() => recentMore.value || !recentDone.value);
@@ -76,7 +78,7 @@ async function appendRecent() {
   const last = recent.value.at(-1);
   try {
     const before = last ? `&before=${last.report_time}:${last.id}` : '';
-    const batch = await uniApi<ApiResponse<'/api/{uni}/spy-reports'>>(uni.value, `/spy-reports?limit=${RECENT_BATCH}${before}`);
+    const batch = await uniApi<ApiResponse<'/api/{uni}/spy-reports'>>(uni.value, `/spy-reports?limit=${RECENT_BATCH}${before}${onlySaves.value ? '&fleetSave=1' : ''}`);
     if (gen !== recentGen) return;
     const have = new Set(recent.value.map((r) => r.id));
     // push in place: replacing the array would reset useProgressive's visible count
@@ -113,6 +115,7 @@ useLiveReload(() => {
   loadRecent();
 }, tables('spy_reports'));
 watch([type, limit], load);
+watch(onlySaves, loadRecent);
 
 const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
 /** Badge tooltip of a report whose metal and crystal point to one departure (details in the history of the target). */
@@ -171,7 +174,11 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
     <CommentThread :g="shown.g" :s="shown.s" :p="shown.p" :type="type === 'moon' ? 'moon' : 'planet'" />
   </div>
 
-  <h2>{{ t('spy.recent') }}</h2>
+  <div class="row recent-head">
+    <h2>{{ t('spy.recent') }}</h2>
+    <label class="small" data-tour="spy-only-saves"><input v-model="onlySaves" type="checkbox" /> {{ t('spy.onlyFleetSaves') }}</label>
+  </div>
+  <div v-if="onlySaves && recentDone && !recent.length" class="card muted">{{ t('spy.noFleetSaves') }}</div>
   <div v-if="mobile" class="m-list" data-tour="spy-recent">
     <div v-for="r in recentShown" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)" @keydown.space.prevent="open(r)">
       <span class="m-line">
@@ -225,6 +232,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 .field-v { display: flex; flex-direction: column; gap: 3px; }
 .field-v input { width: 120px; }
 .spy-found { margin-top: 8px; }
+.recent-head { align-items: baseline; gap: 6px 16px; flex-wrap: wrap; }
 /* reports with a worked-back fleet save stand out in the list */
 .fs-badge { color: var(--pos); background: color-mix(in srgb, var(--pos) 18%, transparent); border: 1px solid color-mix(in srgb, var(--pos) 55%, transparent); }
 @media (max-width: 800px) { .field-v { flex: 1 1 100px; } .field-v input, .field-v select { width: 100%; margin: 0; } }

@@ -15,7 +15,7 @@ import RangePicker from '../components/RangePicker.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { coords, dateTime, fmt, fmtSigned, name, numDate, short, weekday } from '../format';
+import { clockTime, coords, dateTime, fmt, fmtSigned, name, numDate, short, weekday } from '../format';
 import { intlLocale } from '../i18n';
 import type { Activity } from '../apiTypes';
 
@@ -40,6 +40,7 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'market_offer', icon: 'market', color: 'var(--info)' },
   { kind: 'player_renamed', icon: 'edit', color: 'var(--info)' },
   { kind: 'vacation_start', icon: 'sun', color: 'var(--warn)' },
+  { kind: 'fleet_save', icon: 'return', color: 'var(--pos)' },
 ];
 const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
@@ -93,7 +94,11 @@ const days_ = computed(() => {
 });
 
 const time = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
-const browse = (e: Entry) => ({ path: `/${uni.value}/browse`, query: { g: e.g, s: e.s } });
+/** Coordinates lead to the galaxy browser; a fleet save to the spy history of its planet, where it was worked out. */
+const browse = (e: Entry) =>
+  e.kind === 'fleet_save'
+    ? { path: `/${uni.value}/spy`, query: { c: `${e.g}:${e.s}:${e.p}`, type: 'planet' } }
+    : { path: `/${uni.value}/browse`, query: { g: e.g, s: e.s } };
 
 const MARKET_RES: Record<string, number> = { m: 901, k: 902, d: 903 };
 const res = (d: Record<string, any>) => `${name(901)} ${short(d.metal)} · ${name(902)} ${short(d.crystal)}`;
@@ -146,6 +151,11 @@ function text(e: Entry) {
       return t('activity.text.renamed', { before: d.before, name: d.name });
     case 'vacation_start':
       return t('activity.text.vacationStart');
+    case 'fleet_save': {
+      const clock = (e: number) => clockTime(new Date(e * 1000), true);
+      const when = d.to > d.from ? t('activity.text.fleetSaveBetween', { from: clock(d.from), to: clock(d.to) }) : t('activity.text.fleetSaveAt', { time: clock(d.from) });
+      return d.reports > 1 ? `${when} ${t('activity.text.fleetSaveReports', { n: d.reports })}` : when;
+    }
   }
   return e.kind;
 }
@@ -169,6 +179,7 @@ useAutoTour('activity', () => (tab.value === 'log' ? !!data.value : !!hub.value?
           <b>{{ t('activity.hintNoGrowth') }}</b> {{ t('activity.hintNoGrowthText') }}
           <b>{{ t('activity.hintMarket') }}</b> {{ t('activity.hintMarketText') }}
           <b>{{ t('activity.hintPlayer') }}</b> {{ t('activity.hintPlayerText') }}
+          <b>{{ t('activity.hintFleetSave') }}</b> {{ t('activity.hintFleetSaveText') }}
         </p>
         <p>{{ t('activity.hintFilter') }}</p>
       </Hint>
@@ -225,7 +236,7 @@ useAutoTour('activity', () => (tab.value === 'log' ? !!data.value : !!hub.value?
             <span v-else class="faint">–</span>
           </span>
           <span class="what">{{ text(e) }}</span>
-          <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="t('activity.showInBrowser')">
+          <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="e.kind === 'fleet_save' ? t('actions.spyHistory') : t('activity.showInBrowser')">
             <Icon v-if="e.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(e.g, e.s!, e.p!) }}
           </RouterLink>
           <RouterLink v-else-if="e.kind === 'market_offer'" class="small" :to="`/${uni}/market`">{{ t('nav.market') }}</RouterLink>

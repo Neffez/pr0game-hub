@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-25
 
+- Fleet saves: reports of the same save count as one, the departure narrowed to what all of them allow. Two probes
+  during one save pointed to 18:49:43 and 18:49:42-43, which the history showed as two saves, one of them reading like
+  a save of one second.
+  - `mergeFleetSaves` in `@pr0hub/core/production`: windows of the same planet that overlap merge into their
+    intersection; used by the spy history ("Departure at …" / "Departure between … and …", "from n reports of the
+    same fleet save", flight calculator link with the narrowed departure), the activity pattern and the activity log.
+  - Activity log: new kind `fleet_save` (chip "Fleet save"), worked out from the spy reports of the period when
+    served (`fleetSavesBetween`), linking to the spy history of the planet; `counts.fleet_save` with them.
+  - Latest spy reports: filter "Only fleet saves" (`GET /api/{uni}/spy-reports?fleetSave=1`, scanned by the server
+    in chunks so keyset paging keeps working), with a tour step.
 - Activity pattern: fleet saves worked back from spy reports are proven activity of the player and count as their
   own source "Fleet save" (yellow ticks, full weight, coordinates in the tooltip). `GET /api/{uni}/players/{id}/activity`
   returns them as `source: fleetSave` with the planet's coordinates, computed when served from the player's planet

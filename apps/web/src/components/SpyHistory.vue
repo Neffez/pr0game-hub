@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import ActionMenu, { type MenuItem } from './ActionMenu.vue';
 import Hint from './Hint.vue';
+import { mergeFleetSaves } from '@pr0hub/core/production';
 import {
   battleSimLink, clockTime, distance, duration, flightCalcLink, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3, type SimFleet,
   type UniverseSettings,
@@ -84,22 +85,34 @@ const simMenu = computed<MenuItem[]>(() => {
 
 /**
  * Fleet save traces: reports whose metal and crystal both point to the same second as the last time the planet was
- * emptied (server `fleetSave`), newest first; each links to the flight calculator with the planet as start, the
- * departure and the player's drives, to work out when the saved fleet is back.
+ * emptied (server `fleetSave`), newest first. Reports taken during the same save narrow its departure to what all of
+ * them allow (`mergeFleetSaves`). Each links to the flight calculator with the planet as start, the departure and the
+ * player's drives, to work out when the saved fleet is back.
  */
 const FLEET_SAVES_SHOWN = 5;
+type Saved = SpyReport & { fleetSave: NonNullable<SpyReport['fleetSave']> };
 const fleetSaves = computed(() => {
   if (props.moon || !props.target || !ctx.value) return [];
   const u = ctx.value.universe.settings;
   const research = props.reports.find((r) => r.sections['100'])?.sections['100'] ?? {};
-  return props.reports
-    .filter((r): r is SpyReport & { fleetSave: NonNullable<SpyReport['fleetSave']> } => !!r.fleetSave)
+  const saved = props.reports
+    .filter((r): r is Saved => !!r.fleetSave)
+    .map((r) => ({ key: 'planet', from: r.fleetSave.from, to: r.fleetSave.to, report: r }));
+  return mergeFleetSaves(saved)
     .slice(0, FLEET_SAVES_SHOWN)
-    .map((r) => ({
-      report: r,
-      save: r.fleetSave,
-      href: flightCalcLink(u, props.target!, null, research, { m: 'flight', dep: r.fleetSave.from, mis: 'none' }),
-    }));
+    .map((m) => {
+      // the newest report of the save shows its details
+      const report = m.items[0].report;
+      return {
+        report,
+        save: report.fleetSave,
+        from: m.from,
+        to: m.to,
+        count: m.items.length,
+        deuterium: m.items.find((i) => i.report.fleetSave.deuterium != null)?.report.fleetSave.deuterium ?? null,
+        href: flightCalcLink(u, props.target!, null, research, { m: 'flight', dep: m.from, mis: 'none' }),
+      };
+    });
 });
 const clock = (epoch: number) => clockTime(new Date(epoch * 1000), true);
 const saveTitle = (s: NonNullable<SpyReport['fleetSave']>) =>
@@ -147,13 +160,15 @@ const ipm = computed(() => {
     <div v-if="fleetSaves.length" class="card fs-card" data-tour="spy-fleetsave">
       <h3>{{ t('spyHistory.fleetSave') }} <Hint>{{ t('spyHistory.fleetSaveHint') }}</Hint></h3>
       <div v-for="x in fleetSaves" :key="x.report.id" class="fs-row small" :title="saveTitle(x.save)">
-        <span>
-          <strong class="mono">{{ timeWithAge(x.save.from) }}</strong>
-          <template v-if="x.save.to > x.save.from"> {{ t('spyHistory.fleetSaveUntil', { time: clock(x.save.to) }) }}</template>
+        <span v-if="x.to > x.from">
+          {{ t('spyHistory.fleetSaveBetween') }} <strong class="mono">{{ timeWithAge(x.from) }}</strong>
+          {{ t('spyHistory.fleetSaveAnd', { time: clock(x.to) }) }}
         </span>
-        <span class="muted">{{ t('spyHistory.fleetSaveBefore', { d: duration(x.report.report_time - x.save.to), time: timeWithAge(x.report.report_time) }) }}</span>
-        <span :class="x.save.deuterium ? 'pos' : 'muted'">
-          {{ x.save.deuterium === true ? t('spyHistory.fleetSaveDeut') : x.save.deuterium === false ? t('spyHistory.fleetSaveDeutUsed') : '' }}
+        <span v-else>{{ t('spyHistory.fleetSaveAt') }} <strong class="mono">{{ timeWithAge(x.from) }}</strong></span>
+        <span class="muted">{{ t('spyHistory.fleetSaveBefore', { d: duration(x.report.report_time - x.to), time: timeWithAge(x.report.report_time) }) }}</span>
+        <span v-if="x.count > 1" class="muted">{{ t('spyHistory.fleetSaveReports', { n: x.count }) }}</span>
+        <span :class="x.deuterium ? 'pos' : 'muted'">
+          {{ x.deuterium === true ? t('spyHistory.fleetSaveDeut') : x.deuterium === false ? t('spyHistory.fleetSaveDeutUsed') : '' }}
         </span>
         <span v-if="x.save.researchTime == null" class="warn">{{ t('spyHistory.fleetSaveNoResearchShort') }}</span>
         <a :href="x.href" target="_blank" rel="noopener">{{ t('spyHistory.fleetSaveCalc') }}</a>

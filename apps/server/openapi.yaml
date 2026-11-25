@@ -7545,6 +7545,10 @@ paths:
           in: query
           description: Rows to skip (ignored with `before`)
           schema: { type: integer }
+        - name: fleetSave
+          in: query
+          description: '`1`: only reports with a fleet save guess (`fleetSave` not null); page with `before`, `offset` is ignored'
+          schema: { type: string, enum: ['1'] }
       responses:
         '200':
           content:
@@ -7570,7 +7574,11 @@ paths:
             Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `planet_destroyed`, `moon_new`, `moon_destroyed`, `debris_new`, `debris_grown`,
             `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a
             synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`), `player_renamed` (`data` has the
-            former name `before` and the new `name`), `vacation_start` (the player newly in vacation mode)
+            former name `before` and the new `name`), `vacation_start` (the player newly in vacation mode), `fleet_save`
+            (a fleet save worked back from the spy reports of the period, not stored: `time` is the earliest second of
+            the departure, `data` has `from`, `to` (departure window narrowed by all reports of the same save),
+            `deuterium`, `reports` (how many) and `lastReport` (time of the newest); `id` is the negative id of that
+            report)
           schema: { type: string }
       responses:
         '200':

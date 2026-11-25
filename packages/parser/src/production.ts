@@ -258,3 +258,33 @@ export function fleetSaveTime(i: FleetSaveInput): FleetSave | null {
   const d = byResource[903];
   return { ago, byResource, deuterium: d ? d.min <= ago.max && d.max >= ago.min : null, perHour };
 }
+
+/** A fleet save seen by several reports: departure narrowed to what all of them allow. */
+export interface MergedFleetSave<T> {
+  key: string;
+  /** earliest and latest second of the departure (epoch seconds) */
+  from: number;
+  to: number;
+  /** the items behind it, in the order given */
+  items: T[];
+}
+
+/**
+ * Reports taken during the same fleet save point to the same departure, each within its own window of whole seconds
+ * (the amounts are rounded down): windows with the same `key` (the planet) that overlap belong to one save, which
+ * then left within their intersection. Groups keep the order of their first item.
+ */
+export function mergeFleetSaves<T extends { key: string; from: number; to: number }>(items: T[]): MergedFleetSave<T>[] {
+  const out: MergedFleetSave<T>[] = [];
+  for (const item of items) {
+    const group = out.find((g) => g.key === item.key && g.from <= item.to && g.to >= item.from);
+    if (group) {
+      group.from = Math.max(group.from, item.from);
+      group.to = Math.min(group.to, item.to);
+      group.items.push(item);
+    } else {
+      out.push({ key: item.key, from: item.from, to: item.to, items: [item] });
+    }
+  }
+  return out;
+}

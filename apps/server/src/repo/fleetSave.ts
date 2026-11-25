@@ -1,4 +1,4 @@
-import { fleetSaveTime, positionTemp, SOLAR_SATELLITE } from '@pr0hub/core/production';
+import { fleetSaveTime, mergeFleetSaves, positionTemp, SOLAR_SATELLITE } from '@pr0hub/core/production';
 import { CLASS_BUILDINGS, CLASS_FLEET, CLASS_RESEARCH, CLASS_RESOURCES } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
@@ -98,4 +98,54 @@ export function fleetSaveGuesses<T extends SpyRow>(db: DB, ctx: GroupContext, ro
       },
     };
   });
+}
+
+/** One fleet save of a planet, from all reports of the period that saw it (see `mergeFleetSaves`). */
+export interface FleetSaveEvent {
+  g: number;
+  s: number;
+  p: number;
+  playerId: number | null;
+  /** earliest and latest second of the departure (epoch seconds), narrowed by all reports */
+  from: number;
+  to: number;
+  /** deuterium fit the departure in the newest report that could tell; null when none could */
+  deuterium: boolean | null;
+  /** the reports behind it, oldest first */
+  reports: { id: number; time: number }[];
+}
+
+/**
+ * Fleet saves whose departure lies between `from` and `to`, from the planet reports of that period (optionally of one
+ * player), oldest first: reports of the same save count once, with the departure all of them allow.
+ */
+export function fleetSavesBetween(db: DB, ctx: GroupContext, from: number, to: number, playerId?: number): FleetSaveEvent[] {
+  const rows = (
+    db
+      .prepare(
+        `SELECT id, g, s, p, planet_type, player_id, report_time, sections FROM spy_reports
+         WHERE group_id = ? AND planet_type = 'planet' AND report_time BETWEEN ? AND ? ${playerId != null ? 'AND player_id = ?' : ''}
+           AND json_extract(sections, '$."${CLASS_RESOURCES}"') IS NOT NULL
+         ORDER BY report_time, id`,
+      )
+      .all(ctx.groupId, from, to, ...(playerId != null ? [playerId] : [])) as (Omit<SpyRow, 'sections'> & { sections: string })[]
+  ).map((r) => ({ ...r, sections: JSON.parse(r.sections) as Sections }));
+  const guesses = fleetSaveGuesses(db, ctx, rows).flatMap((r) =>
+    r.fleetSave ? [{ key: `${r.g}:${r.s}:${r.p}:${r.player_id ?? ''}`, from: r.fleetSave.from, to: r.fleetSave.to, row: r, deuterium: r.fleetSave.deuterium }] : [],
+  );
+  return mergeFleetSaves(guesses)
+    .filter((m) => m.to >= from && m.from <= to)
+    .map((m) => {
+      const first = m.items[0].row;
+      return {
+        g: first.g,
+        s: first.s,
+        p: first.p,
+        playerId: first.player_id,
+        from: m.from,
+        to: m.to,
+        deuterium: [...m.items].reverse().find((i) => i.deuterium != null)?.deuterium ?? null,
+        reports: m.items.map((i) => ({ id: i.row.id, time: i.row.report_time })),
+      };
+    });
 }

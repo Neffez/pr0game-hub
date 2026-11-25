@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
+import { fleetSavesBetween } from '../repo/fleetSave.js';
 import { memberPlayers } from '../repo/members.js';
 import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
@@ -84,11 +85,33 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId, from, to, ...kinds) as any[];
     const counts = db
       .prepare('SELECT kind, COUNT(*) AS n FROM activity_log WHERE group_id = ? AND time BETWEEN ? AND ? GROUP BY kind')
-      .all(ctx.groupId, from, to);
+      .all(ctx.groupId, from, to) as { kind: string; n: number }[];
+    // fleet saves worked back from the spy reports of the period, worked out when served (not stored in the log)
+    const saves = fleetSavesBetween(db, ctx, from, to);
+    if (saves.length) counts.push({ kind: 'fleet_save', n: saves.length });
+    if (!kinds.length || kinds.includes('fleet_save')) {
+      const player = db.prepare(
+        `SELECT p.name AS player_name, p.status, a.tag AS ally_tag, a.name AS ally_name FROM players p
+         LEFT JOIN alliances a ON a.id = p.alliance_id WHERE p.id = ? AND p.group_id = ?`,
+      );
+      for (const f of saves) {
+        const pl = f.playerId != null ? (player.get(f.playerId, ctx.groupId) as Record<string, unknown> | undefined) : undefined;
+        const last = f.reports[f.reports.length - 1];
+        rows.push({
+          // not a log row: negative id of the newest report behind it
+          id: -last.id, time: f.from, kind: 'fleet_save', g: f.g, s: f.s, p: f.p, planet_type: 'planet',
+          data: JSON.stringify({ from: f.from, to: f.to, deuterium: f.deuterium, reports: f.reports.length, lastReport: last.time }),
+          player_id: pl ? f.playerId : null, player_name: pl?.player_name ?? null, status: pl?.status ?? null,
+          ally_tag: pl?.ally_tag ?? null, ally_name: pl?.ally_name ?? null,
+        });
+      }
+      rows.sort((a, b) => b.time - a.time || b.id - a.id);
+      rows.splice(1000);
+    }
     // newest total points of the players: weak/strong (noob protection) are derived from them
     const scores = latestScores(db, ctx.groupId, [...new Set(rows.map((r) => r.player_id).filter((id) => id != null))], [1]);
     return {
-      counts: Object.fromEntries((counts as { kind: string; n: number }[]).map((c) => [c.kind, c.n])),
+      counts: Object.fromEntries(counts.map((c) => [c.kind, c.n])),
       entries: rows.map((r) => ({ ...r, data: JSON.parse(r.data), status: r.status ? JSON.parse(r.status) : [], points: scores.get(r.player_id)?.[1]?.points ?? null })),
     };
   });

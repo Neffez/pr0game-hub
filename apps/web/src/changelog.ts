@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Fleetsaves auf der Aktivitätsseite: Zurückgerechnete Fleetsaves erscheinen im Aktivitätslog als eigene Art „Fleetsave“ und führen zum Spionageverlauf des Planeten. In den neuesten Spionageberichten lässt sich mit „Nur Fleetsaves“ auf solche Berichte filtern.',
+        en: 'Fleet saves on the activity page: worked-back fleet saves show in the activity log as their own kind "Fleet save" and lead to the spy history of the planet. The latest spy reports can be filtered to them with "Only fleet saves".',
+      },
+      {
+        kind: 'fix',
+        de: 'Fleetsave-Rückrechnung: Mehrere Spionageberichte zum selben Fleetsave werden zusammengefasst und grenzen die Abflugzeit gemeinsam ein, statt als zwei Saves mit einer Sekunde Abstand zu erscheinen. Eine verbleibende Spanne heißt jetzt eindeutig „Abflug zwischen … und …“.',
+        en: 'Fleet save calculation: several spy reports of the same fleet save are combined and narrow the departure together instead of showing as two saves one second apart. A remaining window now reads clearly as "departure between … and …".',
+      },
+      {
+        kind: 'new',
         de: 'Aktivitätsmuster: Ein zurückgerechneter Fleetsave ist eine bewiesene Aktivität des Spielers und erscheint jetzt als eigener Punkt „Fleetsave“ auf der Zeitleiste.',
         en: 'Activity pattern: a worked-back fleet save is proven activity of the player and now shows as its own "Fleet save" mark on the timeline.',
       },

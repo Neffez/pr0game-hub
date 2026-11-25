@@ -86,6 +86,39 @@ describe('fleet save guess', () => {
     db.prepare("DELETE FROM spy_reports WHERE report_time = ? AND p = 4 AND planet_type = 'planet'").run(t - 30);
   });
 
+  it('lists fleet saves in the activity log, reports of the same save narrowed to one departure', async () => {
+    const seconds = 3 * 3600 + 25 * 60 + 7;
+    const departure = t - 60 - seconds;
+    // a second probe 2 h later during the same save, without fractions left: its window differs, the overlap stays
+    const later = spy(4, t - 50, { 900: { ...shown(4, seconds + 10, 0), 903: 10 }, 0: MINES, 200: { 212: 0 } }).lastInsertRowid;
+    const single = (await app.inject({ method: 'GET', url: `/hub/api/u8/spy/1/100/4`, headers: carol })).json().reports;
+    const windows = single.filter((r: { fleetSave: unknown }) => r.fleetSave).map((r: { fleetSave: { from: number; to: number } }) => r.fleetSave);
+    const res = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?from=${t - 86400}&to=${t + 60}`, headers: carol })).json();
+    const saves = res.entries.filter((e: { kind: string; p: number }) => e.kind === 'fleet_save' && e.p === 4);
+    expect(saves).toHaveLength(1);
+    const d = saves[0].data;
+    expect(d.reports).toBe(2);
+    expect(d.from).toBe(Math.max(...windows.map((w: { from: number }) => w.from)));
+    expect(d.to).toBe(Math.min(...windows.map((w: { to: number }) => w.to)));
+    expect(d.from).toBeLessThanOrEqual(departure);
+    expect(d.to).toBeGreaterThanOrEqual(departure);
+    expect(saves[0]).toMatchObject({ player_id: farm, player_name: 'Farm', g: 1, s: 100, time: d.from, id: -Number(later) });
+    expect(res.counts.fleet_save).toBe(1);
+    // asked for other kinds only: none
+    const other = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?from=${t - 86400}&to=${t + 60}&kinds=planet_new`, headers: carol })).json();
+    expect(other.entries.some((e: { kind: string }) => e.kind === 'fleet_save')).toBe(false);
+    db.prepare('DELETE FROM spy_reports WHERE id = ?').run(later);
+  });
+
+  it('filters the recent reports to fleet saves, page by page', async () => {
+    const all = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports?fleetSave=1', headers: carol })).json();
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.every((r: { fleetSave: unknown; planet_type: string }) => r.fleetSave && r.planet_type === 'planet')).toBe(true);
+    const first = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports?fleetSave=1&limit=1', headers: carol })).json();
+    const next = (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?fleetSave=1&limit=1&before=${first[0].report_time}:${first[0].id}`, headers: carol })).json();
+    expect([...first, ...next].map((r: { id: number }) => r.id)).toEqual(all.slice(0, 2).map((r: { id: number }) => r.id));
+  });
+
   it('marks the guesses in the list of recent reports', async () => {
     const rows = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports', headers: carol })).json();
     const by = (p: number, type = 'planet') => rows.find((r: { p: number; planet_type: string }) => r.p === p && r.planet_type === type);

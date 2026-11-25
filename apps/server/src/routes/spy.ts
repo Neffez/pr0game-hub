@@ -3,6 +3,9 @@ import type { DB } from '../db.js';
 import { fleetSaveGuesses, type SpyRow } from '../repo/fleetSave.js';
 import { clampInt, contextOf, DISPLAY, parseSections, type Q } from './util.js';
 
+/** Reports read per step while only reports with a fleet save guess are asked for. */
+const FLEET_SAVE_CHUNK = 500;
+
 export function spyRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
 
@@ -36,17 +39,32 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
     const offset = clampInt(req.query.offset, 0, 0, 1_000_000);
     // keyset paging (`before=<report_time>:<id>` of the last row): stable while new reports come in
     const before = req.query.before?.match(/^(\d+):(\d+)$/);
-    const after = before ? 'AND (sr.report_time < ? OR (sr.report_time = ? AND sr.id < ?))' : '';
-    const args = before ? [Number(before[1]), Number(before[1]), Number(before[2])] : [];
-    const rows = db
-      .prepare(
-        `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
-           ${DISPLAY} AS reporter
-         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id
-         WHERE sr.group_id = ? ${after} ORDER BY sr.report_time DESC, sr.id DESC LIMIT ? OFFSET ?`,
-      )
-      .all(ctx.groupId, ...args, limit, before ? 0 : offset)
-      .map(parseSections) as SpyRow[];
-    return fleetSaveGuesses(db, ctx, rows);
+    const page = db.prepare(
+      `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
+         ${DISPLAY} AS reporter
+       FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id
+       WHERE sr.group_id = ? AND (? IS NULL OR sr.report_time < ? OR (sr.report_time = ? AND sr.id < ?))
+         AND (? = 0 OR (sr.planet_type = 'planet' AND json_extract(sr.sections, '$."900"') IS NOT NULL))
+       ORDER BY sr.report_time DESC, sr.id DESC LIMIT ? OFFSET ?`,
+    );
+    const load = (cursor: [number, number] | null, onlyPlanets: boolean, n: number, skip: number) =>
+      fleetSaveGuesses(
+        db,
+        ctx,
+        page.all(ctx.groupId, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[0] ?? null, cursor?.[1] ?? null, onlyPlanets ? 1 : 0, n, skip).map(parseSections) as SpyRow[],
+      );
+    const start: [number, number] | null = before ? [Number(before[1]), Number(before[2])] : null;
+    if (req.query.fleetSave !== '1') return load(start, false, limit, before ? 0 : offset);
+    // only reports with a fleet save guess: scanned in chunks until the page is full, the keyset continues after the
+    // last report returned
+    const out: ReturnType<typeof load> = [];
+    let cursor = start;
+    for (;;) {
+      const chunk = load(cursor, true, FLEET_SAVE_CHUNK, 0);
+      out.push(...chunk.filter((r) => r.fleetSave));
+      if (out.length >= limit || chunk.length < FLEET_SAVE_CHUNK) return out.slice(0, limit);
+      const last = chunk[chunk.length - 1];
+      cursor = [last.report_time, last.id];
+    }
   });
 }
