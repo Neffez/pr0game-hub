@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Aktivität: Neben dem Wechsel in den Urlaubsmodus erscheint jetzt auch, wenn ein Spieler aus dem Urlaub zurückkommt.',
+        en: 'Activity: besides entering vacation mode, the log now also shows when a player comes back from vacation.',
+      },
+      {
+        kind: 'new',
         de: 'Inaktivität: Ein zurückgerechneter Fleetsave zählt jetzt als bewiesene Aktivität des Spielers – wer gerade gesavet hat, gilt nicht als inaktiv.',
         en: 'Inactivity: a worked-back fleet save now counts as proven activity of the player – someone who just saved is not considered inactive.',
       },

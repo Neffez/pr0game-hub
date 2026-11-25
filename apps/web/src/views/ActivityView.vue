@@ -40,6 +40,7 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'market_offer', icon: 'market', color: 'var(--info)' },
   { kind: 'player_renamed', icon: 'edit', color: 'var(--info)' },
   { kind: 'vacation_start', icon: 'sun', color: 'var(--warn)' },
+  { kind: 'vacation_end', icon: 'sun', color: 'var(--pos)' },
   { kind: 'fleet_save', icon: 'return', color: 'var(--pos)' },
 ];
 const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
@@ -151,6 +152,8 @@ function text(e: Entry) {
       return t('activity.text.renamed', { before: d.before, name: d.name });
     case 'vacation_start':
       return t('activity.text.vacationStart');
+    case 'vacation_end':
+      return t('activity.text.vacationEnd');
     case 'fleet_save': {
       const clock = (e: number) => clockTime(new Date(e * 1000), true);
       const when = d.to > d.from ? t('activity.text.fleetSaveBetween', { from: clock(d.from), to: clock(d.to) }) : t('activity.text.fleetSaveAt', { time: clock(d.from) });

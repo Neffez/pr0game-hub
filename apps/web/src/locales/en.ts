@@ -1407,6 +1407,7 @@ const en: typeof de = {
       market_offer: 'Market offer',
       player_renamed: 'Renamed',
       vacation_start: 'Vacation mode',
+      vacation_end: 'Back from vacation',
       fleet_save: 'Fleet save',
     },
     text: {
@@ -1430,6 +1431,7 @@ const en: typeof de = {
       marketOffer: '{give} → {want} · rate {ratio} · ends {end}',
       renamed: 'Renamed: {before} → {name}',
       vacationStart: 'Newly in vacation mode',
+      vacationEnd: 'Back from vacation mode',
       fleetSaveAt: 'Fleet save: departure at {time}',
       fleetSaveBetween: 'Fleet save: departure between {from} and {to}',
       fleetSaveReports: '(from {n} spy reports)',

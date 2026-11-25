@@ -147,9 +147,12 @@ export class Players {
     if (cur.status === json || cur.last_seen > seenAt) return;
     this.db.prepare('UPDATE players SET status = ? WHERE id = ?').run(json, playerId);
     this.db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?)').run(playerId, json, seenAt);
-    // newly in vacation mode; a player seen for the first time now had no known status before
-    if (status.includes('vacation') && !(JSON.parse(cur.status) as string[]).includes('vacation') && cur.first_seen < seenAt) {
-      this.log('vacation_start', seenAt, playerId, {}, `vacation_start:${playerId}:${seenAt}`);
+    // newly in or out of vacation mode; a player seen for the first time now had no known status before
+    const was = (JSON.parse(cur.status) as string[]).includes('vacation');
+    const is = status.includes('vacation');
+    if (is !== was && cur.first_seen < seenAt) {
+      const kind = is ? 'vacation_start' : 'vacation_end';
+      this.log(kind, seenAt, playerId, {}, `${kind}:${playerId}:${seenAt}`);
     }
   }
 

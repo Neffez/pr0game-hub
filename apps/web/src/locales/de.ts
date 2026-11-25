@@ -1408,6 +1408,7 @@ const de = {
       market_offer: 'Marktangebot',
       player_renamed: 'Umbenannt',
       vacation_start: 'Urlaubsmodus',
+      vacation_end: 'Urlaubsende',
       fleet_save: 'Fleetsave',
     },
     text: {
@@ -1431,6 +1432,7 @@ const de = {
       marketOffer: '{give} → {want} · Kurs {ratio} · endet {end}',
       renamed: 'Umbenannt: {before} → {name}',
       vacationStart: 'Neu im Urlaubsmodus',
+      vacationEnd: 'Aus dem Urlaubsmodus zurück',
       fleetSaveAt: 'Fleetsave: Abflug um {time}',
       fleetSaveBetween: 'Fleetsave: Abflug zwischen {from} und {to}',
       fleetSaveReports: '(aus {n} Spionageberichten)',

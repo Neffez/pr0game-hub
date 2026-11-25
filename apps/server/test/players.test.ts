@@ -174,4 +174,16 @@ describe('activity log entries about players', () => {
     p.playerStatus(fresh, ['vacation'], 4000);
     expect(logged('vacation_start')).toEqual([{ time: 2000, player_id: id, data: {} }]);
   });
+
+  it('logs the end of vacation mode once when a known player leaves it', () => {
+    const id = p.player(30, 'Epsilon', 1000);
+    p.playerStatus(id, ['vacation'], 1000);
+    p.player(30, 'Epsilon', 2000);
+    p.playerStatus(id, ['vacation', 'inactive'], 2000);
+    p.player(30, 'Epsilon', 3000);
+    p.playerStatus(id, [], 3000);
+    p.player(30, 'Epsilon', 4000);
+    p.playerStatus(id, ['inactive'], 4000);
+    expect(logged('vacation_end')).toEqual([{ time: 3000, player_id: id, data: {} }]);
+  });
 });
