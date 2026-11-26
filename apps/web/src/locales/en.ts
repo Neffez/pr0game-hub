@@ -1240,6 +1240,11 @@ const en: typeof de = {
       noShips: 'no ships',
       points: '{n} points',
       stat: 'Statistics: {n} fleet points ({ago})',
+      lost: '{n} points of it destroyed since in {battles} battle (battle report) – taken off | {n} points of it destroyed since in {battles} battles (battle reports) – taken off',
+      lostAll: 'all ships seen destroyed since in {battles} battle (battle report) | all ships seen destroyed since in {battles} battles (battle reports)',
+      lostTitle: 'destroyed in battles since',
+      lostRow: 'destroyed since: {ships} ({battles} battle) | destroyed since: {ships} ({battles} battles)',
+      shrunk: 'the statistics show only {n} fleet points since – ships probably lost',
       grown: 'the statistics show clearly more – the fleet is probably larger',
       sum: 'Sum of {n} spy reports taken close together: {points} points',
       check: {

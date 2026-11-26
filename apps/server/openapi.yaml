@@ -2522,7 +2522,7 @@ components:
         enabled: { type: boolean }
     FleetSighting:
       type: object
-      required: [source, time, units, points, body, count, reportId]
+      required: [source, time, units, points, body, count, reportId, lost, lostPoints, lostBattles]
       properties:
         source:
           type: string
@@ -2548,15 +2548,22 @@ components:
             type: { type: string, enum: [planet, moon] }
         count: { type: [integer, 'null'], description: 'spySum: bodies added up; battles: battles taken into account; empire: fleets in flight added (null: no fleet list close enough to tell)' }
         reportId: { type: [string, 'null'], description: 'battle: the battle report (`/api/{uni}/combat-reports/{id}`)' }
+        lost:
+          $ref: '#/components/schemas/UnitCounts'
+          description: >-
+            Ships of `units` the player lost in the battles after the sighting (`battle` and `battles`: from that battle
+            on, itself included), wherever they took place; at most the ships seen.
+        lostPoints: { type: integer, description: Points of `lost` }
+        lostBattles: { type: integer, description: Battles after the sighting in which ships of `lost` were destroyed }
     PlayerFleet:
       type: object
-      required: [fleet, sum, sightings, fleetPoints]
+      required: [fleet, sum, sightings, fleetPoints, shrunk]
       properties:
         fleet:
           description: >-
-            The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics):
-            what the player has at least, unless they lost ships meanwhile. With an empire page (exact) only it and
-            newer sightings count. Null without any sighting.
+            The sighting with the most points left after the ships lost since (`points` - `lostPoints`) of the 14 days
+            up to the newest one (a sum only unless it exceeds the statistics): what the player has at least. With an
+            empire page (exact) only it and newer sightings count. Null without any sighting.
           oneOf:
             - { $ref: '#/components/schemas/FleetSighting' }
             - { type: 'null' }
@@ -2588,6 +2595,11 @@ components:
           properties:
             points: { type: integer }
             time: { type: integer }
+        shrunk:
+          type: boolean
+          description: >-
+            The newest statistics, updated after `fleet`, show clearly fewer fleet points than left of it (below 80 %):
+            ships were lost in battles the hub doesn't know.
     HubActivityEntry:
       type: object
       description: One thing members did in the hub (`GET /api/{uni}/hub-activity`)

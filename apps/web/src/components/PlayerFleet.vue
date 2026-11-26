@@ -11,7 +11,7 @@ import Section from './Section.vue';
 
 /**
  * The fleet a player has or last had (player page; server: repo/playerFleet.ts): the strongest recent sighting with
- * all its ships, the spy reports of several bodies added up and checked against the fleet statistics, and every
+ * all its ships less those destroyed in battles since, the spy reports of several bodies added up and checked against the fleet statistics, and every
  * sighting (spy reports per body, battles, fleets on their way) on request.
  */
 type Sighting = Schema<'FleetSighting'>;
@@ -32,11 +32,16 @@ const shipsTitle = (s: Record<string, number>) => ships(s).map(([id, n]) => `${f
 const where = (x: Sighting) => (x.body ? `${coords(x.body.g, x.body.s, x.body.p)}${x.body.type === 'moon' ? ` ${t('common.moon')}` : ''}` : '');
 const sourceKey = (x: Sighting) => (x.source !== 'empire' ? x.source : x.count == null ? 'empireUnknown' : x.count ? 'empireFlights' : 'empire');
 const sourceText = (x: Sighting) => t(`player.fleet.source.${sourceKey(x)}`, { where: where(x), n: x.count ?? 0 });
+/** the ships of the fleet with those destroyed in the battles since */
+const fleetLines = computed(() => {
+  const f = fleet.value;
+  return f ? ships(f.units).map(([id, n]) => ({ id, left: n - (f.lost[id] ?? 0), lost: f.lost[id] ?? 0 })) : [];
+});
 /** the statistics show clearly more fleet points than the fleet known: it may be larger now */
 const grown = computed(() => {
   const f = fleet.value;
   const fp = data.value?.fleetPoints;
-  return !!f && !!fp && fp.points > f.points * 1.3 + 10;
+  return !!f && !!fp && fp.points > (f.points - f.lostPoints) * 1.3 + 10;
 });
 </script>
 
@@ -51,15 +56,24 @@ const grown = computed(() => {
     <template v-else-if="data">
       <p v-if="!fleet" class="muted small m-0">{{ t('player.fleet.unknown') }}</p>
       <template v-else>
-        <div v-if="ships(fleet.units).length" class="fleet-grid">
-          <div v-for="[id, n] in ships(fleet.units)" :key="id" class="fleet-line">
-            <span>{{ name(id) }}</span>
-            <b class="mono">{{ fmt(n) }}</b>
+        <div v-if="fleetLines.length" class="fleet-grid">
+          <div v-for="l in fleetLines" :key="l.id" class="fleet-line" :class="{ gone: !l.left }">
+            <span>{{ name(l.id) }}</span>
+            <span>
+              <s v-if="l.lost" class="neg small mono" :title="t('player.fleet.lostTitle')">−{{ fmt(l.lost) }}</s>
+              <b class="mono">{{ fmt(l.left) }}</b>
+            </span>
           </div>
         </div>
         <p v-else class="muted small m-0">{{ t('player.fleet.noShips') }}</p>
+        <p v-if="fleet.lostPoints" class="small fleet-note neg" data-test="fleet-lost">
+          {{ t(fleet.lostPoints >= fleet.points ? 'player.fleet.lostAll' : 'player.fleet.lost', { n: fmt(fleet.lostPoints), battles: fleet.lostBattles }, fleet.lostBattles) }}
+        </p>
+        <p v-if="data.shrunk && data.fleetPoints" class="small fleet-note warn" data-test="fleet-shrunk">
+          {{ t('player.fleet.shrunk', { n: fmt(data.fleetPoints.points) }) }}
+        </p>
         <p class="small muted fleet-note">
-          {{ t('player.fleet.points', { n: fmt(fleet.points) }) }}
+          {{ t('player.fleet.points', { n: fmt(fleet.points - fleet.lostPoints) }) }}
           <template v-if="data.fleetPoints">
             · <span :title="dateTime(data.fleetPoints.time)">{{ t('player.fleet.stat', { n: fmt(data.fleetPoints.points), ago: ago(data.fleetPoints.time) }) }}</span>
           </template>
@@ -93,7 +107,10 @@ const grown = computed(() => {
                 </td>
                 <td :title="dateTime(x.time)">{{ ago(x.time) }}</td>
                 <td class="fleet-ships" :title="shipsTitle(x.units)">{{ shipsText(x.units) }}</td>
-                <td class="num mono">{{ fmt(x.points) }}</td>
+                <td class="num mono">
+                  {{ fmt(x.points) }}
+                  <span v-if="x.lostPoints" class="neg" :title="t('player.fleet.lostRow', { ships: shipsText(x.lost), battles: x.lostBattles }, x.lostBattles)">−{{ fmt(x.lostPoints) }}</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -106,6 +123,8 @@ const grown = computed(() => {
 <style scoped>
 .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 24px; }
 .fleet-line { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
+.fleet-line.gone > span:first-child { color: var(--muted); text-decoration: line-through; }
+.fleet-line s { margin-right: 6px; }
 p.fleet-note { margin: 8px 0 0; }
 td.fleet-ships { white-space: normal; min-width: 200px; }
 </style>

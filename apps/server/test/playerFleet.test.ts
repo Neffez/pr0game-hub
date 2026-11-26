@@ -72,6 +72,21 @@ beforeAll(async () => {
   battle.run(group, 'b2', t - 6 * 86400, JSON.stringify([[0, 'Rowdy', [[204, 10, 10], [202, 40, 40]]], [1, 'Other', [[401, 1, 0]]]]), null, null, null, null);
   battle.run(group, 'b3', t - 60 * 86400, JSON.stringify([[0, 'Brawler', [[207, 99, 99]]], [1, 'Other', [[401, 1, 0]]]]), null, null, null, null);
 
+  // Loser: a big fleet spied on, then most of it destroyed in a battle elsewhere (heavy fighters 10 points, cruisers 29)
+  const loser = player('Loser', [7, 10, 1]);
+  spy.run(group, 7, 10, 1, 'planet', loser, 'Loser', t - 2 * 86400, JSON.stringify({ 200: { 205: 100, 206: 10 } }));
+  battle.run(group, 'l1', t - 3 * 86400, JSON.stringify([[0, 'Loser', [[205, 50, 0]]], [1, 'Other', [[401, 1, 0]]]]), null, null, null, null);
+  battle.run(group, 'l2', t - 86400, JSON.stringify([[0, 'Loser', [[205, 100, 20], [206, 10, 10]]], [1, 'Other', [[401, 1, 0]]]]), 7, 99, 1, 'planet');
+  // Wiped: the whole fleet spied on lost in a battle afterwards; the statistics confirm it
+  const wiped = player('Wiped', [8, 10, 1]);
+  spy.run(group, 8, 10, 1, 'planet', wiped, 'Wiped', t - 2 * 86400, JSON.stringify({ 200: { 207: 100 } }));
+  battle.run(group, 'w1', t - 86400, JSON.stringify([[1, 'Wiped', [[207, 100, 0], [401, 10, 0]]], [0, 'Other', [[204, 9, 9]]]]), 8, 10, 1, 'planet');
+  // Vanished: spied on with a fleet, no battle known, but the statistics show it gone
+  const vanished = player('Vanished', [9, 10, 1]);
+  spy.run(group, 9, 10, 1, 'planet', vanished, 'Vanished', t - 2 * 86400, JSON.stringify({ 200: { 207: 100 } }));
+  fleetPoints(vanished, t - 3 * 86400, 6000);
+  fleetPoints(vanished, t - 3600, 300);
+
   player('Nobody', [4, 10, 1]);
 
   // members: Carol's empire page with a fleet list synced just after it; Dave's empire page without a fleet list
@@ -137,6 +152,28 @@ describe('player fleet', () => {
     expect(f.sum).toBeNull();
   });
 
+  it('takes the ships destroyed in battles after a sighting off it', async () => {
+    const f = (await fleetOf('Loser')).json();
+    const spy = f.sightings.find((x: any) => x.source === 'spy');
+    // the battle before the report is not taken off, the one after it is (wherever it took place)
+    expect(spy).toMatchObject({ units: { 205: 100, 206: 10 }, lost: { 205: 80 }, lostBattles: 1 });
+    expect(spy.lostPoints).toBe(spy.points - (f.fleet.points - f.fleet.lostPoints));
+    // a battle: what it lost in it too
+    expect(f.sightings.find((x: any) => x.reportId === 'l2')).toMatchObject({ units: { 205: 100, 206: 10 }, lost: { 205: 80 }, lostBattles: 1 });
+    expect(f.sightings.find((x: any) => x.reportId === 'l1')).toMatchObject({ lost: { 205: 50 }, lostBattles: 2 });
+    expect(f.shrunk).toBe(false);
+  });
+
+  it('shows a fleet lost entirely, by battle reports or the statistics', async () => {
+    const w = (await fleetOf('Wiped')).json();
+    expect(w.fleet).toMatchObject({ units: { 207: 100 }, lost: { 207: 100 }, lostBattles: 1 });
+    expect(w.fleet.lostPoints).toBe(w.fleet.points);
+    const v = (await fleetOf('Vanished')).json();
+    expect(v.fleet).toMatchObject({ source: 'spy', lostPoints: 0 });
+    expect(v.shrunk).toBe(true);
+    expect((await fleetOf('Spread')).json().shrunk).toBe(false);
+  });
+
   it("takes a member's empire page with the fleets in flight then", async () => {
     const f = (await fleetOf('Carol')).json();
     const e = f.sightings.find((x: any) => x.source === 'empire');
@@ -150,7 +187,7 @@ describe('player fleet', () => {
   });
 
   it('answers without sightings and only for players of the group', async () => {
-    expect((await fleetOf('Nobody')).json()).toEqual({ fleet: null, sum: null, sightings: [], fleetPoints: null });
+    expect((await fleetOf('Nobody')).json()).toEqual({ fleet: null, sum: null, sightings: [], fleetPoints: null, shrunk: false });
     const res = await app.inject({ method: 'GET', url: '/hub/api/u9/players/99999/fleet', headers: carol });
     expect(res.statusCode).toBe(404);
   });

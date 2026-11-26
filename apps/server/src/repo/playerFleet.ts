@@ -21,9 +21,12 @@ import { FLEET_DAYS } from './threats.js';
  * - `empire`: for a member's player the ships on their planets and moons from their newest empire page (visible to the
  *   members on the fleet page anyway), plus their fleets in flight then from their fleet list as they share it, when
  *   that list was synced at most `FLIGHT_BEFORE` before the empire page or `FLIGHT_SLACK` after it.
- * `fleet` is the strongest sighting of the last `FLEET_DAYS` before the newest one (a sum only when it fits the
- * statistics): what they have at least, unless they lost ships meanwhile. The empire page is exact: with one, only
- * itself and newer sightings count.
+ * Ships the player lost in battles after a sighting (a battle: in it and after it) are taken off it (`lost`), wherever
+ * the battle took place: a lower bound stays one. `fleet` is the sighting with the most points left of the last
+ * `FLEET_DAYS` before the newest one (a sum only when it fits the statistics): what they have at least. The empire page
+ * is exact: with one, only itself and newer sightings count. `shrunk`: the statistics updated since show clearly fewer
+ * fleet points than left of it (ships lost in battles the hub doesn't know, or the fleet was deployed elsewhere and
+ * destroyed there).
  */
 
 /** Spy reports of different bodies at most this far apart are added up (`spySum`). */
@@ -54,6 +57,12 @@ export interface FleetSighting {
   count: number | null;
   /** battle: the battle report (hub page `battle-hall/:id`) */
   reportId: string | null;
+  /** ships of `units` destroyed in the battles since (a battle: in it too) */
+  lost: Record<string, number>;
+  /** points of `lost` */
+  lostPoints: number;
+  /** battles since in which the player lost ships */
+  lostBattles: number;
 }
 
 export interface FleetSum extends FleetSighting {
@@ -70,6 +79,8 @@ export interface PlayerFleet {
   sightings: FleetSighting[];
   /** newest fleet points of the statistics */
   fleetPoints: { points: number; time: number } | null;
+  /** the newest statistics, updated after `fleet`, show clearly fewer fleet points than left of it */
+  shrunk: boolean;
 }
 
 const isShip = (id: number) => id >= 200 && id < 300;
@@ -77,8 +88,9 @@ const isShip = (id: number) => id >= 200 && id < 300;
 export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: string, aliases: string[] = []): PlayerFleet {
   return withUnits(catalogOf(ctx.universe), () => {
     const points = (units: Record<string, number>) => Math.round(Object.entries(units).reduce((s, [id, n]) => s + elementPoints(id, n), 0));
-    const sighting = (s: Omit<FleetSighting, 'points' | 'count' | 'reportId'> & Partial<Pick<FleetSighting, 'count' | 'reportId'>>): FleetSighting => ({
-      count: null, reportId: null, ...s, points: points(s.units),
+    type Seen = Omit<FleetSighting, 'points' | 'count' | 'reportId' | 'lost' | 'lostPoints' | 'lostBattles'>;
+    const sighting = (s: Seen & Partial<Pick<FleetSighting, 'count' | 'reportId'>>): FleetSighting => ({
+      count: null, reportId: null, ...s, points: points(s.units), lost: {}, lostPoints: 0, lostBattles: 0,
     });
     const sightings: FleetSighting[] = [];
 
@@ -107,6 +119,7 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
 
     // the sum of the bodies spied on close to the newest of them
     let sum: FleetSum | null = null;
+    let sumSighting: FleetSighting | null = null;
     const spied = [...bodies.values()].sort((a, b) => b.time - a.time);
     if (spied.length >= 2) {
       const newest = spied[0].time;
@@ -124,6 +137,7 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
         const s = sighting({ source: 'spySum', time: newest, units, body: null, count: parts.length });
         const check = !stat ? null : s.points > stat.points * OVER + 5 ? 'over' : s.points < stat.points * UNDER ? 'under' : 'match';
         sum = { ...s, stat, check };
+        sumSighting = s;
         sightings.push(s);
       }
     }
@@ -140,12 +154,20 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
       for (const r of byName.all(ctx.groupId, likeTerm(JSON.stringify(n))) as BattleRow[]) battleRows.set(r.report_id, r);
     }
     const battles: FleetSighting[] = [];
+    /** the ships the player lost per battle */
+    const losses: { time: number; reportId: string; units: Record<string, number> }[] = [];
     for (const r of battleRows.values()) {
       const units: Record<string, number> = {};
+      const lost: Record<string, number> = {};
       for (const [, who, list] of JSON.parse(r.fleets) as [number, string, [number, number, number][]][]) {
         if (!who || !names.includes(who.toLowerCase())) continue;
-        for (const [id, before] of list) if (isShip(id) && before > 0) units[id] = (units[id] ?? 0) + before;
+        for (const [id, before, after] of list) {
+          if (!isShip(id) || !(before > 0)) continue;
+          units[id] = (units[id] ?? 0) + before;
+          if (before > after) lost[id] = (lost[id] ?? 0) + before - Math.max(0, after);
+        }
       }
+      if (Object.keys(lost).length) losses.push({ time: r.time, reportId: r.report_id, units: lost });
       if (!Object.keys(units).length) continue;
       const body = r.g != null && r.s != null && r.p != null ? { g: r.g, s: r.s, p: r.p, type: r.planet_type ?? 'planet' } : null;
       battles.push(sighting({ source: 'battle', time: r.time, units, body, reportId: r.report_id }));
@@ -196,16 +218,34 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
       sightings.push(empire);
     }
 
+    // the ships lost in the battles after each sighting (a battle and the most of the battles: from that battle on)
+    for (const x of sightings) {
+      const fromBattle = x.source === 'battle' || x.source === 'battles';
+      const since = losses.filter((l) => (fromBattle ? l.time >= x.time : l.time > x.time));
+      const lost: Record<string, number> = {};
+      for (const l of since) for (const [id, n] of Object.entries(l.units)) lost[id] = (lost[id] ?? 0) + n;
+      x.lost = Object.fromEntries(
+        Object.entries(lost)
+          .map(([id, n]) => [id, Math.min(n, x.units[id] ?? 0)] as const)
+          .filter(([, n]) => n > 0),
+      );
+      x.lostPoints = points(x.lost);
+      x.lostBattles = Object.keys(x.lost).length ? since.filter((l) => Object.keys(l.units).some((id) => x.lost[id])).length : 0;
+    }
+    if (sum && sumSighting) sum = { ...sum, lost: sumSighting.lost, lostPoints: sumSighting.lostPoints, lostBattles: sumSighting.lostBattles };
+
     sightings.sort((a, b) => b.time - a.time || b.points - a.points);
     const newest = sightings[0]?.time ?? 0;
+    const left = (x: FleetSighting) => x.points - x.lostPoints;
     const fleet =
       sightings
         .filter((x) => (empire ? x.time >= empire.time : x.time >= newest - FLEET_DAYS * 86400) && (x.source !== 'spySum' || sum?.check !== 'over'))
-        .reduce<FleetSighting | null>((best, x) => (!best || x.points > best.points ? x : best), null);
+        .reduce<FleetSighting | null>((best, x) => (!best || left(x) > left(best) ? x : best), null);
     const fleetPoints =
       (db
         .prepare('SELECT points, stat_time AS time FROM player_scores WHERE player_id = ? AND type = 2 AND stat_time IS NOT NULL ORDER BY stat_time DESC LIMIT 1')
         .get(playerId) as { points: number; time: number } | undefined) ?? null;
-    return { fleet, sum, sightings, fleetPoints };
+    const shrunk = !!fleet && !!fleetPoints && fleetPoints.time > fleet.time && fleetPoints.points < left(fleet) * UNDER - 5;
+    return { fleet, sum, sightings, fleetPoints, shrunk };
   });
 }

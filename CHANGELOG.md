@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-26
 
+- Player page, fleet: ships the player lost in battles after a sighting are taken off it.
+  - Every sighting (spy report, sum, empire, incoming fleet; a battle from itself on) gets the ships destroyed in the
+    synced battle reports since, wherever they took place (`lost`, `lostPoints`, `lostBattles` in
+    `GET /api/{uni}/players/{id}/fleet`); the fleet shown is the one with the most points left, destroyed ships
+    struck through, a fleet lost entirely marked as such.
+  - `shrunk`: the statistics updated since show clearly fewer fleet points than left of the fleet (ships lost in
+    battles the hub doesn't know); the page warns.
 - Raid planner: syncing the overview no longer breaks plans made from a running own attack.
   - A fleet that joined the ACS fills an empty invitation of its member (no start or no ships yet) instead of
     adding a second row next to it.

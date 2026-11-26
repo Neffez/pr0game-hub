@@ -1241,6 +1241,11 @@ const de = {
       noShips: 'keine Schiffe',
       points: '{n} Punkte',
       stat: 'Statistik: {n} Flottenpunkte ({ago})',
+      lost: 'davon {n} Punkte seither in {battles} Kampf zerstört (Kampfbericht) – abgezogen | davon {n} Punkte seither in {battles} Kämpfen zerstört (Kampfberichte) – abgezogen',
+      lostAll: 'alle gesichteten Schiffe seither in {battles} Kampf zerstört (Kampfbericht) | alle gesichteten Schiffe seither in {battles} Kämpfen zerstört (Kampfberichte)',
+      lostTitle: 'seither in Kämpfen zerstört',
+      lostRow: 'seither zerstört: {ships} ({battles} Kampf) | seither zerstört: {ships} ({battles} Kämpfe)',
+      shrunk: 'die Statistik zeigt seither nur noch {n} Flottenpunkte – wohl Schiffe verloren',
       grown: 'die Statistik zeigt deutlich mehr – die Flotte ist wohl größer',
       sum: 'Summe aus {n} Spionageberichten kurz nacheinander: {points} Punkte',
       check: {

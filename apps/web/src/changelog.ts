@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Spielerprofil, Flotte: Schiffe, die der Spieler nach einer Sichtung in Kämpfen verloren hat, werden abgezogen und durchgestrichen gezeigt. Zeigt die Statistik seither deutlich weniger Flottenpunkte, weist ein Hinweis darauf hin.',
+        en: 'Player page, fleet: ships the player lost in battles after a sighting are taken off and shown struck through. If the statistics show clearly fewer fleet points since, a note points it out.',
+      },
+      {
+        kind: 'fix',
         de: 'Raid-Planung: Synchronisierst du nach einer Einladung deine Flotte in der Übersicht, ersetzt sie die leere Einladung, statt daneben zu landen. Die geplante Ankunftszeit bleibt beim Sync erhalten, und unter „Aktuelle Pläne“ steht die tatsächliche Ankunft daneben, wenn der Verband verzögert ist.',
         en: 'Raid planner: if you sync your fleet in the overview after an invitation, it replaces the empty invitation instead of landing next to it. The planned arrival time is kept on sync, and "Current plans" shows the actual arrival next to it when the ACS is delayed.',
       },

@@ -5470,9 +5470,15 @@ export type components = {
             count: number | null;
             /** @description battle: the battle report (`/api/{uni}/combat-reports/{id}`) */
             reportId: string | null;
+            /** @description Ships of `units` the player lost in the battles after the sighting (`battle` and `battles`: from that battle on, itself included), wherever they took place; at most the ships seen. */
+            lost: components["schemas"]["UnitCounts"];
+            /** @description Points of `lost` */
+            lostPoints: number;
+            /** @description Battles after the sighting in which ships of `lost` were destroyed */
+            lostBattles: number;
         };
         PlayerFleet: {
-            /** @description The strongest sighting of the 14 days up to the newest one (a sum only unless it exceeds the statistics): what the player has at least, unless they lost ships meanwhile. With an empire page (exact) only it and newer sightings count. Null without any sighting. */
+            /** @description The sighting with the most points left after the ships lost since (`points` - `lostPoints`) of the 14 days up to the newest one (a sum only unless it exceeds the statistics): what the player has at least. With an empire page (exact) only it and newer sightings count. Null without any sighting. */
             fleet: components["schemas"]["FleetSighting"] | null;
             /** @description The `spySum` sighting checked against the fleet points of the statistics; null without one. */
             sum: (components["schemas"]["FleetSighting"] & {
@@ -5494,6 +5500,8 @@ export type components = {
                 points: number;
                 time: number;
             } | null;
+            /** @description The newest statistics, updated after `fleet`, show clearly fewer fleet points than left of it (below 80 %): ships were lost in battles the hub doesn't know. */
+            shrunk: boolean;
         };
         /** @description One thing members did in the hub (`GET /api/{uni}/hub-activity`) */
         HubActivityEntry: {
