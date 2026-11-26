@@ -50,6 +50,8 @@ export interface OwnFleet {
   points: number | null;
   from: 'empire' | 'stats' | null;
   time: number | null;
+  /** combat ships of the empire page (their speeds give the fleet's flight time), null without one */
+  ships: Record<string, number> | null;
 }
 
 export interface FarmSection {
@@ -109,11 +111,12 @@ function empireShips(db: DB, ctx: GroupContext, catalog: UnitCatalog) {
 export function ownFleet(db: DB, ctx: GroupContext, catalog: UnitCatalog): OwnFleet {
   const empire = empireShips(db, ctx, catalog);
   const points = empire ? combatPoints(empire.ships, catalog) : 0;
-  if (empire && points > 0) return { points, from: 'empire', time: empire.time };
+  const ships = empire ? Object.fromEntries(Object.entries(empire.ships).filter(([id]) => !NON_COMBAT.has(Number(id)))) : null;
+  if (empire && points > 0) return { points, from: 'empire', time: empire.time, ships };
   const mine = memberPlayer(db, ctx, ctx.user.id);
   const stat = mine != null ? latestScores(db, ctx.groupId, [mine], [2]).get(mine)?.[2] : undefined;
-  if (stat) return { points: stat.points, from: 'stats', time: stat.time };
-  return empire ? { points: 0, from: 'empire', time: empire.time } : { points: null, from: null, time: null };
+  if (stat) return { points: stat.points, from: 'stats', time: stat.time, ships };
+  return empire ? { points: 0, from: 'empire', time: empire.time, ships } : { points: null, from: null, time: null, ships: null };
 }
 
 /**
@@ -175,6 +178,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
 
   const { resourceSpeed, speedSource, storageFactor } = economyOf(db, ctx);
   const own = ownFleet(db, ctx, catalog);
+  const rate = rateOf(db, ctx);
   const debrisShare = simSettingsOf(settings, {}).fleetDebris / 100;
 
   // the own alliance: members' players and the in-game alliance of the viewer's player
@@ -183,7 +187,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
   const ownAlly = mine != null ? ((db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(mine, g) as number | null) ?? null) : null;
 
   const { newest, positions, owned, players } = spiedTargets(db, ctx, since);
-  if (!newest.length) return { targets: [] as FarmTarget[], resourceSpeed, speedSource, storageFactor, own };
+  if (!newest.length) return { targets: [] as FarmTarget[], resourceSpeed, speedSource, storageFactor, own, rate: { ...rate.value, source: rate.source } };
 
   const key = (r: { g: number; s: number; p: number; planet_type: string }) => `${r.g}:${r.s}:${r.p}:${r.planet_type}`;
   /** per position the newest report that has the section (any age: buildings change slowly) */
@@ -297,7 +301,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       fleetDebris: fleet ? fleetDebrisOf(fleet.values, catalog, debrisShare) : null,
     });
   }
-  return { targets, resourceSpeed, speedSource, storageFactor, own };
+  return { targets, resourceSpeed, speedSource, storageFactor, own, rate: { ...rate.value, source: rate.source } };
 }
 
 /** Debris field of the ships of a report section: the universe's share of their metal and crystal. */
@@ -328,16 +332,24 @@ export interface FarmSimTarget {
   resources: { metal: number; crystal: number; deuterium: number } | null;
 }
 
+export interface FarmSimRequest {
+  targets: FarmSimTarget[];
+  /** send only the combat ships (the fleet finder), the cargos too when there are none */
+  combatOnly: boolean;
+}
+
 /** Parses the request body of the farm simulation (400 on anything else). */
-export function parseFarmSim(body: unknown, positions: number): FarmSimTarget[] {
+export function parseFarmSim(body: unknown, positions: number): FarmSimRequest {
   const bad = (m: string) => new HttpError(400, 'farm_sim_invalid', m);
+  const combatOnly = (body as { combatOnly?: unknown } | null)?.combatOnly ?? false;
+  if (typeof combatOnly !== 'boolean') throw bad('combatOnly: boolean');
   const list = (body as { targets?: unknown } | null)?.targets;
   if (!Array.isArray(list) || !list.length || list.length > FARM_SIM_MAX) throw bad(`targets: 1-${FARM_SIM_MAX} entries`);
   const int = (v: unknown, min: number, max: number, what: string) => {
     if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) throw bad(`${what}: integer ${min}-${max}`);
     return v;
   };
-  return list.map((x: unknown): FarmSimTarget => {
+  const targets = list.map((x: unknown): FarmSimTarget => {
     if (!x || typeof x !== 'object') throw bad('target: object');
     const o = x as Record<string, unknown>;
     const type = o.type === 'moon' ? 'moon' : o.type === 'planet' || o.type == null ? 'planet' : null;
@@ -352,17 +364,22 @@ export function parseFarmSim(body: unknown, positions: number): FarmSimTarget[] 
       resources: r ? { metal: int(r.metal, 0, max, 'metal'), crystal: int(r.crystal, 0, max, 'crystal'), deuterium: int(r.deuterium, 0, max, 'deuterium') } : null,
     };
   });
+  return { targets, combatOnly };
 }
 
 /**
- * The own fleet (combat ships and cargos of the newest empire page, in flight included, with its research) against
- * each target as the newest reports show it: fleet, defense, the player's combat research. A target without a report
- * of its fleet or defense is not simulated (`reason: no_report`); one left out for the engine budget gets `budget`.
+ * The own fleet (combat ships and cargos of the newest empire page, in flight included, with its research; with
+ * `combatOnly` the combat ships alone when there are any) against each target as the newest reports show it: fleet,
+ * defense, the player's combat research. A target without a report of its fleet or defense is not simulated
+ * (`reason: no_report`); one left out for the engine budget gets `budget`.
  */
-export async function farmSimulation(db: DB, ctx: GroupContext, list: FarmSimTarget[]) {
+export async function farmSimulation(db: DB, ctx: GroupContext, { targets: list, combatOnly }: FarmSimRequest) {
   const catalog = catalogOf(ctx.universe);
   const empire = empireShips(db, ctx, catalog);
-  const units = empire ? Object.fromEntries(Object.entries(empire.ships).filter(([id]) => !NON_COMBAT.has(Number(id)) || SIM_CARGO.has(Number(id)))) : {};
+  const pick = (cargo: boolean) =>
+    empire ? Object.fromEntries(Object.entries(empire.ships).filter(([id]) => !NON_COMBAT.has(Number(id)) || (cargo && SIM_CARGO.has(Number(id))))) : {};
+  const combat = combatOnly ? pick(false) : {};
+  const units = Object.keys(combat).length ? combat : pick(true);
   if (!empire || !Object.keys(units).length) throw new HttpError(409, 'no_fleet', 'No ships in the newest own empire page');
   const research = Object.fromEntries(COMBAT_TECHS.map((id) => [id, empire.research[id] ?? 0]));
   // costs of the attacking fleet: the losses as a share of it
