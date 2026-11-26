@@ -96,6 +96,7 @@ const en: typeof de = {
     source: { spy: 'spy report {time}', combat: 'battle report {time}', incoming: 'fleet movement {time}', battles: 'from battle reports {time}' },
     points: 'points',
     grown: 'fleet points now {n}',
+    fleetLost: '−{n} destroyed since in a battle | −{n} destroyed since in {count} battles',
     researchEstimated: 'research estimated (yours)',
     run: 'Calculate defense ({n})',
     running: 'Calculating …',
@@ -352,6 +353,7 @@ const en: typeof de = {
     fleetStats: 'Fleet: at most {points} points (statistics, all planets)',
     defenseStats: 'Defense: at most {points} points (statistics, all planets)',
     grown: 'Grew since the report by the statistics: included',
+    fleetLost: '{n} points of it destroyed since the report in a battle (battle report): taken off | {n} points of it destroyed since the report in {count} battles (battle reports): taken off',
     strengthTitle: 'Strength: {points} (defense counts {weight}x) = {share} of your fleet; weak up to {weak}',
     strengthNoShare: 'Strength: {points} (defense counts {weight}x)',
     own: {

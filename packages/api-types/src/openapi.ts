@@ -3210,6 +3210,11 @@ export type components = {
                 901: number;
                 902: number;
             } | null;
+            /** @description Ships of the newest report with a fleet destroyed in the player's battles since (battle reports): already taken off `fleet`, `strength` and `fleetDebris`; null when none were lost */
+            fleetLost: {
+                points: number;
+                battles: number;
+            } | null;
         };
         /** @description The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`); null when neither is known. `ships`: the combat ships of the newest empire page (in flight included; their speeds give the fleet's flight time), null without an empire page. */
         FarmOwnFleet: {
@@ -5299,8 +5304,11 @@ export type components = {
                 count: number;
                 last: number | null;
             }[];
+            /** @description The fleet with the most points left after the ships the player lost in battles since the sighting (`combat` and `battles`: from that battle on); sightings with nothing left are dropped. */
             fleet: {
+                /** @description The ships seen less those lost since */
                 units: components["schemas"]["UnitCounts"];
+                /** @description Points of `units` */
                 points: number;
                 /**
                  * @description `combat`: battle at the caller's body; `battles`: rebuilt from battle reports elsewhere
@@ -5309,6 +5317,10 @@ export type components = {
                 source: "spy" | "combat" | "incoming" | "battles";
                 time: number;
                 from: components["schemas"]["PageCoords"] | null;
+                /** @description Points of the ships of the sighting destroyed in the battles since */
+                lostPoints: number;
+                /** @description Battles since in which they were destroyed */
+                lostBattles: number;
             };
             /** @description Newest fleet points of the statistics */
             fleetPoints: {

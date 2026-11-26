@@ -15,7 +15,7 @@ const ctx = {
 } as unknown as UniContext;
 const threat = (key: string, name: string, kind: string) => ({
   key, player: { id: Number(key.slice(1)), name, status: [], allyTag: null }, reasons: [{ kind, count: 2, last: 1000 }],
-  fleet: { units: { 203: 300, 205: 100 }, points: 2500, source: 'spy', time: 1000, from: { g: 1, s: 150, p: 4 } },
+  fleet: { units: { 203: 300, 205: 100 }, points: 2500, source: 'spy', time: 1000, from: { g: 1, s: 150, p: 4 }, lostPoints: 0, lostBattles: 0 },
   fleetPoints: { points: 9000, time: 1000 }, research: { values: { 109: 8 }, known: true, time: 1000 }, flight: { from: { g: 1, s: 150, p: 4 }, distance: 7000, duration: 3600, fuel: 1200 },
   heavy: key === 'p2' ? { units: { 207: 40 }, points: 2400, flight: { from: { g: 1, s: 150, p: 4 }, distance: 7000, duration: 3000, fuel: 600 } } : null,
 });

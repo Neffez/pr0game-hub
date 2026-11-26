@@ -3,6 +3,7 @@ import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { latestEmpires } from './empire.js';
+import { afterLosses, lossOf, type BattleLoss } from './fleetLosses.js';
 import { flightLines, sharedFleets, type StoredFleet } from './fleets.js';
 import { hostileAttacks } from './hostile.js';
 import { memberPlayers } from './members.js';
@@ -155,18 +156,15 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
     }
     const battles: FleetSighting[] = [];
     /** the ships the player lost per battle */
-    const losses: { time: number; reportId: string; units: Record<string, number> }[] = [];
+    const losses: BattleLoss[] = [];
     for (const r of battleRows.values()) {
       const units: Record<string, number> = {};
-      const lost: Record<string, number> = {};
-      for (const [, who, list] of JSON.parse(r.fleets) as [number, string, [number, number, number][]][]) {
+      const fleets = JSON.parse(r.fleets) as [number, string, [number, number, number][]][];
+      for (const [, who, list] of fleets) {
         if (!who || !names.includes(who.toLowerCase())) continue;
-        for (const [id, before, after] of list) {
-          if (!isShip(id) || !(before > 0)) continue;
-          units[id] = (units[id] ?? 0) + before;
-          if (before > after) lost[id] = (lost[id] ?? 0) + before - Math.max(0, after);
-        }
+        for (const [id, before] of list) if (isShip(id) && before > 0) units[id] = (units[id] ?? 0) + before;
       }
+      const lost = lossOf(fleets, new Set(names));
       if (Object.keys(lost).length) losses.push({ time: r.time, reportId: r.report_id, units: lost });
       if (!Object.keys(units).length) continue;
       const body = r.g != null && r.s != null && r.p != null ? { g: r.g, s: r.s, p: r.p, type: r.planet_type ?? 'planet' } : null;
@@ -220,17 +218,10 @@ export function playerFleet(db: DB, ctx: GroupContext, playerId: number, name: s
 
     // the ships lost in the battles after each sighting (a battle and the most of the battles: from that battle on)
     for (const x of sightings) {
-      const fromBattle = x.source === 'battle' || x.source === 'battles';
-      const since = losses.filter((l) => (fromBattle ? l.time >= x.time : l.time > x.time));
-      const lost: Record<string, number> = {};
-      for (const l of since) for (const [id, n] of Object.entries(l.units)) lost[id] = (lost[id] ?? 0) + n;
-      x.lost = Object.fromEntries(
-        Object.entries(lost)
-          .map(([id, n]) => [id, Math.min(n, x.units[id] ?? 0)] as const)
-          .filter(([, n]) => n > 0),
-      );
-      x.lostPoints = points(x.lost);
-      x.lostBattles = Object.keys(x.lost).length ? since.filter((l) => Object.keys(l.units).some((id) => x.lost[id])).length : 0;
+      const after = afterLosses(x.units, x.time, losses, x.source === 'battle' || x.source === 'battles');
+      x.lost = after.lost;
+      x.lostPoints = after.lostPoints;
+      x.lostBattles = after.lostBattles;
     }
     if (sum && sumSighting) sum = { ...sum, lost: sumSighting.lost, lostPoints: sumSighting.lostPoints, lostBattles: sumSighting.lostBattles };
 

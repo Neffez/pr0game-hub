@@ -170,7 +170,9 @@ const reasonText = (r: Threat['reasons'][number]) => {
   return t(`defense.reason.${r.kind}`, { n: r.count }) + (r.last ? ` · ${ago(r.last)}` : '');
 };
 /** statistics show clearly more fleet points than the fleet known: it may be larger now */
-const grown = (x: Threat) => !!x.fleetPoints && x.fleetPoints.points > x.fleet.points * 1.3 + 10;
+/** the statistics show clearly more than the fleet known (statistics older than the sighting: before its losses) */
+const grown = (x: Threat) =>
+  !!x.fleetPoints && x.fleetPoints.points > (x.fleet.points + (x.fleetPoints.time > x.fleet.time ? 0 : x.fleet.lostPoints)) * 1.3 + 10;
 const outcomeOf = (list: Outcome[] | null | undefined, key: string) => list?.find((o) => o.key === key) ?? null;
 const HEAVY = ':heavy';
 /** the ways a threat attacks: full fleet, and heavy ships only when it has others too */
@@ -296,6 +298,7 @@ async function addToOrder() {
           <div :title="shipsTitle(x.fleet.units)">{{ shipsText(x.fleet.units) }}</div>
           <div class="faint">
             {{ t(`defense.source.${x.fleet.source}`, { time: ago(x.fleet.time) }) }} · {{ short(x.fleet.points) }} {{ t('defense.points') }}
+            <span v-if="x.fleet.lostPoints" class="neg"> · {{ t('defense.fleetLost', { n: short(x.fleet.lostPoints) }, x.fleet.lostBattles) }}</span>
             <span v-if="grown(x)" class="warn"> · {{ t('defense.grown', { n: short(x.fleetPoints!.points) }) }}</span>
           </div>
           <div v-if="x.heavy" class="faint" :title="shipsTitle(x.heavy.units)">
@@ -347,6 +350,7 @@ async function addToOrder() {
                 <div :title="shipsTitle(x.fleet.units)">{{ shipsText(x.fleet.units) }}</div>
                 <div class="faint">
                   {{ t(`defense.source.${x.fleet.source}`, { time: ago(x.fleet.time) }) }} · {{ short(x.fleet.points) }} {{ t('defense.points') }}
+                  <span v-if="x.fleet.lostPoints" class="neg" data-test="def-lost"> · {{ t('defense.fleetLost', { n: short(x.fleet.lostPoints) }, x.fleet.lostBattles) }}</span>
                   <span v-if="grown(x)" class="warn" :title="dateTime(x.fleetPoints!.time)"> · {{ t('defense.grown', { n: short(x.fleetPoints!.points) }) }}</span>
                   <span v-if="!x.research.known" class="warn"> · {{ t('defense.researchEstimated') }}</span>
                 </div>

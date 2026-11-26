@@ -97,6 +97,7 @@ const de = {
     source: { spy: 'Spionagebericht {time}', combat: 'Kampfbericht {time}', incoming: 'Flottenbewegung {time}', battles: 'aus Kampfberichten {time}' },
     points: 'Punkte',
     grown: 'Flottenpunkte jetzt {n}',
+    fleetLost: '−{n} seither in einem Kampf zerstört | −{n} seither in {count} Kämpfen zerstört',
     researchEstimated: 'Forschung geschätzt (deine)',
     run: 'Verteidigung berechnen ({n})',
     running: 'Rechnet …',
@@ -353,6 +354,7 @@ const de = {
     fleetStats: 'Flotte: höchstens {points} Punkte (Statistik, alle Planeten)',
     defenseStats: 'Verteidigung: höchstens {points} Punkte (Statistik, alle Planeten)',
     grown: 'Seit dem Bericht laut Statistik gewachsen: eingerechnet',
+    fleetLost: 'Seit dem Bericht {n} Punkte davon in einem Kampf zerstört (Kampfbericht): abgezogen | Seit dem Bericht {n} Punkte davon in {count} Kämpfen zerstört (Kampfberichte): abgezogen',
     strengthTitle: 'Stärke: {points} (Verteidigung zählt {weight}-fach) = {share} deiner Flotte; schwach bis {weak}',
     strengthNoShare: 'Stärke: {points} (Verteidigung zählt {weight}-fach)',
     own: {

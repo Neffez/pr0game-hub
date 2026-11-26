@@ -14,6 +14,7 @@ import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { buildingsState, planetResearch, planetShips, type BuildingPlanet, type BuildingsState } from './buildings.js';
 import { spyEmpire } from './empire.js';
+import { afterLosses, playerLosses, playerNames, type BattleLoss } from './fleetLosses.js';
 import { hostileAttacks } from './hostile.js';
 import { battleFleet } from './threats.js';
 import { latestMarketRate } from './market.js';
@@ -49,8 +50,15 @@ export interface DefenseThreatInfo {
   key: string;
   player: { id: number | null; name: string; status: string[]; allyTag: string | null };
   reasons: { kind: Reason; count: number; last: number | null }[];
-  /** `battles`: rebuilt from the player's battle reports anywhere (the most of each ship type they fought with) */
-  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming' | 'battles'; time: number; from: Coords | null };
+  /**
+   * `battles`: rebuilt from the player's battle reports anywhere (the most of each ship type they fought with).
+   * `units` and `points` without the ships the player lost in battles since (`combat`, `battles`: from that battle
+   * on), `lostPoints` of those in `lostBattles` battles.
+   */
+  fleet: {
+    units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming' | 'battles'; time: number; from: Coords | null;
+    lostPoints: number; lostBattles: number;
+  };
   /** newest fleet points of the statistics, to compare with the fleet known */
   fleetPoints: { points: number; time: number } | null;
   /** research of the newest spy report; unknown: the viewer's own levels stand in */
@@ -75,8 +83,8 @@ export interface DefenseThreats {
 }
 
 /** Memo of one request over several planets (raid risk): spy empires and fleets rebuilt from battle reports by player. */
-export type ThreatMemo = { spy: Map<string, ReturnType<typeof spyEmpire>>; battles: Map<string, ReturnType<typeof battleFleet>> };
-export const threatMemo = (): ThreatMemo => ({ spy: new Map(), battles: new Map() });
+export type ThreatMemo = { spy: Map<string, ReturnType<typeof spyEmpire>>; battles: Map<string, ReturnType<typeof battleFleet>>; losses: Map<string, BattleLoss[]> };
+export const threatMemo = (): ThreatMemo => ({ spy: new Map(), battles: new Map(), losses: new Map() });
 
 const fleetPoints = (units: Record<string, number>) => Math.round(Object.entries(units).reduce((s, [id, n]) => s + elementPoints(id, n), 0));
 const attacking = (units: Record<string, number>) => Object.fromEntries(Object.entries(units).filter(([id, n]) => n > 0 && !NOT_ATTACKING.has(id)));
@@ -143,7 +151,7 @@ export function defenseThreats(
       for (const [name, sum] of byName) {
         const c = add(name, null, 'attacked', b.time);
         const ships = attacking(sum);
-        if (c && Object.keys(ships).length) c.fleets.push({ units: ships, points: fleetPoints(ships), source: 'combat', time: b.time, from: null });
+        if (c && Object.keys(ships).length) c.fleets.push({ units: ships, points: fleetPoints(ships), source: 'combat', time: b.time, from: null, lostPoints: 0, lostBattles: 0 });
       }
     }
 
@@ -154,7 +162,7 @@ export function defenseThreats(
       const ships: Record<string, number> = {};
       for (const f of a.fleets) for (const [id, n] of Object.entries(f.ships)) ships[id] = (ships[id] ?? 0) + n;
       const list = attacking(ships);
-      if (c && Object.keys(list).length) c.fleets.push({ units: list, points: fleetPoints(list), source: 'incoming', time: a.seen, from: { g: a.from.g, s: a.from.s, p: a.from.p } });
+      if (c && Object.keys(list).length) c.fleets.push({ units: list, points: fleetPoints(list), source: 'incoming', time: a.seen, from: { g: a.from.g, s: a.from.s, p: a.from.p }, lostPoints: 0, lostBattles: 0 });
     }
 
     // strong fleets nearby: spy reports in the planet's galaxy with a fleet section
@@ -180,7 +188,7 @@ export function defenseThreats(
       for (const pl of spy?.planets ?? []) {
         if (pl.time < since) continue;
         const ships = attacking(Object.fromEntries(Object.entries(pl.values).filter(([id]) => Number(id) >= 200 && Number(id) < 300)));
-        if (Object.keys(ships).length) c.fleets.push({ units: ships, points: fleetPoints(ships), source: 'spy', time: pl.time, from: pl.coords });
+        if (Object.keys(ships).length) c.fleets.push({ units: ships, points: fleetPoints(ships), source: 'spy', time: pl.time, from: pl.coords, lostPoints: 0, lostBattles: 0 });
       }
       return spy;
     };
@@ -192,7 +200,22 @@ export function defenseThreats(
       const lower = c.name.toLowerCase();
       if (!memo.battles.has(lower)) memo.battles.set(lower, battleFleet(db, ctx, c.name, since));
       const rebuilt = memo.battles.get(lower);
-      if (rebuilt) c.fleets.push({ units: rebuilt.units, points: fleetPoints(rebuilt.units), source: 'battles', time: rebuilt.time, from: null });
+      if (rebuilt) c.fleets.push({ units: rebuilt.units, points: fleetPoints(rebuilt.units), source: 'battles', time: rebuilt.time, from: null, lostPoints: 0, lostBattles: 0 });
+    }
+
+    // the ships each player lost in battles after a sighting are taken off it; a fleet with nothing left drops out
+    for (const c of [...cands.values(), ...nearby]) {
+      if (!c.fleets.length) continue;
+      const memoKey = `${c.id ?? ''}|${c.name.toLowerCase()}`;
+      if (!memo.losses.has(memoKey)) memo.losses.set(memoKey, playerLosses(db, ctx, playerNames(db, c.id, c.name), since));
+      const losses = memo.losses.get(memoKey)!;
+      if (!losses.length) continue;
+      c.fleets = c.fleets.flatMap((f) => {
+        const after = afterLosses(f.units, f.time, losses, f.source === 'combat' || f.source === 'battles');
+        if (!after.lostPoints) return [f];
+        const left = attacking(after.units);
+        return Object.keys(left).length ? [{ ...f, units: left, points: fleetPoints(left), lostPoints: after.lostPoints, lostBattles: after.lostBattles }] : [];
+      });
     }
 
     const strongest = (c: Cand) => c.fleets.reduce<DefenseThreatInfo['fleet'] | null>((best, f) => (!best || f.points > best.points ? f : best), null);

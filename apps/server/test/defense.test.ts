@@ -110,7 +110,9 @@ describe('defense advisor', () => {
     expect(hitter.fleet).toMatchObject({ units: { 202: 5, 204: 30 }, source: 'battles', time: t - 86400, from: null });
     expect(hitter.flight.from).toEqual({ g: 1, s: 101, p: 3 });
     expect(basher.reasons).toEqual([{ kind: 'attacked', count: 1, last: t - 86400 }]);
-    expect(basher.fleet).toMatchObject({ units: { 202: 50, 204: 500 }, source: 'combat' });
+    // what is left of it after the battle: the 20 light fighters lost there taken off
+    expect(basher.fleet).toMatchObject({ units: { 202: 50, 204: 480 }, source: 'combat', lostPoints: 80, lostBattles: 1 });
+    expect(raider.fleet).toMatchObject({ lostPoints: 0, lostBattles: 0 });
     // without a spy report showing research, the viewer's levels stand in
     expect(basher.research).toMatchObject({ known: false, values: { 109: 6, 115: 8 } });
     // from the owner's planet nearest to the target

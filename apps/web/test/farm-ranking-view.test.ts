@@ -24,7 +24,7 @@ function target(s: number, name: string, loot: number, strength: FarmTarget['str
     loot: { 901: loot / 2, 902: 0, 903: 0 },
     fleet: { time: now - 600, points: strength.fleet, units: strength.fleet ? 10 : 0 },
     defense: { time: now - 600, points: strength.defense, units: strength.defense ? 10 : 0 },
-    lastBattle: null, inactivity: inact, changes: { 1: null, 2: null, 5: null }, espionage: null, strength, fleetDebris,
+    lastBattle: null, inactivity: inact, changes: { 1: null, 2: null, 5: null }, espionage: null, strength, fleetDebris, fleetLost: null,
   };
 }
 const report = (fleet: number, defense: number): FarmTarget['strength'] => ({ fleet, fleetFrom: 'report', defense, defenseFrom: 'report', grown: false });

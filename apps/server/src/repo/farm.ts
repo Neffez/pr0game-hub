@@ -8,6 +8,7 @@ import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { rateOf } from './defense.js';
 import { economyOf } from './economy.js';
+import { afterLosses, lossesByName, lossesOfNames, playerLosses, playerNames, type AfterLosses } from './fleetLosses.js';
 import { latestEmpire } from './empire.js';
 import { inactivities, type Inactivity } from './inactivity.js';
 import { memberPlayer, memberPlayers } from './members.js';
@@ -92,6 +93,11 @@ export interface FarmTarget {
   strength: FarmStrength;
   /** debris field of the ships in the newest report with a fleet (universe's debris share), null without one */
   fleetDebris: { 901: number; 902: number } | null;
+  /**
+   * ships of the newest report with a fleet destroyed in the player's battles since (battle reports): taken off
+   * `fleet`, `strength` and `fleetDebris`; null when none were lost
+   */
+  fleetLost: { points: number; battles: number } | null;
 }
 
 /** Ships of the newest own empire page, on the planets and in flight. */
@@ -239,6 +245,15 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
     return out;
   };
   const inactive = inactivities(db, ctx, ids);
+  // the ships lost in battles since the fleet reports, by the players' names now and before
+  const fleetTimes = owned.map((r) => fleets.get(key(r))?.time).filter((x): x is number => x != null);
+  const losses = fleetTimes.length ? lossesByName(db, ctx, Math.min(...fleetTimes)) : new Map();
+  const aliases = new Map<number, string[]>();
+  if (losses.size && ids.length) {
+    for (const a of db
+      .prepare('SELECT a.player_id AS id, a.name FROM player_aliases a JOIN players p ON p.id = a.player_id AND p.group_id = ? JOIN json_each(?) i ON i.value = a.player_id')
+      .all(g, JSON.stringify(ids)) as { id: number; name: string }[]) aliases.set(a.id, [...(aliases.get(a.id) ?? []), a.name]);
+  }
 
   const sectionOf = (s: { time: number; values: Record<string, number> } | undefined): FarmSection | null =>
     s
@@ -256,12 +271,21 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
     const k = key(r);
     const resources = JSON.parse(r.res) as Record<number, number>;
     const built = buildings.get(k);
-    const fleet = fleets.get(k);
+    const seen = fleets.get(k);
+    let after: AfterLosses | null = null;
+    if (seen && losses.size) {
+      const own = lossesOfNames(losses, [player.name, ...(aliases.get(player.id) ?? [])]);
+      if (own.length) after = withUnits(catalog, () => afterLosses(seen.values, seen.time, own));
+    }
+    const lost = after?.lostPoints ? after : null;
+    const fleet = seen && lost ? { time: seen.time, values: lost.units } : seen;
     const defense = defenses.get(k);
     const stats = scores.get(player.id);
     const side = (sec: { time: number; values: Record<string, number> } | undefined, type: 2 | 5) => {
       if (sec) {
-        const gained = Math.max(0, changesOf(player.id, sec.time)[type] ?? 0);
+        // the statistics since include the ships lost: what they rebuilt on top of that
+        const change = changesOf(player.id, sec.time)[type];
+        const gained = change == null ? 0 : Math.max(0, change + (type === 2 ? (lost?.lostPoints ?? 0) : 0));
         return { value: combatPoints(sec.values, catalog) + gained, from: 'report' as const, grown: gained > 0 };
       }
       const stat = stats?.[type];
@@ -299,6 +323,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       ...(r.planet_type === 'moon' ? { moonDiameter: positions.get(`${r.g}:${r.s}:${r.p}`)?.moon_diameter ?? null } : {}),
       strength: { fleet: fleetSide.value, fleetFrom: fleetSide.from, defense: defenseSide.value, defenseFrom: defenseSide.from, grown: fleetSide.grown || defenseSide.grown },
       fleetDebris: fleet ? fleetDebrisOf(fleet.values, catalog, debrisShare) : null,
+      fleetLost: lost ? { points: lost.lostPoints, battles: lost.lostBattles } : null,
     });
   }
   return { targets, resourceSpeed, speedSource, storageFactor, own, rate: { ...rate.value, source: rate.source } };
@@ -390,25 +415,34 @@ export async function farmSimulation(db: DB, ctx: GroupContext, { targets: list,
 
   const g = ctx.groupId;
   const newestSection = db.prepare(
-    `SELECT json_extract(sections, ?) AS v, player_id FROM spy_reports
+    `SELECT json_extract(sections, ?) AS v, player_id, player_name, report_time FROM spy_reports
      WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ? AND json_extract(sections, ?) IS NOT NULL ORDER BY report_time DESC LIMIT 1`,
   );
   const playerResearch = db
     .prepare(`SELECT json_extract(sections, ?) FROM spy_reports WHERE group_id = ? AND player_id = ? AND json_extract(sections, ?) IS NOT NULL ORDER BY report_time DESC LIMIT 1`)
     .pluck();
   const fighting = new Set([...shipIds(catalog), ...defenseIds(catalog)]);
+  const playerName = db.prepare('SELECT name FROM players WHERE id = ? AND group_id = ?').pluck();
 
   const planets: RiskInput['planets'] = [];
   const keyOf = (t: FarmSimTarget) => `${t.g}:${t.s}:${t.p}:${t.type}`;
   for (const t of list) {
-    const sec = (cls: number) => newestSection.get(`$."${cls}"`, g, t.g, t.s, t.p, t.type, `$."${cls}"`) as { v: string; player_id: number | null } | undefined;
+    const sec = (cls: number) =>
+      newestSection.get(`$."${cls}"`, g, t.g, t.s, t.p, t.type, `$."${cls}"`) as { v: string; player_id: number | null; player_name: string | null; report_time: number } | undefined;
     const fleet = sec(CLASS_FLEET);
     const def = sec(CLASS_DEFENSE);
     if (!fleet && !def) continue;
     const res = t.resources ? null : sec(CLASS_RESOURCES);
     const playerId = fleet?.player_id ?? def?.player_id ?? null;
     const techs = playerId != null ? (playerResearch.get(`$."${CLASS_RESEARCH}"`, g, playerId, `$."${CLASS_RESEARCH}"`) as string | undefined) : undefined;
-    const values: Record<string, number> = { ...JSON.parse(fleet?.v ?? '{}'), ...JSON.parse(def?.v ?? '{}') };
+    let ships = JSON.parse(fleet?.v ?? '{}') as Record<string, number>;
+    // without the ships lost in the player's battles since the report
+    const owner = fleet?.player_id != null ? (playerName.get(fleet.player_id, g) as string | undefined) ?? fleet.player_name : fleet?.player_name;
+    if (fleet && owner) {
+      const lost = playerLosses(db, ctx, playerNames(db, fleet.player_id, owner), fleet.report_time + 1);
+      if (lost.length) ships = withUnits(catalog, () => afterLosses(ships, fleet.report_time, lost).units);
+    }
+    const values: Record<string, number> = { ...ships, ...JSON.parse(def?.v ?? '{}') };
     const theirs = JSON.parse(techs ?? '{}') as Record<string, number>;
     const r = res ? (JSON.parse(res.v) as Record<string, number>) : null;
     planets.push({

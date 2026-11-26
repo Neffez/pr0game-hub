@@ -369,7 +369,11 @@ const sideTitle = (r: Row, side: 'fleet' | 'defense') => {
   const from = r.strength[side === 'fleet' ? 'fleetFrom' : 'defenseFrom'];
   const points = r.strength[side];
   const sec = r[side];
-  if (from === 'report' && sec) return t(`farm.${side}Title`, { n: fmt(sec.units), points: fmt(Math.round(points ?? 0)), time: dateTime(sec.time) });
+  if (from === 'report' && sec) {
+    const text = t(`farm.${side}Title`, { n: fmt(sec.units), points: fmt(Math.round(points ?? 0)), time: dateTime(sec.time) });
+    return side === 'fleet' && r.fleetLost ? `${text}
+${t('farm.fleetLost', { n: fmt(r.fleetLost.points) }, r.fleetLost.battles)}` : text;
+  }
   if (from === 'stats') return t(`farm.${side}Stats`, { points: fmt(Math.round(points ?? 0)) });
   return t(`farm.${side}Unknown`);
 };
@@ -619,6 +623,7 @@ const claimText = (r: Row) => {
             <td><InactivityBadge :value="r.inactivity" chip /></td>
             <td class="num nowrap" :title="sideTitle(r, 'fleet')">
               {{ short(r.strength.fleet ?? 0) }}<span class="faint"> · {{ fleetAge(r) }}</span>
+              <span v-if="r.fleetLost" class="neg small" data-test="farm-fleet-lost"> −{{ short(r.fleetLost.points) }}</span>
               <span v-if="r.standing" class="badge standing" :title="standingTitle(r)">{{ t('farm.standing') }}</span>
             </td>
             <td class="num" :title="standingTitle(r)">{{ short(r.hunt!.debris) }}</td>

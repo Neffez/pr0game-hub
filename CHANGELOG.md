@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-26
 
+- Farm finder and defense advisor: ships a player lost in battles after a sighting are taken off it, like on the
+  player page (shared in `repo/fleetLosses.ts`).
+  - Farm finder: the fleet of the newest report loses the ships destroyed in the player's battles since; its units,
+    combat strength and debris field count what is left, the fleet points gained by the statistics are counted on
+    top of the losses (`fleetLost` per target in `GET /api/{uni}/farm`). The fleet finder marks such fleets, and the
+    farm simulation fights the ships left.
+  - Defense advisor and raid risk: every fleet of an attacker (spy report, battle at the own body, incoming, rebuilt
+    from battles) loses the ships destroyed in their battles since; the strongest fleet left counts, one with nothing
+    left drops out (`lostPoints`, `lostBattles` on the threat's fleet). The advisor shows the losses.
 - Player page, fleet: ships the player lost in battles after a sighting are taken off it.
   - Every sighting (spy report, sum, empire, incoming fleet; a battle from itself on) gets the ships destroyed in the
     synced battle reports since, wherever they took place (`lost`, `lostPoints`, `lostBattles` in

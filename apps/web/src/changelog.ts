@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Farm-Finder und Verteidigungsberater: Hat ein Spieler nach dem Spionagebericht oder einer anderen Sichtung Schiffe in Kämpfen verloren, rechnen beide nur noch mit dem, was übrig ist, und zeigen die Verluste an.',
+        en: 'Farm finder and defense advisor: if a player lost ships in battles after the spy report or another sighting, both now count only what is left and show the losses.',
+      },
+      {
+        kind: 'fix',
         de: 'Spielerprofil, Flotte: Schiffe, die der Spieler nach einer Sichtung in Kämpfen verloren hat, werden abgezogen und durchgestrichen gezeigt. Zeigt die Statistik seither deutlich weniger Flottenpunkte, weist ein Hinweis darauf hin.',
         en: 'Player page, fleet: ships the player lost in battles after a sighting are taken off and shown struck through. If the statistics show clearly fewer fleet points since, a note points it out.',
       },

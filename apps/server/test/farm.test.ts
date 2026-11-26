@@ -186,4 +186,24 @@ describe('farm finder', () => {
     expect(body.results[0].outcome.lostShare).toBeLessThan(0.1);
     expect(body.results[1]).toMatchObject({ type: 'moon', reason: 'no_report', outcome: null });
   });
+
+  it('takes the ships lost in battles since the fleet report off the fleet, its strength and its debris', async () => {
+    const wrecked = player('Wrecked');
+    planet(1, 104, 7, wrecked);
+    spy(1, 104, 7, wrecked, t - 3000, { 900: { 901: 1, 902: 1, 903: 1 }, 200: { 204: 100, 206: 10 }, 400: {} });
+    const battle = db.prepare(
+      `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets)
+       VALUES (?, ?, ?, 'attacker', 1, 0, 0, 0, 0, ?)`,
+    );
+    // before the report: not taken off; after it, elsewhere: 60 light fighters lost
+    battle.run(group, 'w0', t - 5000, JSON.stringify([[1, 'Wrecked', [[206, 20, 10]]], [0, 'Other', [[204, 1, 1]]]]));
+    battle.run(group, 'w1', t - 1000, JSON.stringify([[0, 'Wrecked', [[204, 80, 20], [206, 10, 10]]], [1, 'Other', [[401, 1, 0]]]]));
+    const target = (await farm()).targets.find((x: any) => x.s === 104);
+    expect(target.fleetLost).toEqual({ points: 240, battles: 1 });
+    expect(target.fleet).toMatchObject({ units: 50, time: t - 3000 });
+    expect(target.strength).toMatchObject({ fleet: sectionPoints({ 204: 40, 206: 10 }), fleetFrom: 'report', grown: false });
+    expect(target.fleetDebris).toEqual({ 901: Math.floor((40 * 3000 + 10 * 20_000) * 0.4), 902: Math.floor((40 * 1000 + 10 * 7000) * 0.4) });
+    // a target without losses has none
+    expect((await farm()).targets.find((x: any) => x.s === 100 && x.type === 'planet').fleetLost).toBeNull();
+  });
 });

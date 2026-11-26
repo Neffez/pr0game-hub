@@ -266,7 +266,7 @@ components:
                   code: { const: losses }
     FarmTarget:
       type: object
-      required: [g, s, p, type, name, player, report, levels, projected, perHour, full, loot, fleet, defense, lastBattle, inactivity, changes, espionage, strength, fleetDebris]
+      required: [g, s, p, type, name, player, report, levels, projected, perHour, full, loot, fleet, defense, lastBattle, inactivity, changes, espionage, strength, fleetDebris, fleetLost]
       properties:
         g: { type: integer }
         s: { type: integer }
@@ -339,6 +339,15 @@ components:
           properties:
             '901': { type: number }
             '902': { type: number }
+        fleetLost:
+          type: [object, 'null']
+          description: >-
+            Ships of the newest report with a fleet destroyed in the player's battles since (battle reports): already
+            taken off `fleet`, `strength` and `fleetDebris`; null when none were lost
+          required: [points, battles]
+          properties:
+            points: { type: integer }
+            battles: { type: integer }
     FarmOwnFleet:
       type: object
       description: >-
@@ -2379,13 +2388,18 @@ components:
               last: { type: [integer, 'null'] }
         fleet:
           type: object
-          required: [units, points, source, time, from]
+          description: >-
+            The fleet with the most points left after the ships the player lost in battles since the sighting
+            (`combat` and `battles`: from that battle on); sightings with nothing left are dropped.
+          required: [units, points, source, time, from, lostPoints, lostBattles]
           properties:
-            units: { $ref: '#/components/schemas/UnitCounts' }
-            points: { type: number }
+            units: { $ref: '#/components/schemas/UnitCounts', description: The ships seen less those lost since }
+            points: { type: number, description: Points of `units` }
             source: { type: string, enum: [spy, combat, incoming, battles], description: '`combat`: battle at the caller''s body; `battles`: rebuilt from battle reports elsewhere' }
             time: { type: integer }
             from: { oneOf: [{ $ref: '#/components/schemas/PageCoords' }, { type: 'null' }] }
+            lostPoints: { type: integer, description: Points of the ships of the sighting destroyed in the battles since }
+            lostBattles: { type: integer, description: Battles since in which they were destroyed }
         fleetPoints:
           type: [object, 'null']
           description: Newest fleet points of the statistics

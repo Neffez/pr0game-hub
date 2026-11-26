@@ -41,7 +41,8 @@ const fleetLines = computed(() => {
 const grown = computed(() => {
   const f = fleet.value;
   const fp = data.value?.fleetPoints;
-  return !!f && !!fp && fp.points > (f.points - f.lostPoints) * 1.3 + 10;
+  // statistics older than the sighting: before its losses
+  return !!f && !!fp && fp.points > (f.points - (fp.time > f.time ? f.lostPoints : 0)) * 1.3 + 10;
 });
 </script>
 

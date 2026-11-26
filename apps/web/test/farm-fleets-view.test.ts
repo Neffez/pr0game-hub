@@ -28,6 +28,7 @@ function target(s: number, name: string, fleet: number, debris: number, age = 60
     lastBattle: null, inactivity: active, changes: { 1: null, 2: null, 5: null }, espionage: null,
     strength: { fleet, fleetFrom: 'report', defense: 0, defenseFrom: 'report', grown: false },
     fleetDebris: debris ? { 901: debris, 902: 0 } : null,
+    fleetLost: name === 'Small' ? { points: 500, battles: 1 } : null,
   };
 }
 
@@ -97,6 +98,14 @@ describe('fleet finder tab', () => {
 
   it('lists only spied fleets, the one near 30 % of the own fleet first, an old report last', () => {
     expect(names()).toEqual(['Sweet', 'Small', 'Huge', 'Gone']);
+  });
+
+  it('marks a fleet with ships lost in battles since the report', () => {
+    const rows = [...root.querySelectorAll('[data-tour="farm-fleets-list"] tbody tr')];
+    const small = rows.find((tr) => tr.querySelector('.farm-player')!.textContent!.includes('Small'))!;
+    expect(small.querySelector('[data-test="farm-fleet-lost"]')!.textContent).toContain('500');
+    expect((small.querySelector('[data-test="farm-fleet-lost"]')!.parentElement as HTMLElement).title).toContain('in einem Kampf zerstört');
+    expect(rows.filter((tr) => tr.querySelector('[data-test="farm-fleet-lost"]'))).toHaveLength(1);
   });
 
   it('flies the own combat fleet at the speed of its slowest ship', () => {
