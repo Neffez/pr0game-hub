@@ -57,7 +57,7 @@ describe('farm finder ranking (view)', () => {
             // inactive with a big fleet standing around
             target(103, 'Parked', 300_000, report(40_000, 0), inactivity('likely', 30), { 901: 1_000_000, 902: 500_000 }),
           ],
-          resourceSpeed: 1, speedSource: 'settings', storageFactor: 1, own: { points: 10_000, from: 'empire', time: now - 60 }, days: 7, now,
+          resourceSpeed: 1, speedSource: 'settings', storageFactor: 1, own: { points: 10_000, from: 'empire', time: now - 60, ships: null }, rate: { m: 3, k: 2, source: 'default' }, days: 7, now,
         });
       }
       return json([]);

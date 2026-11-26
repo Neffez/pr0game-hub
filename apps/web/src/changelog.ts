@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-26',
+    items: [
+      {
+        kind: 'new',
+        de: 'Farm-Finder: Neuer Reiter „Flotten“ – die lohnendsten ausspionierten Flotten zum Zerstören, nach Trümmerfeld und Beute, am höchsten gewichtet bis 30 % deiner eigenen Flotte. Alte Flottenberichte zählen weniger, die Flugzeit gilt für deine Kampfflotte (langsamstes Schiff), und auf Knopfdruck simuliert der Hub deine Kampfschiffe gegen die ersten Ziele und sortiert nach dem simulierten Gewinn.',
+        en: 'Farm finder: new tab "Fleets" – the most rewarding spied fleets to destroy, by debris field and loot, weighted highest up to 30 % of your own fleet. Old fleet reports count less, the flight time is that of your combat fleet (slowest ship), and at the push of a button the hub simulates your combat ships against the first targets and sorts by the simulated profit.',
+      },
+    ],
+  },
+  {
     date: '2026-11-25',
     items: [
       {

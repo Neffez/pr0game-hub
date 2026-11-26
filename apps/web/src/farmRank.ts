@@ -118,3 +118,51 @@ export function debrisValue(debris: { 901: number; 902: number } | null, standin
   if (sum <= 0) return null;
   return (standing ? SPAN : 0) + capped(sum);
 }
+
+// ---- fleet finder: fleets worth destroying for their debris -----------------------------------------------------
+
+/** Fleets move: a fleet report this many hours old counts half (fleets standing on inactive players' planets don't). */
+export const FLEET_HALF_LIFE_HOURS = 12;
+/** Weight of a target of unknown strength against the own fleet (own fleet unknown or a side not known). */
+const FIT_UNKNOWN = 0.3;
+/** Weight at `ACCEPTABLE_SHARE`, falling linearly from 1 at `WEAK_SHARE`; above it a strong target weighs this little. */
+const FIT_ACCEPTABLE = 0.3;
+const FIT_STRONG = 0.05;
+
+/**
+ * How well the strength of a fleet target fits the own fleet: full weight up to 30 % of the own fleet points (the
+ * rule of thumb: the biggest fleets that still fall with hardly any losses; smaller ones give less debris on their
+ * own), falling to 0.3 at 50 %, then 0.05.
+ */
+export function fleetFit(share: number | null, known: boolean): number {
+  if (share == null) return FIT_UNKNOWN;
+  if (share <= WEAK_SHARE) return known ? 1 : FIT_UNKNOWN;
+  if (share <= ACCEPTABLE_SHARE) return Math.min(known ? 1 : FIT_UNKNOWN, 1 - ((1 - FIT_ACCEPTABLE) * (share - WEAK_SHARE)) / (ACCEPTABLE_SHARE - WEAK_SHARE));
+  return FIT_STRONG;
+}
+
+/** Share of a fleet report still to be trusted after `hours` (half life `FLEET_HALF_LIFE_HOURS`), 1 for a standing fleet. */
+export function fleetFreshness(hours: number, standing: boolean): number {
+  return standing ? 1 : 0.5 ** (Math.max(0, hours) / FLEET_HALF_LIFE_HOURS);
+}
+
+export interface FleetPriorityInput {
+  /** debris field of the fleet plus the loot, in deuterium value */
+  gain: number;
+  share: number | null;
+  known: boolean;
+  /** age of the fleet report in hours */
+  hours: number;
+  standing: boolean;
+  sim: SimOutcome | null;
+}
+
+/**
+ * Priority of a fleet target, in deuterium value: the profit of the simulation when there is one (loot + debris −
+ * own losses; negative ranks last), else debris and loot weighted by `fleetFit`; both times the freshness of the
+ * fleet report.
+ */
+export function fleetPriority(i: FleetPriorityInput): number {
+  const base = i.sim ? i.sim.profit : i.gain * fleetFit(i.share, i.known);
+  return base * fleetFreshness(i.hours, i.standing);
+}

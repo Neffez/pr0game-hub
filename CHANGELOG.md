@@ -2,7 +2,21 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
-## 2026-11-25
+## 2026-11-26
+
+- Farm finder: new tab "Fleets" (fleet finder) listing the spied targets with ships in their newest fleet report
+  within the chosen period, ranked by a priority in deuterium value (market rate): debris field of the fleet plus
+  loot, weighted by the strength against the own fleet (full weight up to 30 % of the own fleet points, falling to
+  0.3 at 50 %, 0.05 above, 0.3 when unknown) and by the age of the fleet report (half life 12 hours; fleets standing
+  at players inactive for 12 hours and more do not go stale). "Simulate first 20" runs the own combat ships (no
+  cargos, unless there are no combat ships) against the list as shown; the simulated profit (loot + debris − own
+  losses) then replaces the estimate. Flight time and fuel are those of the own combat fleet from the empire page at
+  the speed of its slowest ship (the chosen cargo when none is known). Ranking in `farmRank.ts` (`fleetFit`,
+  `fleetFreshness`, `fleetPriority`), tour steps for the tab.
+  - `GET /api/{uni}/farm` answers the group's market rate (`rate`: metal and crystal per deuterium, `source`) and the
+    combat ships of the caller's empire page (`own.ships`).
+  - `POST /api/{uni}/farm/simulate` takes `combatOnly` to send the combat ships alone.
+
 
 - Alliance goals: worthwhile players of the spy goal are relative instead of the absolute top-50 ranks (too many in
   a universe of 100–200 players): the best 25 % of the total points ranking (worth a report for the resources, fleet

@@ -344,12 +344,14 @@ components:
       description: >-
         The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own
         empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`);
-        null when neither is known.
-      required: [points, from, time]
+        null when neither is known. `ships`: the combat ships of the newest empire page (in flight included; their
+        speeds give the fleet's flight time), null without an empire page.
+      required: [points, from, time, ships]
       properties:
         points: { type: [number, 'null'] }
         from: { type: [string, 'null'], enum: [empire, stats, null] }
         time: { type: [integer, 'null'] }
+        ships: { type: [object, 'null'], additionalProperties: { type: integer }, description: Ship id → count }
     FarmSimulation:
       type: object
       description: The caller's fleet against each requested target (`POST /api/{uni}/farm/simulate`)
@@ -5724,7 +5726,8 @@ paths:
         `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default`
         1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Each
         target has its combat strength (`strength`) and the debris field of its fleet; `own` is the caller's fleet to
-        compare with. Sorting and flight math are up to the client.
+        compare with, `rate` the group's market rate to weigh resources in deuterium value (as the simulation's
+        profit). Sorting and flight math are up to the client.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -5739,13 +5742,21 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [targets, resourceSpeed, speedSource, storageFactor, own, days, now]
+                required: [targets, resourceSpeed, speedSource, storageFactor, own, rate, days, now]
                 properties:
                   targets: { type: array, items: { $ref: '#/components/schemas/FarmTarget' } }
                   resourceSpeed: { type: number }
                   speedSource: { type: string, enum: [settings, empire, default] }
                   storageFactor: { type: number }
                   own: { $ref: '#/components/schemas/FarmOwnFleet' }
+                  rate:
+                    type: object
+                    description: Metal and crystal per deuterium (the group's market rate, else the default)
+                    required: [m, k, source]
+                    properties:
+                      m: { type: number }
+                      k: { type: number }
+                      source: { type: string, enum: [market, default] }
                   days: { type: integer }
                   now: { type: integer, description: Time of the universe the projection is for (Unix seconds) }
   /api/{uni}/farm/simulate:
@@ -5754,7 +5765,8 @@ paths:
       operationId: simulateFarmTargets
       description: >-
         Farm finder: the caller's fleet (combat ships and the cargos of the newest own empire page, in flight
-        included, with its weapons, shields and armour) against up to 25 targets, each as the group's newest reports
+        included, with its weapons, shields and armour; with `combatOnly` the combat ships alone, unless there are
+        none) against up to 25 targets, each as the group's newest reports
         show it (fleet, defense, the player's combat research from the newest report with research). A few runs per
         battle on Battlerust, as many as the engine budget allows for all targets together. Resources per target from
         the request (the client's projection), else the newest report's. Counts as one simulation of the battle rate
@@ -5771,6 +5783,10 @@ paths:
               type: object
               required: [targets]
               properties:
+                combatOnly:
+                  type: boolean
+                  default: false
+                  description: Send only the combat ships (no cargos) when the fleet has any (the fleet finder)
                 targets:
                   type: array
                   minItems: 1

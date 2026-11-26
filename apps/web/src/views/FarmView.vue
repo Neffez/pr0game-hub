@@ -26,7 +26,7 @@ import { abbr, ago, coords, dateTime, duration, fmt, name, short } from '../form
 import { useAutoTour } from '../tours';
 import { units } from '../units';
 import { spyPriority, type SpyReason } from '../spyPriority';
-import { beatable, beatableValue, debrisValue, DEFENSE_WEIGHT, recommendedValue, riskTier, shareOf, standingFleet, STANDING_FLEET_HOURS, strengthOf, WEAK_SHARE, type RiskTier, type SimOutcome } from '../farmRank';
+import { beatable, beatableValue, debrisValue, DEFENSE_WEIGHT, FLEET_HALF_LIFE_HOURS, fleetFit, fleetFreshness, fleetPriority, recommendedValue, riskTier, shareOf, standingFleet, STANDING_FLEET_HOURS, strengthOf, WEAK_SHARE, type RiskTier, type SimOutcome } from '../farmRank';
 import { spyProbes } from '@pr0hub/core/spy';
 
 /** Farm finder (backlog B-1): spied targets ranked by what they are worth now (server: repo/farm.ts). */
@@ -50,6 +50,8 @@ interface Row extends FarmTarget {
   sim: SimOutcome | null;
   /** spy priority (B-2): loot now times the need for a new report */
   spy: { score: number; reasons: SpyReason[]; probes: number | null };
+  /** fleet finder: debris of the fleet seen in a report and the priority to destroy it (null without a fleet) */
+  hunt: { debris: number; gain: number; hours: number; fit: number; freshness: number; priority: number } | null;
 }
 
 const { t } = useI18n();
@@ -81,11 +83,12 @@ const filter = useStored('farm.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
 /**
- * Targets to raid, the spy priority list (B-2) on the same data with every report of the last 30 days, or the debris
- * finder (B-4, its own data). The tab from the link (`?tab=debris`), else the last one.
+ * Targets to raid, fleets to destroy for their debris (same data, only targets with a fleet in a report), the spy
+ * priority list (B-2) on the same data with every report of the last 30 days, or the debris finder (B-4, its own
+ * data). The tab from the link (`?tab=debris`), else the last one.
  */
-type Tab = 'targets' | 'spy' | 'debris';
-const TABS: Tab[] = ['targets', 'spy', 'debris'];
+type Tab = 'targets' | 'fleets' | 'spy' | 'debris';
+const TABS: Tab[] = ['targets', 'fleets', 'spy', 'debris'];
 const route = useRoute();
 const router = useRouter();
 const storedTab = useStored<Tab>('farm.tab', 'targets');
@@ -108,26 +111,31 @@ watch(days, () => load());
 const ownPoints = computed(() => data.value?.own?.points ?? null);
 
 /** Simulations of the own fleet against targets (point 5): by target, for the report they were run with. */
-const sims = ref(new Map<string, { reportTime: number; outcome: SimOutcome | null; reason: string | null }>());
+const sims = ref(new Map<string, { reportTime: number; combat: boolean; outcome: SimOutcome | null; reason: string | null }>());
 const simFleet = ref<FarmSimulation['fleet'] | null>(null);
 const simRuns = ref(0);
 const simBusy = ref(false);
 const simError = ref('');
 const SIM_COUNT = 20;
-/** The first targets of the list as shown (sorted and filtered) against the own fleet of the newest empire page. */
+/**
+ * The first targets of the list as shown (sorted and filtered) against the own fleet of the newest empire page; the
+ * fleet finder sends the combat ships alone (the server adds the cargos when there are none).
+ */
 async function simulateTop() {
   const list = sort.sorted.value.slice(0, SIM_COUNT);
   if (!list.length) return;
+  const combat = tab.value === 'fleets';
   simBusy.value = true;
   simError.value = '';
   try {
     const res = await uniApi<FarmSimulation>(uni.value, '/farm/simulate', {
       body: {
+        combatOnly: combat,
         targets: list.map((r) => ({ g: r.g, s: r.s, p: r.p, type: r.type, resources: { metal: r.projected[901] ?? 0, crystal: r.projected[902] ?? 0, deuterium: r.projected[903] ?? 0 } })),
       },
     });
     const next = new Map(sims.value);
-    res.results.forEach((x, i) => next.set(`${x.g}:${x.s}:${x.p}:${x.type}`, { reportTime: list[i].report.time, outcome: x.outcome, reason: x.reason }));
+    res.results.forEach((x, i) => next.set(`${x.g}:${x.s}:${x.p}:${x.type}`, { reportTime: list[i].report.time, combat, outcome: x.outcome, reason: x.reason }));
     sims.value = next;
     simFleet.value = res.fleet;
     simRuns.value = res.runs;
@@ -146,6 +154,18 @@ const settings = computed(() => ctx.value!.universe.settings);
 const ownPlanets = computed(() => ctx.value?.own?.planets ?? []);
 const drives = computed(() => drivesFromResearch(ctx.value?.own?.research ?? {}));
 const capacity = computed(() => units.value.capacity[filter.value.ship] ?? 0);
+/** Fleet finder: the own combat ships of the empire page fly, at the speed of the slowest (null: none known). */
+const combatFleet = computed(() => {
+  const ships = Object.fromEntries(Object.entries(data.value?.own?.ships ?? {}).filter(([, n]) => n > 0));
+  let slowest: { id: number; speed: number } | null = null;
+  for (const id of Object.keys(ships).map(Number)) {
+    const speed = shipSpeed(id, drives.value, units.value.drives);
+    if (speed > 0 && (!slowest || speed < slowest.speed)) slowest = { id, speed };
+  }
+  return slowest ? { ships, slowest } : null;
+});
+/** The fleet finder flies the combat fleet when one is known, the other tabs the chosen cargo. */
+const fliesFleet = computed(() => tab.value === 'fleets' && !!combatFleet.value);
 const ownEspionage = computed(() => (ctx.value?.own?.research as Record<number, number> | undefined)?.[106] ?? null);
 
 const planetKey = (p: { coords: { g: number; s: number; p: number } }) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`;
@@ -172,23 +192,28 @@ const rows = computed<Row[]>(() =>
   (data.value?.targets ?? []).map((x) => {
     const lootSum = x.loot[901] + x.loot[902] + x.loot[903];
     const start = startFor([x.g, x.s, x.p]);
-    const speed = shipSpeed(filter.value.ship, drives.value, units.value.drives);
+    const fleetFlies = fliesFleet.value ? combatFleet.value : null;
+    const speed = fleetFlies ? fleetFlies.slowest.speed : shipSpeed(filter.value.ship, drives.value, units.value.drives);
     const flight = start && speed > 0 ? flightDuration(settings.value, start.d, speed, filter.value.speed) : null;
     const ships = capacity.value > 0 ? Math.max(1, Math.ceil(lootSum / capacity.value)) : null;
-    const fuel = start && flight != null && ships != null ? fleetConsumption(settings.value, { [filter.value.ship]: ships }, flight, start.d, drives.value, 1, units.value.drives) : null;
+    const sent = fleetFlies ? fleetFlies.ships : ships != null ? { [filter.value.ship]: ships } : null;
+    const fuel = start && flight != null && sent ? fleetConsumption(settings.value, sent, flight, start.d, drives.value, 1, units.value.drives) : null;
     const defended = x.defense ? x.defense.units > 0 : null;
     const fleet = x.fleet ? x.fleet.units > 0 : null;
     const risk: Row['risk'] =
       defended == null || fleet == null ? (defended || fleet ? (defended ? 'defense' : 'fleet') : 'unknown') : defended && fleet ? 'both' : defended ? 'defense' : fleet ? 'fleet' : 'none';
     const key = `${x.g}:${x.s}:${x.p}:${x.type}`;
     const simmed = sims.value.get(key);
-    const sim = simmed && simmed.reportTime === x.report.time ? simmed.outcome : null;
+    // a simulation counts for the report it ran with and the fleet sent (combat ships alone in the fleet finder)
+    const sim = simmed && simmed.reportTime === x.report.time && simmed.combat === (tab.value === 'fleets') ? simmed.outcome : null;
+    const strength = { ...x.strength, ...strengthOf(x.strength), share: shareOf(x.strength, ownPoints.value) };
+    const standing = standingFleet(x.strength, x.inactivity, data.value!.now);
     return {
       ...x,
       key,
-      strength: { ...x.strength, ...strengthOf(x.strength), share: shareOf(x.strength, ownPoints.value) },
+      strength,
       tier: riskTier(x.strength, ownPoints.value, sim),
-      standing: standingFleet(x.strength, x.inactivity, data.value!.now),
+      standing,
       sim,
       lootSum,
       from: start ? { label: start.label, c: start.c } : null,
@@ -206,27 +231,52 @@ const rows = computed<Row[]>(() =>
         // probes for a report with buildings (needed for the projection), when both espionage levels are known
         probes: ownEspionage.value != null && x.espionage != null ? spyProbes(ownEspionage.value, x.espionage).buildings : null,
       },
+      hunt: huntOf(x, strength, standing, sim),
     };
   }),
 );
+
+/** Metal and crystal per deuterium: debris and loot weigh like the simulation's profit. */
+const rate = computed(() => data.value?.rate ?? { m: 3, k: 2 });
+const DAY = 86400;
+/** The fleet finder's view of a target: only a fleet with ships seen in a report within the period counts. */
+function huntOf(x: FarmTarget, strength: Row['strength'], standing: boolean, sim: SimOutcome | null): Row['hunt'] {
+  const now = data.value!.now;
+  if (!x.fleet || !x.fleetDebris || x.fleet.time < now - filter.value.days * DAY) return null;
+  const debris = x.fleetDebris[901] + x.fleetDebris[902];
+  if (debris <= 0) return null;
+  const r = rate.value;
+  const gain = x.fleetDebris[901] / r.m + x.fleetDebris[902] / r.k + x.loot[901] / r.m + x.loot[902] / r.k + x.loot[903];
+  const hours = (now - x.fleet.time) / 3600;
+  return {
+    debris,
+    gain,
+    hours,
+    fit: fleetFit(strength.share, strength.known),
+    freshness: fleetFreshness(hours, standing),
+    priority: fleetPriority({ gain, share: strength.share, known: strength.known, hours, standing, sim }),
+  };
+}
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
 // the filter is stored for all universes: a galaxy this universe does not have is no filter
 watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 const filtered = computed(() => {
   const f = filter.value;
+  const fleets = tab.value === 'fleets';
   return rows.value.filter((r) => {
+    if (fleets && !r.hunt) return false;
     if (f.galaxy && r.g !== f.galaxy) return false;
     if (f.inactiveOnly && !(r.inactivity && (r.inactivity.level === 'inactive' || r.inactivity.level === 'likely'))) return false;
     if (f.hideDefense && (r.risk === 'defense' || r.risk === 'both')) return false;
-    if (f.hideFleet && (r.risk === 'fleet' || r.risk === 'both')) return false;
+    if (!fleets && f.hideFleet && (r.risk === 'fleet' || r.risk === 'both')) return false;
     if (f.hideVacation && r.player.status.includes('vacation')) return false;
     if (f.hideNoob && r.player.status.includes('noob')) return false;
     if (f.hideClaimed) {
       const c = claimOf(r.g, r.s, r.p, r.type);
       if (c && c.user_id !== ctx.value?.me.id) return false;
     }
-    if (f.minLoot != null && f.minLoot > 0 && r.lootSum < f.minLoot) return false;
+    if (!fleets && f.minLoot != null && f.minLoot > 0 && r.lootSum < f.minLoot) return false;
     // targets of unknown strength stay (spy them first)
     if (f.maxShare != null && r.strength.share != null && r.strength.share > f.maxShare && !beatable(r.tier)) return false;
     return true;
@@ -247,6 +297,8 @@ const sortValue = (r: Row, key: string): unknown => {
     case 'inactivity': return r.inactivity?.score ?? null;
     case 'player': return r.player.name.toLowerCase();
     case 'spy': return r.spy.score;
+    case 'hunt': return r.hunt?.priority ?? null;
+    case 'fleetDebris': return r.hunt?.debris ?? null;
   }
   return null;
 };
@@ -255,7 +307,7 @@ const sort = useSort(filtered, sortValue, 'recommended');
 watch(
   tab,
   (v) => {
-    sort.key.value = v === 'spy' ? 'spy' : 'recommended';
+    sort.key.value = v === 'spy' ? 'spy' : v === 'fleets' ? 'hunt' : 'recommended';
     sort.descending.value = true;
   },
   { immediate: true },
@@ -263,6 +315,12 @@ watch(
 const sortOptions = computed(() => [
   ...(tab.value === 'spy'
     ? [{ key: 'spy', label: t('farm.spy.priority') }]
+    : tab.value === 'fleets'
+    ? [
+        { key: 'hunt', label: t('farm.fleets.priority') },
+        { key: 'fleetDebris', label: t('farm.fleets.debris') },
+        { key: 'strength', label: t('farm.sort.strength') },
+      ]
     : [
         { key: 'recommended', label: t('farm.sort.recommended') },
         { key: 'beatable', label: t('farm.sort.beatable') },
@@ -351,8 +409,12 @@ const riskTitle = (r: Row) => {
 };
 const standingTitle = (r: Row) =>
   t('farm.standingTitle', { h: STANDING_FLEET_HOURS, m: fmt(r.fleetDebris?.[901] ?? 0), k: fmt(r.fleetDebris?.[902] ?? 0) });
-const flightTitle = (r: Row) =>
-  r.from ? t('farm.flightTitle', { from: r.from.label, ship: name(filter.value.ship), speed: filter.value.speed }) : t('farm.noStart');
+const flightTitle = (r: Row) => {
+  if (!r.from) return t('farm.noStart');
+  if (fliesFleet.value && combatFleet.value)
+    return t('farm.fleets.flightTitle', { from: r.from.label, ship: name(combatFleet.value.slowest.id), speed: filter.value.speed, fuel: fmt(r.fuel ?? 0) });
+  return [t('farm.flightTitle', { from: r.from.label, ship: name(filter.value.ship), speed: filter.value.speed }), ...(tab.value === 'fleets' ? [t('farm.fleets.noFleet')] : [])].join('\n');
+};
 const spyTitle = (r: Row) =>
   [
     t('farm.spy.needTitle'),
@@ -362,6 +424,19 @@ const probesTitle = (r: Row) =>
   ownEspionage.value != null && r.espionage != null
     ? t('farm.spy.probesTitle', { own: ownEspionage.value, target: r.espionage, ...spyProbes(ownEspionage.value, r.espionage) })
     : t('farm.spy.probesUnknown');
+const huntTitle = (r: Row) => {
+  const h = r.hunt;
+  if (!h) return '';
+  const lines = [
+    t('farm.fleets.gainTitle', { debris: fmt(h.debris), m: fmt(r.fleetDebris?.[901] ?? 0), k: fmt(r.fleetDebris?.[902] ?? 0), loot: fmt(r.lootSum), gain: fmt(Math.round(h.gain)) }),
+    r.sim
+      ? t('farm.fleets.simTitle', { profit: fmt(r.sim.profit) })
+      : t('farm.fleets.fitTitle', { fit: pct(h.fit), share: r.strength.share == null ? '?' : pct(r.strength.share), weak: pct(WEAK_SHARE) }),
+    r.standing ? t('farm.fleets.standingTitle') : t('farm.fleets.freshTitle', { h: Math.round(h.hours), share: pct(h.freshness), half: FLEET_HALF_LIFE_HOURS }),
+  ];
+  return lines.join('\n');
+};
+const fleetAge = (r: Row) => (r.fleet ? ago(r.fleet.time) : '–');
 const anyFull = (r: Row) => r.full[901] || r.full[902] || r.full[903];
 const claimText = (r: Row) => {
   const c = claimOf(r.g, r.s, r.p, r.type);
@@ -377,6 +452,10 @@ const claimText = (r: Row) => {
         <p>{{ t('debris.hint2') }}</p>
       </Hint>
       <Hint v-else-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
+      <Hint v-else-if="tab === 'fleets'">
+        <p>{{ t('farm.fleets.hint1', { weak: Math.round(WEAK_SHARE * 100) }) }}</p>
+        <p>{{ t('farm.fleets.hint2', { half: FLEET_HALF_LIFE_HOURS }) }}</p>
+      </Hint>
       <Hint v-else>
         <p>{{ t('farm.hint1') }}</p>
         <p>{{ t('farm.hint2') }}</p>
@@ -386,6 +465,7 @@ const claimText = (r: Row) => {
     </template>
     <div class="seg">
       <button data-tour="farm-tab-targets" :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>
+      <button data-tour="farm-tab-fleets" :class="{ active: tab === 'fleets' }" @click="tab = 'fleets'">{{ t('farm.tabFleets') }}</button>
       <button data-tour="farm-tab-spy" :class="{ active: tab === 'spy' }" @click="tab = 'spy'">{{ t('farm.tabSpy') }}</button>
       <button data-tour="farm-tab-debris" :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
     </div>
@@ -397,17 +477,20 @@ const claimText = (r: Row) => {
 
   <FilterBar data-tour="farm-filter" store-key="farm" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <label v-if="tab === 'targets'" class="field-inline" data-tour="farm-days">
+      <label v-if="tab !== 'spy'" class="field-inline" data-tour="farm-days">
         {{ t('farm.days') }}
         <select v-model.number="filter.days">
           <option v-for="d in DAYS" :key="d" :value="d">{{ t('farm.daysOption', { n: d }, d) }}</option>
         </select>
       </label>
       <label class="field-inline" data-tour="farm-flight">
-        {{ t('farm.ship') }}
-        <select v-model.number="filter.ship">
-          <option v-for="id in CARGO_SHIPS" :key="id" :value="id">{{ name(id) }}</option>
-        </select>
+        <template v-if="!fliesFleet">
+          {{ t('farm.ship') }}
+          <select v-model.number="filter.ship">
+            <option v-for="id in CARGO_SHIPS" :key="id" :value="id">{{ name(id) }}</option>
+          </select>
+        </template>
+        <template v-else>{{ t('farm.fleets.speed') }}</template>
         <select v-model.number="filter.speed" :aria-label="t('farm.speed')">
           <option v-for="s in SPEEDS" :key="s" :value="s">{{ s }} %</option>
         </select>
@@ -426,11 +509,11 @@ const claimText = (r: Row) => {
       <span class="filter-title">{{ t('farm.targets') }}</span>
       <label class="check"><input v-model="filter.inactiveOnly" type="checkbox" /> {{ t('farm.inactiveOnly') }}</label>
       <label class="check"><input v-model="filter.hideDefense" type="checkbox" /> {{ t('farm.hideDefense') }}</label>
-      <label class="check"><input v-model="filter.hideFleet" type="checkbox" /> {{ t('farm.hideFleet') }}</label>
+      <label v-if="tab !== 'fleets'" class="check"><input v-model="filter.hideFleet" type="checkbox" /> {{ t('farm.hideFleet') }}</label>
       <label class="check"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('farm.hideVacation') }}</label>
       <label class="check"><input v-model="filter.hideNoob" type="checkbox" /> {{ t('farm.hideNoob') }}</label>
       <label class="check"><input v-model="filter.hideClaimed" type="checkbox" /> {{ t('farm.hideClaimed') }}</label>
-      <div v-if="tab === 'targets'" class="field">
+      <div v-if="tab !== 'spy'" class="field">
         <span class="lbl">{{ t('farm.maxShare') }}</span>
         <select v-model="filter.maxShare">
           <option :value="null">{{ t('common.all') }}</option>
@@ -440,7 +523,7 @@ const claimText = (r: Row) => {
     </div>
     <div class="filter-group">
       <span class="filter-title">{{ t('farm.loot') }}</span>
-      <div class="field">
+      <div v-if="tab !== 'fleets'" class="field">
         <span class="lbl">{{ t('farm.minLoot') }}</span>
         <input v-model.number="filter.minLoot" type="number" min="0" step="10000" />
       </div>
@@ -459,21 +542,101 @@ const claimText = (r: Row) => {
 
   <div v-if="error" class="error">{{ error }}</div>
   <Loading v-else-if="!data" :lines="6" />
-  <div v-else-if="!rows.length" class="card muted">
-    {{ t('farm.empty', { days: data.days }) }}
+  <div v-else-if="!rows.length || (tab === 'fleets' && !rows.some((r) => r.hunt))" class="card muted">
+    {{ t(tab === 'fleets' ? 'farm.fleets.empty' : 'farm.empty', { days: data.days }) }}
     <RouterLink :to="`/${uni}/paste`">{{ t('nav.sync') }}</RouterLink>
   </div>
   <template v-else>
     <p v-if="!ownPlanets.length" class="warn small">{{ t('farm.noEmpire') }}</p>
-    <div v-if="tab === 'targets'" class="farm-sim small" data-tour="farm-sim">
-      <button class="secondary" :disabled="simBusy || !ctx?.own || !filtered.length" :title="ctx?.own ? t('farm.sim.hint', { n: SIM_COUNT }) : t('farm.sim.noEmpire')" @click="simulateTop">
+    <div v-if="tab === 'targets' || tab === 'fleets'" class="farm-sim small" data-tour="farm-sim">
+      <button class="secondary" :disabled="simBusy || !ctx?.own || !filtered.length" :title="ctx?.own ? t(tab === 'fleets' ? 'farm.fleets.simHint' : 'farm.sim.hint', { n: SIM_COUNT }) : t('farm.sim.noEmpire')" @click="simulateTop">
         <Icon name="attack" :size="14" /> {{ simBusy ? t('farm.sim.running') : t('farm.sim.run', { n: Math.min(SIM_COUNT, filtered.length) }) }}
       </button>
       <span class="muted">{{ ownTitle }}</span>
       <span v-if="simError" class="error">{{ simError }}</span>
     </div>
 
-    <template v-if="mobile && tab === 'spy'">
+    <template v-if="mobile && tab === 'fleets'">
+      <SortBar :sort-key="sort.key.value" :options="sortOptions" v-model:desc="sort.descending.value" @sort="sort.sortBy" />
+      <div class="farm-cards">
+        <div v-for="r in shown" :key="r.key" class="card farm-card">
+          <div class="farm-card-head">
+            <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
+            <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
+            <StatusBadges :status="r.player.status" :points="r.player.points" />
+            <InactivityBadge :value="r.inactivity" chip hide-flagged />
+            <span v-if="r.standing" class="badge standing" :title="standingTitle(r)">{{ t('farm.standing') }}</span>
+            <span class="grow" />
+            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
+          </div>
+          <div class="farm-card-grid small">
+            <span class="muted">{{ t('farm.fleets.priority') }}</span><span :title="huntTitle(r)"><b>{{ short(r.hunt!.priority) }}</b></span>
+            <span class="muted">{{ t('farm.fleets.debris') }}</span><span :title="standingTitle(r)">{{ short(r.hunt!.debris) }}</span>
+            <span class="muted">{{ t('farm.fleets.fleet') }}</span><span :title="sideTitle(r, 'fleet')">{{ short(r.strength.fleet ?? 0) }} · {{ fleetAge(r) }}</span>
+            <span class="muted">{{ t('farm.loot') }}</span><span :title="resTitle(r)">{{ short(r.lootSum) }}</span>
+            <span class="muted">{{ t('farm.flight') }}</span><span :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</span>
+            <span class="muted">{{ t('farm.risk') }}</span>
+            <span :class="`risk-${r.tier}`" :title="riskTitle(r)">
+              {{ t(`farm.riskTier.${r.tier}`) }}<span v-if="r.strength.share != null" class="faint"> · {{ r.strength.estimated ? '≤ ' : '' }}{{ pct(r.strength.share) }}</span>
+              <span v-if="r.sim" class="faint"> · {{ simText(r.sim) }}</span>
+            </span>
+          </div>
+          <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
+        </div>
+        <div v-if="more" ref="sentinel" />
+      </div>
+    </template>
+
+    <div v-else-if="tab === 'fleets'" class="table-wrap" data-tour="farm-fleets-list">
+      <table class="data farm-table">
+        <thead>
+          <tr>
+            <th>{{ t('farm.target') }}</th>
+            <th class="sortable" @click="sort.sortBy('player')">{{ t('common.player') }}<SortMark :dir="sort.direction('player')" /></th>
+            <th class="sortable" @click="sort.sortBy('inactivity')">{{ t('farm.inactivity') }}<SortMark :dir="sort.direction('inactivity')" /></th>
+            <th class="num" data-tour="farm-fleets-fleet">{{ t('farm.fleets.fleet') }}</th>
+            <th class="sortable num" @click="sort.sortBy('fleetDebris')">{{ t('farm.fleets.debris') }}<SortMark :dir="sort.direction('fleetDebris')" /></th>
+            <th class="sortable num" @click="sort.sortBy('loot')">{{ t('farm.loot') }}<SortMark :dir="sort.direction('loot')" /></th>
+            <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
+            <th class="sortable" @click="sort.sortBy('strength')">{{ t('farm.risk') }}<SortMark :dir="sort.direction('strength')" /></th>
+            <th class="sortable num" data-tour="farm-fleets-rank" @click="sort.sortBy('hunt')">{{ t('farm.fleets.priority') }}<SortMark :dir="sort.direction('hunt')" /></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in shown" :key="r.key">
+            <td class="nowrap">
+              <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
+              <span v-if="r.type === 'moon'" class="badge">{{ t('common.moon') }}</span>
+              <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
+            </td>
+            <td class="nowrap">
+              <span class="farm-player" :title="r.player.name"><PlayerLink :id="r.player.id" :name="r.player.name" /></span>
+              <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
+              <StatusBadges :status="r.player.status" :points="r.player.points" />
+            </td>
+            <td><InactivityBadge :value="r.inactivity" chip /></td>
+            <td class="num nowrap" :title="sideTitle(r, 'fleet')">
+              {{ short(r.strength.fleet ?? 0) }}<span class="faint"> · {{ fleetAge(r) }}</span>
+              <span v-if="r.standing" class="badge standing" :title="standingTitle(r)">{{ t('farm.standing') }}</span>
+            </td>
+            <td class="num" :title="standingTitle(r)">{{ short(r.hunt!.debris) }}</td>
+            <td class="num" :title="resTitle(r)">{{ short(r.lootSum) }}</td>
+            <td class="num" :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</td>
+            <td :class="`risk-${r.tier}`" :title="riskTitle(r)">
+              <span class="nowrap">{{ t(`farm.riskTier.${r.tier}`) }}<span v-if="r.strength.share != null" class="faint"> · {{ r.strength.estimated ? '≤ ' : '' }}{{ pct(r.strength.share) }}</span></span>
+              <div v-if="r.sim" class="small faint nowrap">{{ simText(r.sim) }}</div>
+            </td>
+            <td class="num" :title="huntTitle(r)"><b>{{ short(r.hunt!.priority) }}</b></td>
+            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="more" ref="sentinel" />
+    </div>
+
+    <template v-else-if="mobile && tab === 'spy'">
       <SortBar :sort-key="sort.key.value" :options="sortOptions" v-model:desc="sort.descending.value" @sort="sort.sortBy" />
       <div class="farm-cards">
         <div v-for="r in shown" :key="r.key" class="card farm-card">

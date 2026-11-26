@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FarmTarget } from '../src/apiTypes';
-import { beatableValue, debrisValue, inactiveHours, inactivityTier, recommendedValue, riskTier, shareOf, standingFleet, strengthOf, type SimOutcome } from '../src/farmRank';
+import { beatableValue, debrisValue, FLEET_HALF_LIFE_HOURS, fleetFit, fleetFreshness, fleetPriority, inactiveHours, inactivityTier, recommendedValue, riskTier, shareOf, standingFleet, strengthOf, type SimOutcome } from '../src/farmRank';
 
 const now = 1_000_000;
 type Strength = FarmTarget['strength'];
@@ -71,5 +71,25 @@ describe('farm ranking', () => {
     expect(standingFleet(strength(500, 0, 'stats'), inactive('likely', 30), now)).toBe(false);
     expect(debrisValue({ 901: 100, 902: 50 }, true)!).toBeGreaterThan(debrisValue({ 901: 1e9, 902: 0 }, false)!);
     expect(debrisValue({ 901: 0, 902: 0 }, true)).toBeNull();
+  });
+
+  it('weighs fleet targets by their fit to 30 % of the own fleet and the age of the report', () => {
+    expect(fleetFit(0.1, true)).toBe(1);
+    expect(fleetFit(0.3, true)).toBe(1);
+    expect(fleetFit(0.4, true)).toBeCloseTo(0.65);
+    expect(fleetFit(0.5, true)).toBeCloseTo(0.3);
+    expect(fleetFit(0.8, true)).toBe(0.05);
+    // own fleet unknown, or a side of the target unknown: no full weight
+    expect(fleetFit(null, true)).toBe(0.3);
+    expect(fleetFit(0.2, false)).toBe(0.3);
+    expect(fleetFreshness(FLEET_HALF_LIFE_HOURS, false)).toBe(0.5);
+    expect(fleetFreshness(100, true)).toBe(1);
+    // a big fleet at 30 % beats a small one at 10 %, a huge one at 80 % loses to both
+    const at = (gain: number, share: number) => fleetPriority({ gain, share, known: true, hours: 0, standing: false, sim: null });
+    expect(at(300_000, 0.3)).toBeGreaterThan(at(100_000, 0.1));
+    expect(at(800_000, 0.8)).toBeLessThan(at(100_000, 0.1));
+    // a simulation decides with its profit, a loss ranks last
+    expect(fleetPriority({ gain: 1e9, share: 0.2, known: true, hours: 0, standing: false, sim: sim(1, 1234) })).toBe(1234);
+    expect(fleetPriority({ gain: 1e9, share: 0.2, known: true, hours: 0, standing: false, sim: sim(0.5, -100) })).toBeLessThan(0);
   });
 });

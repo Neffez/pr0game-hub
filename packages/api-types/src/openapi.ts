@@ -827,7 +827,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Farm finder: every spied planet or moon of players outside the own alliance (members and the in-game alliance of the viewer's player) with a spy report showing resources within `days`, with the expected resources now. The production since the report comes from the mine, power plant and storage levels of the newest report with buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor; `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default` 1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Each target has its combat strength (`strength`) and the debris field of its fleet; `own` is the caller's fleet to compare with. Sorting and flight math are up to the client. */
+        /** @description Farm finder: every spied planet or moon of players outside the own alliance (members and the in-game alliance of the viewer's player) with a spy report showing resources within `days`, with the expected resources now. The production since the report comes from the mine, power plant and storage levels of the newest report with buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor; `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default` 1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Each target has its combat strength (`strength`) and the debris field of its fleet; `own` is the caller's fleet to compare with, `rate` the group's market rate to weigh resources in deuterium value (as the simulation's profit). Sorting and flight math are up to the client. */
         get: operations["getFarmTargets"];
         put?: never;
         post?: never;
@@ -846,7 +846,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Farm finder: the caller's fleet (combat ships and the cargos of the newest own empire page, in flight included, with its weapons, shields and armour) against up to 25 targets, each as the group's newest reports show it (fleet, defense, the player's combat research from the newest report with research). A few runs per battle on Battlerust, as many as the engine budget allows for all targets together. Resources per target from the request (the client's projection), else the newest report's. Counts as one simulation of the battle rate limit. Writes nothing; session cookie only (no API tokens). */
+        /** @description Farm finder: the caller's fleet (combat ships and the cargos of the newest own empire page, in flight included, with its weapons, shields and armour; with `combatOnly` the combat ships alone, unless there are none) against up to 25 targets, each as the group's newest reports show it (fleet, defense, the player's combat research from the newest report with research). A few runs per battle on Battlerust, as many as the engine budget allows for all targets together. Resources per target from the request (the client's projection), else the newest report's. Counts as one simulation of the battle rate limit. Writes nothing; session cookie only (no API tokens). */
         post: operations["simulateFarmTargets"];
         delete?: never;
         options?: never;
@@ -3211,12 +3211,16 @@ export type components = {
                 902: number;
             } | null;
         };
-        /** @description The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`); null when neither is known. */
+        /** @description The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`); null when neither is known. `ships`: the combat ships of the newest empire page (in flight included; their speeds give the fleet's flight time), null without an empire page. */
         FarmOwnFleet: {
             points: number | null;
             /** @enum {string|null} */
             from: "empire" | "stats" | null;
             time: number | null;
+            /** @description Ship id → count */
+            ships: {
+                [key: string]: number;
+            } | null;
         };
         /** @description The caller's fleet against each requested target (`POST /api/{uni}/farm/simulate`) */
         FarmSimulation: {
@@ -9326,6 +9330,13 @@ export interface operations {
                         speedSource: "settings" | "empire" | "default";
                         storageFactor: number;
                         own: components["schemas"]["FarmOwnFleet"];
+                        /** @description Metal and crystal per deuterium (the group's market rate, else the default) */
+                        rate: {
+                            m: number;
+                            k: number;
+                            /** @enum {string} */
+                            source: "market" | "default";
+                        };
                         days: number;
                         /** @description Time of the universe the projection is for (Unix seconds) */
                         now: number;
@@ -9353,6 +9364,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /**
+                     * @description Send only the combat ships (no cargos) when the fleet has any (the fleet finder)
+                     * @default false
+                     */
+                    combatOnly?: boolean;
                     targets: {
                         g: number;
                         s: number;
