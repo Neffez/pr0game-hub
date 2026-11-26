@@ -528,7 +528,10 @@ describe('attack plans', () => {
     ]);
     expect(plan.fleets[0].seen).toMatchObject({ arrival: t0 + 3600 });
 
-    // a later overview: another fleet of Dave joined the ACS and the arrival moved; the plan follows (Dave's fleet stays)
+    // Carol invites Dave for one more fleet, without start or ships yet
+    const invited = (await call('POST', `/plans/${created.id}/fleets`, carol, { user_id: daveId })).json().id;
+    // a later overview: another fleet of Dave joined the ACS and the arrival moved; it fills the invitation, the
+    // planned time stays (Dave's first fleet too)
     db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 50, 6, 'Daves 2', ?)").run(groupA, davePlayer);
     db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, carolId, t0 + 60, JSON.stringify([
       move({ mission: 2, acs: 1, from: body(1, 40, 5, 'moon'), arrival: t0 + 3720 }),
@@ -537,19 +540,22 @@ describe('attack plans', () => {
     ]));
     await call('PUT', `/plans/${created.id}/fleets/${plan.fleets[1].id}`, dave, { ships: { 215: 3 } });
     // GET is a pure read: the new fleet and moved arrival stay off the stored plan
-    expect((await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id).fleets).toHaveLength(2);
+    expect((await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id).fleets).toHaveLength(3);
     const token = (await app.inject({ method: 'POST', url: '/hub/api/auth/tokens', headers: admin, payload: { name: 'plans' } })).json().token;
     const bearer = { authorization: `Bearer ${token}`, 'x-hub-group': String(groupA) };
-    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/plans', headers: bearer })).json().find((p: any) => p.id === created.id).fleets).toHaveLength(2);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/plans', headers: bearer })).json().find((p: any) => p.id === created.id).fleets).toHaveLength(3);
     expect((await app.inject({ method: 'POST', url: '/hub/api/u8/plans/sync', headers: bearer })).statusCode).toBe(403);
     expect((await call('POST', '/plans/sync', admin)).json()).toEqual({ ok: true });
     const synced = (await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id);
-    expect(synced).toMatchObject({ target_time: t0 + 3720, guests: [] });
-    expect(synced.fleets.map((f: any) => [f.user_id, f.s, f.p, f.ships, f.status])).toEqual([
-      [carolId, 40, 5, { 207: 10 }, 'launched'],
-      [daveId, 50, 5, { 215: 3 }, 'launched'],
-      [daveId, 50, 6, { 214: 1 }, 'launched'],
+    expect(synced).toMatchObject({ target_time: t0 + 3600, guests: [] });
+    expect(synced.fleets.map((f: any) => [f.id === invited, f.user_id, f.s, f.p, f.ships, f.status])).toEqual([
+      [false, carolId, 40, 5, { 207: 10 }, 'launched'],
+      [false, daveId, 50, 5, { 215: 3 }, 'launched'],
+      [true, daveId, 50, 6, { 214: 1 }, 'launched'],
     ]);
+    expect(synced.fleets[2].seen).toMatchObject({ arrival: t0 + 3720 });
+    // the claim lasts past the later arrival
+    expect(db.prepare('SELECT c.expires_at FROM target_claims c JOIN attack_plans a ON a.claim_id = c.id WHERE a.id = ?').pluck().get(created.id)).toBe(t0 + 3720 + 600);
     // nothing new: the same state again
     expect((await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id).fleets).toHaveLength(3);
     db.prepare("DELETE FROM planets WHERE group_id = ? AND name = 'Daves 2'").run(groupA);

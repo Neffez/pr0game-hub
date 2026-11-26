@@ -15,6 +15,8 @@ const LAUNCH_MISSIONS = [1, 2, 9];
 const HOLD_MISSION = 5;
 /** An own fleet in flight counts for a plan when it lands from an hour before its time until an hour after its end. */
 const LAUNCH_SLACK = 3600;
+/** A plan's claim on its target lasts this long past the landing. */
+export const CLAIM_AFTER = 600;
 
 export interface PlanRow {
   id: number;
@@ -324,17 +326,17 @@ const bodyOf = (b: StoredFleet['from']): Body => ({ ...b.coords, type: b.type as
 /**
  * Own attacks (attack, ACS attack, destroy) in flight on the members' newest overviews, for the viewer to take into
  * the raid planner: only those the viewer flies in (their own fleet, or in an ACS a foreign fleet from the viewer's
- * player), until a plan on the target lands around the same time (± `LAUNCH_SLACK`). ACS fleets as one attack, the
+ * player), until a plan was made from it or a plan on the target lands around the same time (± `LAUNCH_SLACK`). ACS fleets as one attack, the
  * lead first; the same attack seen by several participants counts once, from the newest paste.
  */
 export function ownAttacks(db: DB, ctx: GroupContext): OwnAttack[] {
   const planned = db.prepare(
     `SELECT 1 FROM attack_plans WHERE group_id = ? AND mission <> 'hold' AND status IN ('planning', 'launched')
-       AND g = ? AND s = ? AND p = ? AND planet_type = ? AND target_time BETWEEN ? AND ?`,
+       AND (attack_key = ? OR (g = ? AND s = ? AND p = ? AND planet_type = ? AND target_time BETWEEN ? AND ?))`,
   );
   return collectOwnAttacks(db, ctx)
     .filter((a) => a.viewers.has(ctx.user.id))
-    .filter((a) => !planned.get(ctx.groupId, a.to.g, a.to.s, a.to.p, a.to.type, a.arrival - LAUNCH_SLACK, a.arrival + LAUNCH_SLACK))
+    .filter((a) => !planned.get(ctx.groupId, a.key, a.to.g, a.to.s, a.to.p, a.to.type, a.arrival - LAUNCH_SLACK, a.arrival + LAUNCH_SLACK))
     .map(({ viewers: _, ...a }) => a);
 }
 
@@ -462,9 +464,10 @@ export function recallOwnPlans(db: DB, ctx: GroupContext): number[] {
 
 /**
  * Carries a running own attack into the plans made from it (`attack_plans.attack_key`): fleets that joined the ACS
- * after the plan was made get a launched fleet row (existing rows, also changed or withdrawn ones, are left alone),
- * guests are renewed and the plan follows a moved arrival (the claim with it). `maxFleets` caps the rows per plan.
- * Returns the ids of the changed plans.
+ * after the plan was made fill an empty invitation of their member (no start or no ships yet) or get a launched fleet
+ * row (existing rows, also changed or withdrawn ones, are left alone), guests are renewed. The planned target time
+ * stays (a moved arrival shows as a delay against it); the claim is stretched to cover the later arrival.
+ * `maxFleets` caps the rows per plan. Returns the ids of the changed plans.
  */
 export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): number[] {
   const plans = db
@@ -475,9 +478,12 @@ export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): numb
     .all(ctx.groupId, now() - LAUNCH_SLACK) as { id: number; attack_key: string; target_time: number; claim_id: number | null; guests: string | null }[];
   if (!plans.length) return [];
   const attacks = new Map(collectOwnAttacks(db, ctx).map((a) => [a.key, a]));
-  const rows = db.prepare('SELECT id, user_id, g, s, p, planet_type FROM attack_plan_fleets WHERE plan_id = ?');
+  const rows = db.prepare('SELECT id, user_id, g, s, p, planet_type, ships, status FROM attack_plan_fleets WHERE plan_id = ? ORDER BY id');
   const insert = db.prepare(
     `INSERT INTO attack_plan_fleets (plan_id, user_id, g, s, p, planet_type, ships, status, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'launched', ?)`,
+  );
+  const fill = db.prepare(
+    "UPDATE attack_plan_fleets SET g = ?, s = ?, p = ?, planet_type = ?, ships = ?, status = 'launched', updated_at = ? WHERE id = ?",
   );
   const changed: number[] = [];
   db.transaction(() => {
@@ -485,18 +491,28 @@ export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): numb
       const attack = attacks.get(plan.attack_key);
       if (!attack) continue;
       let touched = false;
-      if (attack.arrival !== plan.target_time) {
-        db.prepare("UPDATE attack_plans SET target_time = ?, time_precision = 'exact', updated_at = ? WHERE id = ?").run(attack.arrival, now(), plan.id);
-        if (plan.claim_id) db.prepare('UPDATE target_claims SET expires_at = expires_at + ? WHERE id = ? AND released_at IS NULL').run(attack.arrival - plan.target_time, plan.claim_id);
-        touched = true;
+      if (plan.claim_id && attack.arrival > plan.target_time) {
+        const end = attack.arrival + CLAIM_AFTER;
+        if (db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL AND expires_at < ?').run(end, plan.claim_id, end).changes) touched = true;
       }
-      const have = rows.all(plan.id) as { user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null }[];
+      type Row = { id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; ships: string; status: string };
+      const have = rows.all(plan.id) as Row[];
       let count = have.length;
-      for (const f of attack.fleets) {
-        if (f.memberId == null) continue;
+      // first the fleets already in the plan, then the new ones into empty invitations or new rows
+      const fresh = attack.fleets.filter((f) => {
+        if (f.memberId == null) return false;
         const at = have.findIndex((r) => r.user_id === f.memberId && r.g === f.from.g && r.s === f.from.s && r.p === f.from.p && (r.planet_type ?? 'planet') === f.from.type);
+        if (at < 0) return true;
+        have.splice(at, 1);
+        return false;
+      });
+      const empty = (r: Row) => (r.status === 'invited' || r.status === 'ready') && (r.g == null || !Object.values(JSON.parse(r.ships || '{}') as Record<string, number>).some((n) => n > 0));
+      for (const f of fresh) {
+        const at = have.findIndex((r) => r.user_id === f.memberId && empty(r));
         if (at >= 0) {
+          fill.run(f.from.g, f.from.s, f.from.p, f.from.type, JSON.stringify(f.ships), now(), have[at].id);
           have.splice(at, 1);
+          touched = true;
           continue;
         }
         if (count >= maxFleets) break;
@@ -520,7 +536,7 @@ export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): numb
 const CATCH_UP_KEEP = 7 * 86400;
 
 /**
- * Writes the plan catch-up that GET /plans used to do: ACS joins and a moved arrival (`syncOwnPlans`), recalled
+ * Writes the plan catch-up that GET /plans used to do: ACS joins (`syncOwnPlans`), recalled
  * fleets withdrawn (`recallOwnPlans`), enemy delays and hold/retime times, fleets seen in flight marked launched.
  * Called after an overview/fleets paste and from POST /plans/sync. Returns the ids `syncOwnPlans` / `recallOwnPlans`
  * changed (for live events); the other writes are silent like they were on GET.

@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-26
 
+- Raid planner: syncing the overview no longer breaks plans made from a running own attack.
+  - A fleet that joined the ACS fills an empty invitation of its member (no start or no ships yet) instead of
+    adding a second row next to it.
+  - The planned target time stays when the arrival moves; the later arrival shows as a delay against it (what
+    delaying aims at), and the target claim is stretched to last past it. An attack a plan was made from is no
+    longer offered again under own attacks when its arrival moves.
+  - "Current plans" shows the current arrival next to the planned time when the ACS is delayed; the countdown runs
+    to the arrival.
+
 - Farm finder: new tab "Fleets" (fleet finder) listing the spied targets with ships in their newest fleet report
   within the chosen period, ranked by a priority in deuterium value (market rate): debris field of the fleet plus
   loot, weighted by the strength against the own fleet (full weight up to 30 % of the own fleet points, falling to

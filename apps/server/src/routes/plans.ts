@@ -10,7 +10,7 @@ import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, ty
 import { phalanxActivity } from '../repo/activity.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
-  catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
+  CLAIM_AFTER, catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
 import { contextOf, DISPLAY, displayNameOf, releaseTargetClaims } from './util.js';
@@ -24,8 +24,6 @@ const FLEET_STATUSES = ['invited', 'ready', 'launched', 'withdrawn'];
 const MAX_FLEETS = 32;
 /** Plans are listed up to a week after their target time. */
 const KEEP_SECONDS = 7 * 86400;
-/** The target claim lasts until a few minutes after the target time. */
-const CLAIM_AFTER = 600;
 /** Drive research a plan fleet may get by hand (combustion, impulse, hyperspace). */
 const DRIVE_IDS = [115, 117, 118];
 /** Hold fleets land by default 1 s before the impact (a hold must be there before the fight). */
@@ -405,7 +403,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/own-attacks', async (req) => ownAttacks(db, ctxOf(req)));
 
   /**
-   * Catch-up from the stored overviews: fleets that joined a running ACS, a moved arrival, recalled fleets withdrawn,
+   * Catch-up from the stored overviews: fleets that joined a running ACS (into empty invitations), recalled fleets withdrawn,
    * hold and retime times following the impact, fleets seen in flight marked launched. GET /plans is a pure read; the
    * raid planner calls this when it opens so the list is current without a new paste.
    */

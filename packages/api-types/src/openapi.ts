@@ -1856,7 +1856,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Applies stored overview pastes to the group's raid plans: fleets that joined a running ACS, a moved arrival, recalled fleets withdrawn, hold and retime times following the impact, and fleets seen in flight marked launched. GET /plans is a pure read; the raid planner calls this when it opens so the list is current without a new paste. Session cookie only (API tokens cannot write it). */
+        /** @description Applies stored overview pastes to the group's raid plans: fleets that joined a running ACS (filling an empty invitation of their member; the planned target time stays when the arrival moves), recalled fleets withdrawn, hold and retime times following the impact, and fleets seen in flight marked launched. GET /plans is a pure read; the raid planner calls this when it opens so the list is current without a new paste. Session cookie only (API tokens cannot write it). */
         post: operations["syncPlans"];
         delete?: never;
         options?: never;

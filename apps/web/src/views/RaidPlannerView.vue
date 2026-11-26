@@ -264,7 +264,8 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
           <div class="item-line small">
             <span class="time">
               <span class="mono">{{ rp.targetText(p) }}</span>
-              <Countdown v-if="p.time_precision !== 'day'" class="muted" :to="p.target_time" />
+              <span v-if="delay(p)" class="warn">{{ t('plans.arrival') }} <b class="mono">{{ rp.clock(p.target_time + delay(p)) }}</b></span>
+              <Countdown v-if="p.time_precision !== 'day'" class="muted" :to="p.target_time + delay(p)" />
             </span>
             <span class="muted">{{ t('plans.fleetCount', { n: rp.flying(p) }, rp.flying(p)) }}</span>
             <span v-if="rp.myLaunch(p) && rp.exact(p)" class="time my-launch">
