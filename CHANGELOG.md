@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-26
 
+- Build order timeline: a step that costs more than the storage holds now waits for the transports of the build order
+  to its planet that have not left yet, instead of starting as soon as the storage is full and assuming the rest
+  arrives. Only what no list brings is still assumed to come by transport, and the step says so ("no transport
+  planned for").
 - Farm finder and defense advisor: ships a player lost in battles after a sighting are taken off it, like on the
   player page (shared in `repo/fleetLosses.ts`).
   - Farm finder: the fleet of the newest report loses the ships destroyed in the player's battles since; its units,

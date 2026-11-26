@@ -187,6 +187,30 @@ describe('simulate', () => {
     expect(sim.steps.find((s) => s.id === 'b')!.start!).toBeLessThanOrEqual(3600);
   });
 
+  it('waits beyond the storage for transports of the lists before it assumes the rest comes by transport', () => {
+    // metal mine 14 costs more metal than the storage holds (10k)
+    const mine: Step = { id: 'mine', kind: 'building', element: 1 };
+    const base = { planets: { [HOME]: { 1: 13 }, [COLONY]: {} }, research: {} };
+    const hub = hubOf([planet(HOME, { 1: 13 }), planet(COLONY)]);
+    const alone = simulate({ base, planets: { [HOME]: [mine], [COLONY]: [] } }, hub, { now: 0 }).steps[0];
+    expect(alone).toMatchObject({ state: 'planned', wait: 'storage' });
+    expect(alone.transport![901]).toBeGreaterThan(0);
+    // a transport to it leaves later: the mine waits for it to land instead of starting once the storage is full
+    const transport: Step = { id: 't', kind: 'transport', transport: { target: HOME, resources: { 901: 3000 }, flight: 3600, notBefore: 300000 } };
+    const sim = simulate({ base, planets: { [HOME]: [mine], [COLONY]: [transport] } }, hub, { now: 0 });
+    const waited = sim.steps.find((s) => s.id === 'mine')!;
+    expect(alone.start!).toBeLessThan(303600);
+    expect(waited).toMatchObject({ state: 'planned', start: 303600, wait: 'storage', transport: null });
+    // one that brings too little is waited for in flight too; only what is still missing then is assumed
+    const little: Step = { ...transport, transport: { ...transport.transport!, resources: { 901: 500 } } };
+    const short = simulate({ base, planets: { [HOME]: [mine], [COLONY]: [little] } }, hub, { now: 0 }).steps.find((s) => s.id === 'mine')!;
+    expect(short).toMatchObject({ state: 'planned', start: 303600, wait: 'storage' });
+    expect(short.transport![901]).toBeLessThan(alone.transport![901]);
+    // a transport that carries no metal is not waited for
+    const crystal: Step = { ...transport, transport: { ...transport.transport!, resources: { 902: 1000 } } };
+    expect(simulate({ base, planets: { [HOME]: [mine], [COLONY]: [crystal] } }, hub, { now: 0 }).steps.find((s) => s.id === 'mine')!.start).toBe(alone.start);
+  });
+
   it('reports storages that run full while a step waits, with the lost production', () => {
     const order: BuildOrder = {
       base: { planets: { [HOME]: { 1: 10 } }, research: {} },

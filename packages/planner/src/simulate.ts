@@ -301,6 +301,35 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     researchQueue.push({ id: q.id, level: q.level, end: q.end != null ? Math.max(q.end, o.now) : prev, planet: null });
   }
   const byKey = new Map(planets.map((p) => [p.key, p]));
+  /**
+   * Transports of the lists that have not left yet, per target and resource they may carry: a step that costs more
+   * than the storage holds waits for them before it assumes the rest comes by transport (`ready`).
+   */
+  const incoming = new Map<string, Record<number, number>>();
+  const inboundOf = (p: Planet, s: Step) => {
+    const tr = s.transport;
+    if (s.kind !== 'transport' || !tr?.target || tr.target === p.key || s.deactivated || tr.mission === 'colonize') return null;
+    const fixed = fixedOf(tr);
+    const all = allOf(tr);
+    return { target: tr.target, res: RES.filter((r) => all.includes(r) || (fixed[r] ?? 0) > 0) };
+  };
+  for (const p of planets)
+    for (const s of p.steps) {
+      const inbound = inboundOf(p, s);
+      if (!inbound) continue;
+      const c = incoming.get(inbound.target) ?? { 901: 0, 902: 0, 903: 0 };
+      for (const r of inbound.res) c[r]++;
+      incoming.set(inbound.target, c);
+    }
+  const departed = new Set<string>();
+  /** a transport of the lists left (or never will): it no longer counts as coming */
+  const leave = (p: Planet, s: Step) => {
+    const inbound = inboundOf(p, s);
+    if (!inbound || departed.has(s.id)) return;
+    departed.add(s.id);
+    const c = incoming.get(inbound.target)!;
+    for (const r of inbound.res) c[r]--;
+  };
 
   // calibration: synced production against the formula for the synced levels
   const formulaSpeed = resourceSpeed || 1;
@@ -361,6 +390,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   let stopEnd = -Infinity;
   const record = (p: Planet, s: Step, r: Omit<StepResult, 'id' | 'planet'>) => {
     const out = { id: s.id, planet: p.key, ...r };
+    leave(p, s);
     if (stopIds?.has(s.id) && !resultById.has(s.id)) {
       stopLeft--;
       if (r.end != null) stopEnd = Math.max(stopEnd, r.end);
@@ -386,8 +416,9 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const researchLevelOf = (id: number) => researchQueue.reduce((l, q) => (q.id === id ? q.level : l), research[id] ?? 0);
   /**
    * When the resources for `cost` are there. More than the storage holds: production stops at the capacity, but
-   * fleets may bring more (overflow); landing fleets or a storage being built are waited for, else the rest is
-   * assumed to come by transport once the storage is full (`overflow`, the start books it).
+   * fleets may bring more (overflow); landing fleets, transports of the lists to the planet that have not left yet
+   * and a storage being built are waited for, else the rest is assumed to come by transport once the storage is full
+   * (`overflow`, the start books it).
    */
   const ready = (p: Planet, cost: Record<number, number>, t: number): Check => {
     let at = t;
@@ -398,6 +429,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       if (need > p.cap[r]) {
         const landing = p.arrivals.reduce((s, a) => s + (a.resources[r] ?? 0), 0);
         if (p.res[r] + landing >= need || p.build.some((q) => q.id === STORAGE[r])) return { ok: false, wait: 'storage' };
+        // not enough: still wait for what is landing and for transports yet to leave, assume only what is left after
+        if (landing > 0 || (incoming.get(p.key)?.[r] ?? 0) > 0) return { ok: false, wait: 'storage' };
         overflow = true;
         if (p.res[r] < p.cap[r] && p.rate[r] > 0) at = Math.max(at, t + Math.ceil(((p.cap[r] - p.res[r]) / p.rate[r]) * 3600));
         continue;

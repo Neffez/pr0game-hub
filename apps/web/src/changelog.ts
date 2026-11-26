@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauliste: Forschung oder Gebäude, die mehr kosten als der Speicher fasst, starten im Zeitplan erst, wenn die geplanten Transporte angekommen sind – nicht mehr schon, sobald der Speicher voll ist. Was kein Transport bringt, steht als „kein Transport geplant“ dabei.',
+        en: 'Build order: research or buildings that cost more than the storage holds now start in the timeline once the planned transports have arrived, no longer as soon as the storage is full. What no transport brings is marked “no transport planned”.',
+      },
+      {
+        kind: 'fix',
         de: 'Farm-Finder und Verteidigungsberater: Hat ein Spieler nach dem Spionagebericht oder einer anderen Sichtung Schiffe in Kämpfen verloren, rechnen beide nur noch mit dem, was übrig ist, und zeigen die Verluste an.',
         en: 'Farm finder and defense advisor: if a player lost ships in battles after the spy report or another sighting, both now count only what is left and show the losses.',
       },
