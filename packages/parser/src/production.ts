@@ -34,6 +34,11 @@ export interface ProductionInput {
   resourceSpeed: number;
   /** game `energy_multiplier`, default 1 */
   energySpeed?: number;
+  /**
+   * Energy produced when it is known (e.g. a spy report shows it): replaces the formula's power plants and
+   * satellites, whose energy depends on the temperature and the satellite count.
+   */
+  energy?: number;
   basicIncome?: Record<number, number>;
   /**
    * Production bonus of the planet in percent per resource (901-903; the game's `*_bonus_percent` of the position with
@@ -77,7 +82,7 @@ export function productionOf(i: ProductionInput): Production {
   plus[911] += ((i.temp + 160) / 6) * f(SOLAR_SATELLITE) * lvl(SOLAR_SATELLITE);
 
   const es = i.energySpeed ?? 1;
-  const energy = Math.round(plus[911] * es);
+  const energy = i.energy ?? Math.round(plus[911] * es);
   const energyUsed = minus[911] * es;
   const income = i.basicIncome ?? BASIC_INCOME;
   const out: Production = { 901: 0, 902: 0, 903: 0, energy, energyUsed };
@@ -194,7 +199,10 @@ export function deriveResourceSpeed(planets: { levels: Record<string, number>; r
 }
 
 export interface FleetSaveInput {
-  /** metal, crystal, deuterium a spy report showed (the game shows them rounded down) */
+  /**
+   * metal, crystal, deuterium a spy report showed (the game shows them rounded down), and the energy produced (911)
+   * when it shows it: then the production level uses that instead of the formula's power plants and satellites
+   */
   resources: Record<number, number>;
   /** building levels and the number of solar satellites (212) */
   levels: Record<string, number>;
@@ -237,7 +245,9 @@ export interface FleetSave {
  * production, storage full: production stopped).
  */
 export function fleetSaveTime(i: FleetSaveInput): FleetSave | null {
-  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp: i.temp, resourceSpeed: i.resourceSpeed, bonus: i.bonus });
+  const reported = i.resources[911];
+  const energy = reported != null && reported >= 0 ? reported : undefined;
+  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp: i.temp, resourceSpeed: i.resourceSpeed, bonus: i.bonus, energy });
   const byResource: FleetSave['byResource'] = { 901: null, 902: null, 903: null };
   const perHour: FleetSave['perHour'] = { 901: 0, 902: 0, 903: 0 };
   for (const r of [901, 902, 903] as const) {

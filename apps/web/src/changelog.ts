@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fleetsave aus Spionageberichten: Die Rückrechnung nimmt jetzt die Energie aus dem Bericht. Bei Planeten mit Energiemangel und Solarsatelliten lag die berechnete Abflugzeit vorher teils daneben.',
+        en: 'Fleet save from spy reports: the calculation now uses the energy shown in the report. For planets short of energy with solar satellites, the departure time was sometimes off before.',
+      },
+      {
+        kind: 'fix',
         de: 'Aktivitätsmuster: Angriffe von Spielern der eigenen Allianz zählen nur noch als Aktivität, wenn der Kampf in der Ruhmeshalle steht. Ein Fleetsave auf einen Inaktiven, der nachts im Schlaf einschlägt, macht niemanden mehr nachts aktiv.',
         en: 'Activity pattern: attacks by players of your own alliance now only count as activity when the battle is in the battle hall. A fleet save on an inactive that hits at night while asleep no longer makes anyone look active at night.',
       },

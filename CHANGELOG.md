@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-27
 
+- Fleet save from spy reports: the production level now uses the energy the report shows (the energy produced)
+  instead of the formula's power plants and satellites. Those depend on the planet's temperature, which the hub only
+  guesses from the position, and on the satellite count; with too little energy a wrong guess shifted metal and
+  crystal together and gave a wrong departure second. `productionOf` takes a known `energy`.
 - Activity pattern: an attack of a player of the own alliance (the members' players and their in-game alliances)
   counts as activity only when the battle is in the battle hall. Members sync the reports of their attacks, also
   those of fleet saves on inactives that hit at night while they sleep, so those reports said nothing about being

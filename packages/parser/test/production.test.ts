@@ -188,6 +188,20 @@ describe('fleetSaveTime', () => {
     expect(p[901]).toBeCloseTo(plain[901]);
   });
 
+  it('takes the energy a spy report shows instead of the satellites at a guessed temperature', () => {
+    // short of energy: the satellites at the real temperature decide the production level
+    const real = { levels: { 1: 16, 2: 15, 3: 10, 4: 14, 212: 12 }, research: { 131: 5, 132: 4, 133: 3 }, temp: 80, resourceSpeed: 1 };
+    const energy = productionOf(real).energy;
+    const seconds = 3 * 3600 + 777;
+    const shown = shownAfter(seconds, 0.6, real);
+    const res = fleetSaveTime({ ...real, temp: 50, resources: { ...shown, 911: energy } });
+    expect(res!.ago.min).toBeLessThanOrEqual(seconds);
+    expect(res!.ago.max).toBeGreaterThanOrEqual(seconds);
+    // the formula at the guessed temperature points to a wrong second: metal and crystal shift together
+    const guessed = fleetSaveTime({ ...real, temp: 50, resources: shown });
+    expect(guessed === null || guessed.ago.max < seconds || guessed.ago.min > seconds).toBe(true);
+  });
+
   it('cannot tell with a full storage or without production', () => {
     const full = storageCapacity(5);
     expect(fleetSaveTime({ ...base, resources: { 901: 1000, 902: full, 903: 0 } })).toBeNull();
