@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raid-Planer: Ein Plan ohne eingetragene Flotten erkennt jetzt den Angriff, den du aus der Übersicht auf das Ziel gestartet hast, und übernimmt dessen Flotten als gestartet. Vorher blieb der Plan leer.',
+        en: 'Raid planner: a plan without fleets entered now picks up the attack you launched on its target from the overview and takes over its fleets as launched. Before, the plan stayed empty.',
+      },
+      {
+        kind: 'fix',
         de: 'Fleetsave aus Spionageberichten: Bei Planeten mit Solarsatelliten wird die Temperatur jetzt aus der Energie im Bericht bestimmt. Die Prüfung, ob seit dem Abflug Deuterium verbraucht wurde, ist dadurch genauer.',
         en: 'Fleet save from spy reports: for planets with solar satellites the temperature now comes from the energy in the report. The check whether deuterium was used since the departure is more accurate.',
       },

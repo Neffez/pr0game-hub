@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-27
 
+- Raid planner: a plan made by hand without any fleet with a start now takes over the running own attack (or ACS) on
+  its target that lands in its time window (an hour around it, the closest to its time, not one of another plan) at
+  the next catch-up (overview paste or opening the planner). Its fleets are added as launched and later ACS joins
+  follow like for a plan made from the attack. Before, such an attack matched no plan fleet and was also hidden from
+  the own attacks because the plan covered the target, so the plan stayed without fleets.
 - Fleet save from spy reports: with solar satellites the planet's max temperature now comes from the energy the
   report shows (`tempFromEnergy`: the whole degrees whose energy rounds to it, nearest the position's guess) instead
   of the middle of the position's range. The deuterium production depends on it, so the check whether deuterium was

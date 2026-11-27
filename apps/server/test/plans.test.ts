@@ -566,6 +566,41 @@ describe('attack plans', () => {
     db.prepare('DELETE FROM players WHERE id = ?').run(davePlayer);
   });
 
+  it('gives a plan made by hand without fleets the own attack that lands on its target in its time window', async () => {
+    const t0 = Math.floor(Date.now() / 1000);
+    const hour = Math.floor(t0 / 3600) * 3600 + 7200;
+    const body = (g: number, s: number, p: number) => ({ coords: { g, s, p }, type: 'planet', name: null });
+    const move = (o: object) => ({
+      owner: 'own', player: null, mission: 1, missionName: '', phase: 'out', from: body(1, 40, 5), to: body(3, 120, 3), ships: { 204: 10 },
+      resources: null, seconds: 0, clock: null, acs: null, arrival: hour - 1800, ...o,
+    });
+    // a plan with a fleet entered keeps it (the launch is matched to that fleet), one on another target gets nothing
+    const empty = (await call('POST', '/plans', carol, { g: 3, s: 120, p: 3, type: 'planet', target_time: hour, time_precision: 'hour' })).json().id;
+    const entered = (await call('POST', '/plans', dave, { g: 3, s: 120, p: 4, type: 'planet', target_time: hour, time_precision: 'hour' })).json().id;
+    await call('POST', `/plans/${entered}/fleets`, dave, { g: 2, s: 50, p: 5, type: 'planet', ships: { 207: 1 } });
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, carolId, t0, JSON.stringify([
+      move({}),
+      // a second attack on the same target far off the plan's time does not count
+      move({ ships: { 202: 5 }, arrival: hour + 3 * 3600 }),
+      move({ to: body(3, 120, 4), ships: { 203: 2 } }),
+    ]));
+    expect((await call('POST', '/plans/sync', carol)).json()).toEqual({ ok: true });
+    const plans = (await call('GET', '/plans', dave)).json();
+    const got = plans.find((p: any) => p.id === empty);
+    expect(got.target_time).toBe(hour);
+    expect(got.fleets.map((f: any) => [f.user_id, f.s, f.p, f.ships, f.status])).toEqual([[carolId, 40, 5, { 204: 10 }, 'launched']]);
+    expect(got.fleets[0].seen).toMatchObject({ arrival: hour - 1800 });
+    expect(plans.find((p: any) => p.id === entered).fleets.map((f: any) => [f.user_id, f.ships])).toEqual([[daveId, { 207: 1 }]]);
+    // the attack now belongs to the plan: no longer offered, and the next sync adds nothing
+    expect((await call('GET', '/own-attacks', carol)).json().map((a: any) => [a.to.p, a.fleets[0].ships])).toEqual([[3, { 202: 5 }]]);
+    await call('POST', '/plans/sync', carol);
+    expect((await call('GET', '/plans', dave)).json().find((p: any) => p.id === empty).fleets).toHaveLength(1);
+
+    await call('DELETE', `/plans/${empty}`, carol);
+    await call('DELETE', `/plans/${entered}`, dave);
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time = ?').run(carolId, t0);
+  });
+
   it('withdraws fleets an overview shows recalled and cancels the plan when none is left', async () => {
     const target = Math.floor(Date.now() / 1000) + 7200;
     const id = (await call('POST', '/plans', carol, { g: 3, s: 116, p: 8, type: 'moon', target_time: target })).json().id;

@@ -467,17 +467,28 @@ export function recallOwnPlans(db: DB, ctx: GroupContext): number[] {
  * after the plan was made fill an empty invitation of their member (no start or no ships yet) or get a launched fleet
  * row (existing rows, also changed or withdrawn ones, are left alone), guests are renewed. The planned target time
  * stays (a moved arrival shows as a delay against it); the claim is stretched to cover the later arrival.
- * `maxFleets` caps the rows per plan. Returns the ids of the changed plans.
+ * A plan made by hand that has no fleet with a start yet takes over the running own attack that lands on its target
+ * in its time window (`LAUNCH_SLACK` around it, the closest to its time, not one another plan has), so a raid launched
+ * without entering the fleets first still gets them. `maxFleets` caps the rows per plan. Returns the ids of the
+ * changed plans.
  */
 export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): number[] {
   const plans = db
     .prepare(
-      `SELECT id, attack_key, target_time, claim_id, guests FROM attack_plans
-       WHERE group_id = ? AND attack_key IS NOT NULL AND mission <> 'hold' AND status IN ('planning', 'launched') AND target_time > ?`,
+      `SELECT id, attack_key, g, s, p, planet_type, target_time, time_precision, claim_id, guests FROM attack_plans
+       WHERE group_id = ? AND mission <> 'hold' AND status IN ('planning', 'launched') AND target_time > ? AND g IS NOT NULL
+       ORDER BY id`,
     )
-    .all(ctx.groupId, now() - LAUNCH_SLACK) as { id: number; attack_key: string; target_time: number; claim_id: number | null; guests: string | null }[];
+    .all(ctx.groupId, now() - LAUNCH_SLACK) as {
+      id: number; attack_key: string | null; g: number; s: number; p: number; planet_type: string; target_time: number; time_precision: string;
+      claim_id: number | null; guests: string | null;
+    }[];
   if (!plans.length) return [];
-  const attacks = new Map(collectOwnAttacks(db, ctx).map((a) => [a.key, a]));
+  const running = collectOwnAttacks(db, ctx);
+  const attacks = new Map(running.map((a) => [a.key, a]));
+  const started = db.prepare('SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND g IS NOT NULL').pluck();
+  const taken = new Set(plans.flatMap((p) => (p.attack_key ? [p.attack_key] : [])));
+  const adopt = db.prepare('UPDATE attack_plans SET attack_key = ?, updated_at = ? WHERE id = ? AND attack_key IS NULL');
   const rows = db.prepare('SELECT id, user_id, g, s, p, planet_type, ships, status FROM attack_plan_fleets WHERE plan_id = ? ORDER BY id');
   const insert = db.prepare(
     `INSERT INTO attack_plan_fleets (plan_id, user_id, g, s, p, planet_type, ships, status, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'launched', ?)`,
@@ -488,9 +499,23 @@ export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): numb
   const changed: number[] = [];
   db.transaction(() => {
     for (const plan of plans) {
+      let touched = false;
+      if (!plan.attack_key) {
+        if (started.get(plan.id)) continue;
+        const from = plan.target_time - LAUNCH_SLACK;
+        const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
+        const found = running
+          .filter((a) => !taken.has(a.key) && a.to.g === plan.g && a.to.s === plan.s && a.to.p === plan.p && a.to.type === plan.planet_type)
+          .filter((a) => a.arrival >= from && a.arrival <= to)
+          .sort((a, b) => Math.abs(a.arrival - plan.target_time) - Math.abs(b.arrival - plan.target_time))[0];
+        if (!found) continue;
+        adopt.run(found.key, now(), plan.id);
+        taken.add(found.key);
+        plan.attack_key = found.key;
+        touched = true;
+      }
       const attack = attacks.get(plan.attack_key);
       if (!attack) continue;
-      let touched = false;
       if (plan.claim_id && attack.arrival > plan.target_time) {
         const end = attack.arrival + CLAIM_AFTER;
         if (db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL AND expires_at < ?').run(end, plan.claim_id, end).changes) touched = true;
