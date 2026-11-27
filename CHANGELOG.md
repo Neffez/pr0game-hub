@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-27
 
+- Fleet save from spy reports: with solar satellites the planet's max temperature now comes from the energy the
+  report shows (`tempFromEnergy`: the whole degrees whose energy rounds to it, nearest the position's guess) instead
+  of the middle of the position's range. The deuterium production depends on it, so the check whether deuterium was
+  used since the departure is much closer (Terra [1:101:9]: 1 s off instead of 23 s).
 - Fleet save from spy reports: the production level now uses the energy the report shows (the energy produced)
   instead of the formula's power plants and satellites. Those depend on the planet's temperature, which the hub only
   guesses from the position, and on the satellite count; with too little energy a wrong guess shifted metal and

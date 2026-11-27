@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calibrate, deriveResourceSpeed, fleetSaveTime, mergeFleetSaves, positionTemp, productionOf, projectResources } from '../src/production.js';
+import { calibrate, deriveResourceSpeed, fleetSaveTime, tempFromEnergy, mergeFleetSaves, positionTemp, productionOf, projectResources } from '../src/production.js';
 import { storageCapacity } from '../src/tech.js';
 import { missileSpace, requirementsOf, shipsOf, shipyardTime, type BuildPlanet } from '../src/buildings.js';
 
@@ -200,6 +200,19 @@ describe('fleetSaveTime', () => {
     // the formula at the guessed temperature points to a wrong second: metal and crystal shift together
     const guessed = fleetSaveTime({ ...real, temp: 50, resources: shown });
     expect(guessed === null || guessed.ago.max < seconds || guessed.ago.min > seconds).toBe(true);
+  });
+
+  it('takes the temperature from the energy of the report when there are satellites', () => {
+    // Terra [1:101:9]: solar plant 17 and 16 satellites show 2223 energy, position 9 guesses 40 °C
+    const levels = { 1: 17, 2: 15, 3: 12, 4: 17, 22: 4, 23: 2, 24: 1, 212: 16 };
+    const research = { 113: 3, 131: 4, 132: 4, 133: 2 };
+    expect(tempFromEnergy(levels, research, 2223, 40)).toBe(29);
+    expect(tempFromEnergy({ ...levels, 212: 0 }, research, 1719, 40)).toBe(40);
+    expect(tempFromEnergy(levels, research, 99_999, 40)).toBe(40);
+    // the deuterium then fits the departure up to a second instead of 23
+    const res = fleetSaveTime({ levels, research, temp: 40, resourceSpeed: 2, resources: { 901: 1282, 902: 624, 903: 238, 911: 2223 } });
+    expect(res!.ago).toEqual({ min: 829, max: 829 });
+    expect(res!.byResource[903]!.min).toBeLessThanOrEqual(830);
   });
 
   it('cannot tell with a full storage or without production', () => {

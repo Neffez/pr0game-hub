@@ -208,7 +208,10 @@ export interface FleetSaveInput {
   levels: Record<string, number>;
   /** research levels (113 energy, 131-133 mining); unknown = 0 */
   research?: Record<string, number>;
-  /** max temperature; `positionTemp` when unknown (only the energy of satellites and deuterium depend on it) */
+  /**
+   * max temperature; `positionTemp` when unknown (only the energy of satellites and deuterium depend on it); with
+   * satellites and the energy of the report the temperature that gives that energy is used instead
+   */
   temp: number;
   /** resource multiplier as a factor (game `resource_multiplier` / 2500) */
   resourceSpeed: number;
@@ -247,7 +250,8 @@ export interface FleetSave {
 export function fleetSaveTime(i: FleetSaveInput): FleetSave | null {
   const reported = i.resources[911];
   const energy = reported != null && reported >= 0 ? reported : undefined;
-  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp: i.temp, resourceSpeed: i.resourceSpeed, bonus: i.bonus, energy });
+  const temp = energy != null ? tempFromEnergy(i.levels, i.research ?? {}, energy, i.temp) : i.temp;
+  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp, resourceSpeed: i.resourceSpeed, bonus: i.bonus, energy });
   const byResource: FleetSave['byResource'] = { 901: null, 902: null, 903: null };
   const perHour: FleetSave['perHour'] = { 901: 0, 902: 0, 903: 0 };
   for (const r of [901, 902, 903] as const) {
@@ -267,6 +271,30 @@ export function fleetSaveTime(i: FleetSaveInput): FleetSave | null {
   if (ago.min > ago.max) return null;
   const d = byResource[903];
   return { ago, byResource, deuterium: d ? d.min <= ago.max && d.max >= ago.min : null, perHour };
+}
+
+/** lowest and highest max temperature a planet can get */
+const TEMP_RANGE = [Math.min(...Object.values(POSITION_TEMP).map((r) => r[0])), Math.max(...Object.values(POSITION_TEMP).map((r) => r[1]))] as const;
+
+/**
+ * Max temperature of a planet from the energy produced that a spy report shows: the solar satellites give
+ * `(temp + 160) / 6` each, the power plants do not depend on it. The whole degrees whose energy rounds to the shown
+ * value within the game's range of max temperatures (`POSITION_TEMP`), the one nearest `guess` (several fit with
+ * few satellites); `guess` without satellites or when none fits (e.g. another energy multiplier).
+ */
+export function tempFromEnergy(levels: Record<string, number>, research: Record<string, number>, energy: number, guess: number): number {
+  const sats = levels[SOLAR_SATELLITE] ?? 0;
+  if (sats <= 0) return guess;
+  const energyAt = (temp: number) => productionOf({ levels, research, temp, resourceSpeed: 1 }).energy;
+  const withoutSats = productionOf({ levels: { ...levels, [SOLAR_SATELLITE]: 0 }, research, temp: guess, resourceSpeed: 1 }).energy;
+  const center = Math.round(((energy - withoutSats) * 6) / sats - 160);
+  const spread = Math.ceil(6 / sats) + 1;
+  let best: number | null = null;
+  for (let t = center - spread; t <= center + spread; t++) {
+    if (t < TEMP_RANGE[0] || t > TEMP_RANGE[1]) continue;
+    if (energyAt(t) === energy && (best == null || Math.abs(t - guess) < Math.abs(best - guess))) best = t;
+  }
+  return best ?? guess;
 }
 
 /** A fleet save seen by several reports: departure narrowed to what all of them allow. */

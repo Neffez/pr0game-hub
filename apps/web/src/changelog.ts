@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fleetsave aus Spionageberichten: Bei Planeten mit Solarsatelliten wird die Temperatur jetzt aus der Energie im Bericht bestimmt. Die Prüfung, ob seit dem Abflug Deuterium verbraucht wurde, ist dadurch genauer.',
+        en: 'Fleet save from spy reports: for planets with solar satellites the temperature now comes from the energy in the report. The check whether deuterium was used since the departure is more accurate.',
+      },
+      {
+        kind: 'fix',
         de: 'Fleetsave aus Spionageberichten: Die Rückrechnung nimmt jetzt die Energie aus dem Bericht. Bei Planeten mit Energiemangel und Solarsatelliten lag die berechnete Abflugzeit vorher teils daneben.',
         en: 'Fleet save from spy reports: the calculation now uses the energy shown in the report. For planets short of energy with solar satellites, the departure time was sometimes off before.',
       },
