@@ -1868,6 +1868,11 @@ describe('plausibility of pasted pages', () => {
     expect(foreignRecords(db, me, [message(3, 4), message(5, 3)])).toBe(false);
     expect(foreignRecords(db, me, [message(4, 5), message(6, 7)])).toBe(true);
     expect(foreignRecords(db, me, [message(4, 5)])).toBe(false);
+    // received messages hide the recipient line (the viewer is the only recipient): only the sender is named, which
+    // says nothing about the member's planets (several of them in a row were taken for another universe)
+    const received = (from: number) => ({ ...message(from, 0), to: [] });
+    expect(foreignRecords(db, me, [received(4), received(6)])).toBe(false);
+    expect(foreignRecords(db, me, [received(4), received(6), message(4, 5), message(6, 7)])).toBe(true);
     db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(groupP);
 
     // battle hall (not the all-time list) and combat reports: names the group mostly doesn't know

@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-27
+
+- Messages page: player messages you received are no longer taken for a page of another universe. The game hides the
+  recipient line of a message when you are its only recipient, so such a message names just its sender; the
+  plausibility check counted that as "none of your planets involved", and two or more of them in a sync (e.g. the
+  "all messages" tab) were refused as `wrong_universe`. Received messages without recipients are not judged any more;
+  messages between other players still are.
+
 ## 2026-11-26
 
 - Build order timeline: a step that costs more than the storage holds now waits for the transports of the build order

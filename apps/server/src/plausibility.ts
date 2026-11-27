@@ -25,7 +25,8 @@ export interface PlausibilityTarget {
  *   there, for most compared planets;
  * - the member's own planets (overview, buildings page, own fleets, target of hostile espionage, empire page) belonging to other
  *   players, or an empire page sharing no planet with the member's stored ones (the home planet can't be given up);
- * - player messages mostly without any of the member's planets among sender and recipients;
+ * - player messages mostly without any of the member's planets among sender and recipients (received messages
+ *   without a recipient line, where the viewer is the only recipient, are not judged);
  * - names the group mostly doesn't know (statistics, battle hall of a day/week/month, combat reports, other fleets).
  * Young groups and short pages are not judged; one contradicting report alone never counts. Battle, expedition and
  * recycling reports name no players and pass on their own.
@@ -48,7 +49,9 @@ export function foreignRecords(db: DB, target: PlausibilityTarget, records: HubR
         ctx.own(r.targetCoords);
         break;
       case 'playerMessage':
-        ctx.ownMessage([r.from, ...r.to].flatMap((p) => (p.coords ? [p.coords] : [])));
+        // the game hides the recipient line when the viewer is the only recipient: such a received message names just
+        // its sender, which says nothing about the viewer's planets and must not count as one of another universe
+        if (r.to.length) ctx.ownMessage([r.from, ...r.to].flatMap((p) => (p.coords ? [p.coords] : [])));
         break;
       case 'overview':
         if (r.current) ctx.own(r.current.coords);

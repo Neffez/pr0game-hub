@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-27',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Nachrichten synchronisieren: Spielernachrichten, die du erhalten hast, wurden manchmal fälschlich als „Seite aus einem anderen Universum“ abgelehnt, wenn mehrere davon auf einer Seite standen. Das passiert nicht mehr.',
+        en: 'Syncing messages: player messages you received were sometimes wrongly refused as "page from another universe" when several of them were on one page. That no longer happens.',
+      },
+    ],
+  },
+  {
     date: '2026-11-26',
     items: [
       {
