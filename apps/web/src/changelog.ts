@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Aktivitätsmuster: Angriffe von Spielern der eigenen Allianz zählen nur noch als Aktivität, wenn der Kampf in der Ruhmeshalle steht. Ein Fleetsave auf einen Inaktiven, der nachts im Schlaf einschlägt, macht niemanden mehr nachts aktiv.',
+        en: 'Activity pattern: attacks by players of your own alliance now only count as activity when the battle is in the battle hall. A fleet save on an inactive that hits at night while asleep no longer makes anyone look active at night.',
+      },
+      {
+        kind: 'fix',
         de: 'Nachrichten synchronisieren: Spielernachrichten, die du erhalten hast, wurden manchmal fälschlich als „Seite aus einem anderen Universum“ abgelehnt, wenn mehrere davon auf einer Seite standen. Das passiert nicht mehr.',
         en: 'Syncing messages: player messages you received were sometimes wrongly refused as "page from another universe" when several of them were on one page. That no longer happens.',
       },

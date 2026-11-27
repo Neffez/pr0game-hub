@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-27
 
+- Activity pattern: an attack of a player of the own alliance (the members' players and their in-game alliances)
+  counts as activity only when the battle is in the battle hall. Members sync the reports of their attacks, also
+  those of fleet saves on inactives that hit at night while they sleep, so those reports said nothing about being
+  online. Attacks by foreign players still count from every report.
 - Messages page: player messages you received are no longer taken for a page of another universe. The game hides the
   recipient line of a message when you are its only recipient, so such a message names just its sender; the
   plausibility check counted that as "none of your planets involved", and two or more of them in a sync (e.g. the

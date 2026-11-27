@@ -135,6 +135,32 @@ describe('player activity', () => {
     expect(sources(await activity(carol))).toContain('message');
   });
 
+  it("counts a member's attacks only from the battle hall (fleet saves on inactives hit while they sleep)", async () => {
+    const t = now();
+    const report = db.prepare(
+      `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets)
+       VALUES (?, ?, ?, 'attacker', 1, 0, 0, 0, 0, '[[0,"Alpha",[]],[1,"Inaktiv",[]]]')`,
+    );
+    report.run(groupA, 'fs1', t - 4 * 3600);
+    report.run(groupA, 'fs2', t - 5 * 3600);
+    db.prepare("INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, units) VALUES (?, 'fs2', ?, '[\"Alpha\"]', '[\"Inaktiv\"]', 1)")
+      .run(groupA, t - 5 * 3600);
+    const attacks = async () => (await activity()).filter((e) => e.source === 'attack').map((e) => e.time).sort();
+    // a foreign attacker: every report counts
+    expect(await attacks()).toEqual(expect.arrayContaining([t - 5 * 3600, t - 4 * 3600]));
+    // Alpha a member's player: only the report in the battle hall
+    db.prepare("UPDATE group_members SET ingame_name = 'Alpha' WHERE group_id = ? AND user_id <> ?").run(groupA, carolId);
+    try {
+      const own = await attacks();
+      expect(own).toContain(t - 5 * 3600);
+      expect(own).not.toContain(t - 4 * 3600);
+    } finally {
+      db.prepare('UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id <> ?').run(groupA, carolId);
+      db.prepare("DELETE FROM battle_hall WHERE report_id = 'fs2'").run();
+      db.prepare("DELETE FROM combat_reports WHERE report_id IN ('fs1', 'fs2')").run();
+    }
+  });
+
   it('keeps a galaxy mark when the spy report is after the galaxy sync', async () => {
     const sync = now() - 3600;
     const spyAfter = sync + 20 * 60;

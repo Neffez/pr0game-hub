@@ -4,7 +4,7 @@ import { fleetSavesBetween } from './fleetSave.js';
 import { DISPLAY } from './sql.js';
 import type { StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
-import { memberPlayers } from './members.js';
+import { alliance, memberPlayers } from './members.js';
 import { SHARED } from './messages.js';
 
 /**
@@ -268,20 +268,26 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     exact(time, 'spy');
   }
 
-  // battles: attackers were online; defenders when help came (more than one defending fleet)
-  const battle = (time: number, attackers: string[], defenders: string[]) => {
-    if (attackers.some((n) => lower.has(n.toLowerCase()))) exact(time, 'attack');
-    else if (defenders.length > 1 && defenders.some((n) => lower.has(n.toLowerCase()))) exact(time, 'defense');
+  // battles: attackers were online, unless it was a fleet save on an inactive: members (and their alliance) sync the
+  // reports of their attacks, also those that hit while they slept, so their attacks count only from the battle hall;
+  // a foreign attacker's report comes from the member hit. Defenders count when help came (more than one defending fleet).
+  const own = alliance(db, ctx).names;
+  const ownPlayer = [...lower].some((n) => own.has(n));
+  const battle = (time: number, attackers: string[], defenders: string[], inHall: boolean) => {
+    if (attackers.some((n) => lower.has(n.toLowerCase()))) {
+      if (inHall || !ownPlayer) exact(time, 'attack');
+    } else if (defenders.length > 1 && defenders.some((n) => lower.has(n.toLowerCase()))) exact(time, 'defense');
   };
   const reports = db
     .prepare(
-      `SELECT time, fleets FROM combat_reports cr WHERE group_id = ? AND time >= ?
+      `SELECT time, fleets, EXISTS (SELECT 1 FROM battle_hall bh WHERE bh.group_id = cr.group_id AND bh.report_id = cr.report_id) AS hall
+       FROM combat_reports cr WHERE group_id = ? AND time >= ?
          AND EXISTS (SELECT 1 FROM json_each(cr.fleets) f WHERE json_extract(f.value, '$[1]') COLLATE NOCASE IN (SELECT value FROM json_each(?)))`,
     )
-    .all(ctx.groupId, from, names) as { time: number; fleets: string }[];
+    .all(ctx.groupId, from, names) as { time: number; fleets: string; hall: number }[];
   for (const r of reports) {
     const fleets = JSON.parse(r.fleets) as [number, string][];
-    battle(r.time, fleets.filter((f) => f[0] === 0).map((f) => f[1]), fleets.filter((f) => f[0] === 1).map((f) => f[1]));
+    battle(r.time, fleets.filter((f) => f[0] === 0).map((f) => f[1]), fleets.filter((f) => f[0] === 1).map((f) => f[1]), r.hall === 1);
   }
   // battle hall entries whose report is not archived
   const hall = db
@@ -292,7 +298,7 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
            OR EXISTS (SELECT 1 FROM json_each(bh.defenders) d WHERE d.value COLLATE NOCASE IN (SELECT value FROM json_each(?))))`,
     )
     .all(ctx.groupId, from, names, names) as { time: number; attackers: string; defenders: string }[];
-  for (const h of hall) battle(h.time, JSON.parse(h.attackers), JSON.parse(h.defenders));
+  for (const h of hall) battle(h.time, JSON.parse(h.attackers), JSON.parse(h.defenders), true);
 
   // messages the player sent, as far as the viewer may see them
   for (const time of db
