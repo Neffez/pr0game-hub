@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-28
 
+- The imperator badge gets the days it missed back: a data migration credits every day with a counted empire sync
+  (the recap's sync count) that has no empire credit yet.
 - Own pages synced every few minutes earn their credits again: an own page (empire, overview, buildings, research)
   counts at most once an hour, measured from the page that counted last (the credit's `last_at`, set from the page
   time) instead of the page stored last. Syncing the empire every few minutes around the clock never left an hour
