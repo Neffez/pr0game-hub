@@ -26,7 +26,11 @@ export interface SyncImpact {
 
 type OwnPage = 'empire' | 'overview' | 'buildings' | 'research';
 
-/** An own page at most this much newer than the stored one is no news (the same page pasted again). */
+/**
+ * An own page without the game's clock (pasted text: its time is the time of the sync) at most this much newer than
+ * the stored one is no news (the same page pasted again). A page with the game's clock is news whenever it is newer:
+ * a script that syncs the page every few minutes around the clock never leaves an hour between two of them.
+ */
 const OWN_FRESH = 3600;
 
 /**
@@ -93,9 +97,11 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
   );
 
   // own pages: their previous time and the time of the pasted page, when the member synced them for themselves
-  const own: { page: OwnPage; before: number | null; time: number; keys?: string[] }[] = [];
+  const own: { page: OwnPage; before: number | null; time: number; exact: boolean; keys?: string[] }[] = [];
   const pageTime = (local: string | null | undefined) => epoch(local ?? null) ?? now();
   const newest = (times: number[]) => Math.max(...times);
+  /** every page of the sync carries the game's clock */
+  const exact = (list: { pageTime?: string | null }[]) => list.every((r) => r.pageTime != null);
   if (target.syncedBy == null) {
     const maxOf = (sql: string, ...args: unknown[]) => (db.prepare(sql).pluck().get(...args) as number | null) ?? null;
     const empires = of('empire');
@@ -104,10 +110,11 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
         page: 'empire',
         before: maxOf('SELECT MAX(created_at) FROM empire_snapshots WHERE group_id = ? AND user_id = ?', g, target.userId),
         time: newest(empires.map((r) => pageTime(r.pageTime))),
+        exact: exact(empires),
       });
     }
     const overviews = [...of('overview'), ...of('fleets')];
-    if (overviews.length) own.push({ page: 'overview', before: overviewTime(db, g, target.userId), time: newest(overviews.map((r) => pageTime(r.pageTime))) });
+    if (overviews.length) own.push({ page: 'overview', before: overviewTime(db, g, target.userId), time: newest(overviews.map((r) => pageTime(r.pageTime))), exact: exact(overviews) });
     for (const [page, table, list] of [
       ['buildings', 'building_snapshots', of('buildings')],
       ['research', 'research_snapshots', of('research')],
@@ -118,7 +125,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
         maxOf(`SELECT MAX(page_time) FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?`, g, target.userId, r.coords.g, r.coords.s, r.coords.p, r.type),
       );
       own.push({
-        page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))),
+        page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))), exact: exact(list),
         keys: list.map((r) => `${r.coords.g}:${r.coords.s}:${r.coords.p}:${r.type}`),
       });
     }
@@ -180,7 +187,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       if (x.first) credits.push({ kind: 'statsFirst', key: String(x.update) });
     }
 
-    const newerOwn = own.filter((x) => x.before == null || x.time - x.before > OWN_FRESH);
+    const newerOwn = own.filter((x) => x.before == null || x.time - x.before > (x.exact ? 0 : OWN_FRESH));
     if (newerOwn.length) impact.own = newerOwn.map(({ page, before }) => ({ page, before }));
     for (const x of newerOwn) for (const key of x.keys ?? ['']) credits.push({ kind: x.page, key });
     if (target.syncedBy == null && of('marketplace').length) credits.push({ kind: 'market' });

@@ -103,6 +103,26 @@ describe('impact of a sync', () => {
     expect(old.own[0].page).toBe('empire');
     expect(old.own[0].before).toBeLessThan(Date.now() / 1000 - 3 * DAY + 60);
   });
+
+  it('counts an own page with the game clock that is only minutes newer (a script syncing it around the clock)', async () => {
+    const html = fixture('empire-real-source.html');
+    // the page minutes ago on the game's clock (the universe's time zone, month 0-based like the page's script)
+    const at = (minutes: number) => {
+      const p = Object.fromEntries(
+        new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
+          .formatToParts(new Date(Date.now() - minutes * 60_000))
+          .map((x) => [x.type, Number(x.value)]),
+      );
+      const page = html.replace(/serverTimeDelta\s*=\s*new Date\([^)]*\)/, `serverTimeDelta = new Date(${p.year}, ${p.month - 1}, ${p.day}, ${p.hour}, ${p.minute}, ${p.second})`);
+      expect(page).not.toBe(html);
+      return { html: page };
+    };
+    db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(group);
+    expect((await sync(at(20))).impact.own).toEqual([{ page: 'empire', before: null }]);
+    // the same page again is no news, one ten minutes newer is
+    expect((await sync(at(20))).impact.own).toBeUndefined();
+    expect((await sync(at(10))).impact.own).toEqual([{ page: 'empire', before: expect.any(Number) }]);
+  });
 });
 
 describe('contributors of a page', () => {

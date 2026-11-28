@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-28',
     items: [
       {
+        kind: 'fix',
+        de: 'Abzeichen Imperator: Wer das Imperium sehr oft synchronisiert (z. B. alle paar Minuten per Skript), bekommt seinen Tag mit neuem Imperium jetzt wieder gutgeschrieben, ebenso die Ranglistenpunkte dafür. Bisher zählte ein Imperium nur, wenn seit dem letzten mehr als eine Stunde vergangen war.',
+        en: 'Imperator badge: if you sync your empire very often (e.g. every few minutes by script), your day with a new empire is credited again, as are its ranking points. Until now an empire only counted when more than an hour had passed since the previous one.',
+      },
+      {
         kind: 'new',
         de: 'Catch-up-Bonus nahe am Rekord: Das Spiel gibt weniger Bonus, je näher ein Gebäude oder eine Forschung der Rekordstufe im Universum kommt. Kosten und Bauzeiten im Hub (Gebäude, Forschung, Bauliste, Auto-Plan, Ausbauberater) rechnen das jetzt mit. Die Rekorde kennt der Hub aus der Rekorde-Seite, die du jetzt synchronisieren kannst, und aus den Kosten deiner Gebäude- und Forschungsseiten.',
         en: 'Catch-up bonus near the record: the game gives less bonus the closer a building or research gets to the record level of the universe. Costs and build times in the hub (buildings, research, build order, auto plan, upgrade advisor) now take this into account. The hub knows the records from the records page, which you can now sync, and from the costs on your buildings and research pages.',
