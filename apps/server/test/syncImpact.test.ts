@@ -99,12 +99,13 @@ describe('impact of a sync', () => {
     // the same page within the hour is no news
     expect((await sync({ html: fixture('empire.html') })).impact.own).toBeUndefined();
     db.prepare('UPDATE empire_snapshots SET created_at = created_at - ? WHERE group_id = ?').run(3 * DAY, group);
+    db.prepare("UPDATE sync_credits SET last_at = last_at - ? WHERE group_id = ? AND kind = 'empire'").run(3 * DAY, group);
     const old = (await sync({ html: fixture('empire.html') })).impact;
     expect(old.own[0].page).toBe('empire');
     expect(old.own[0].before).toBeLessThan(Date.now() / 1000 - 3 * DAY + 60);
   });
 
-  it('counts an own page with the game clock that is only minutes newer (a script syncing it around the clock)', async () => {
+  it('counts an own page once an hour after the one that counted last (a script syncing it every few minutes)', async () => {
     const html = fixture('empire-real-source.html');
     // the page minutes ago on the game's clock (the universe's time zone, month 0-based like the page's script)
     const at = (minutes: number) => {
@@ -118,10 +119,17 @@ describe('impact of a sync', () => {
       return { html: page };
     };
     db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(group);
-    expect((await sync(at(20))).impact.own).toEqual([{ page: 'empire', before: null }]);
-    // the same page again is no news, one ten minutes newer is
-    expect((await sync(at(20))).impact.own).toBeUndefined();
-    expect((await sync(at(10))).impact.own).toEqual([{ page: 'empire', before: expect.any(Number) }]);
+    db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'empire'").run(group);
+    const own = async (minutes: number) => (await sync(at(minutes))).impact.own;
+    expect(await own(90)).toEqual([{ page: 'empire', before: null }]);
+    // every few minutes: the same page and newer ones within the hour are no news
+    expect(await own(90)).toBeUndefined();
+    for (const m of [80, 70, 60, 50, 40, 31]) expect(await own(m)).toBeUndefined();
+    // an hour after the one that counted: news again, although the stored page is only minutes old
+    expect(await own(28)).toEqual([{ page: 'empire', before: expect.any(Number) }]);
+    expect(await own(20)).toBeUndefined();
+    const lastAt = db.prepare("SELECT MAX(last_at) FROM sync_credits WHERE group_id = ? AND kind = 'empire'").pluck().get(group) as number;
+    expect(Math.abs(lastAt - (Date.now() / 1000 - 28 * 60))).toBeLessThan(5);
   });
 });
 

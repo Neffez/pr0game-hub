@@ -27,9 +27,9 @@ export interface SyncImpact {
 type OwnPage = 'empire' | 'overview' | 'buildings' | 'research';
 
 /**
- * An own page without the game's clock (pasted text: its time is the time of the sync) at most this much newer than
- * the stored one is no news (the same page pasted again). A page with the game's clock is news whenever it is newer:
- * a script that syncs the page every few minutes around the clock never leaves an hour between two of them.
+ * An own page counts at most once in this time: it has to be this much newer than the page that counted last (the
+ * same page pasted again is no news). Measured from the last counted page, not the last stored one: a script that
+ * syncs the page every few minutes around the clock never leaves an hour between two stored pages.
  */
 const OWN_FRESH = 3600;
 
@@ -97,24 +97,29 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
   );
 
   // own pages: their previous time and the time of the pasted page, when the member synced them for themselves
-  const own: { page: OwnPage; before: number | null; time: number; exact: boolean; keys?: string[] }[] = [];
+  const own: { page: OwnPage; before: number | null; counted: number | null; time: number; keys?: string[] }[] = [];
   const pageTime = (local: string | null | undefined) => epoch(local ?? null) ?? now();
   const newest = (times: number[]) => Math.max(...times);
-  /** every page of the sync carries the game's clock */
-  const exact = (list: { pageTime?: string | null }[]) => list.every((r) => r.pageTime != null);
   if (target.syncedBy == null) {
     const maxOf = (sql: string, ...args: unknown[]) => (db.prepare(sql).pluck().get(...args) as number | null) ?? null;
+    /** time of the page that counted last (its credit's `last_at`), per key; several keys: the oldest, null if one never counted */
+    const countedOf = (page: OwnPage, keys: string[]) => {
+      const times = keys.map((key) => maxOf('SELECT MAX(last_at) FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = ? AND key = ?', g, target.userId, page, key));
+      return times.includes(null) ? null : Math.min(...(times as number[]));
+    };
     const empires = of('empire');
     if (empires.length) {
       own.push({
         page: 'empire',
         before: maxOf('SELECT MAX(created_at) FROM empire_snapshots WHERE group_id = ? AND user_id = ?', g, target.userId),
+        counted: countedOf('empire', ['']),
         time: newest(empires.map((r) => pageTime(r.pageTime))),
-        exact: exact(empires),
       });
     }
     const overviews = [...of('overview'), ...of('fleets')];
-    if (overviews.length) own.push({ page: 'overview', before: overviewTime(db, g, target.userId), time: newest(overviews.map((r) => pageTime(r.pageTime))), exact: exact(overviews) });
+    if (overviews.length) {
+      own.push({ page: 'overview', before: overviewTime(db, g, target.userId), counted: countedOf('overview', ['']), time: newest(overviews.map((r) => pageTime(r.pageTime))) });
+    }
     for (const [page, table, list] of [
       ['buildings', 'building_snapshots', of('buildings')],
       ['research', 'research_snapshots', of('research')],
@@ -124,9 +129,9 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       const times = list.map((r) =>
         maxOf(`SELECT MAX(page_time) FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?`, g, target.userId, r.coords.g, r.coords.s, r.coords.p, r.type),
       );
+      const keys = list.map((r) => `${r.coords.g}:${r.coords.s}:${r.coords.p}:${r.type}`);
       own.push({
-        page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))), exact: exact(list),
-        keys: list.map((r) => `${r.coords.g}:${r.coords.s}:${r.coords.p}:${r.type}`),
+        page, before: times.includes(null) ? null : Math.min(...(times as number[])), counted: countedOf(page, keys), time: newest(list.map((r) => pageTime(r.pageTime))), keys,
       });
     }
   }
@@ -187,9 +192,10 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       if (x.first) credits.push({ kind: 'statsFirst', key: String(x.update) });
     }
 
-    const newerOwn = own.filter((x) => x.before == null || x.time - x.before > (x.exact ? 0 : OWN_FRESH));
+    // newer than the stored page and an hour after the one that counted last (none counted with a time yet: it counts)
+    const newerOwn = own.filter((x) => (x.before == null || x.time > x.before) && (x.counted == null || x.time - x.counted >= OWN_FRESH));
     if (newerOwn.length) impact.own = newerOwn.map(({ page, before }) => ({ page, before }));
-    for (const x of newerOwn) for (const key of x.keys ?? ['']) credits.push({ kind: x.page, key });
+    for (const x of newerOwn) for (const key of x.keys ?? ['']) credits.push({ kind: x.page, key, at: x.time });
     if (target.syncedBy == null && of('marketplace').length) credits.push({ kind: 'market' });
 
     const hintsAfter = hintsBefore && tryHints();

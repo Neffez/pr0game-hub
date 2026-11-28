@@ -5,10 +5,11 @@ Every commit adds its changes here, newest first, grouped by date.
 ## 2026-11-28
 
 - Own pages synced every few minutes earn their credits again: an own page (empire, overview, buildings, research)
-  with the game's clock in its source counts as news whenever it is newer than the stored one; the one-hour gap now
-  applies to pasted text only (its time is the time of the sync). A script syncing the empire around the clock never
-  left an hour between two pages, so the imperator badge, the empire's ranking points and the sync feedback stopped
-  counting after the first day.
+  counts at most once an hour, measured from the page that counted last (the credit's `last_at`, set from the page
+  time) instead of the page stored last. Syncing the empire every few minutes around the clock never left an hour
+  between two stored pages, so the imperator badge, the empire's ranking points and the sync feedback stopped
+  counting after the first day. (Replaces the earlier change of today that counted pages with the game's clock
+  whenever they were newer.)
 - Catch-up bonus near record levels: the game now gives less of the bonus for a building or research close to its
   record level in the universe (`getCatchUpFactorForElement`: the full bonus 3 or more levels below the record, two
   thirds 2 levels below, one third 1 level below, none at or above it; no bonus for an element nobody has built).

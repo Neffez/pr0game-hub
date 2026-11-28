@@ -22,6 +22,8 @@ export interface Credit {
   key?: string;
   /** units of a weekly kind (default 1), capped by its weekly maximum */
   count?: number;
+  /** time of the page that earned it (own pages: they count again an hour after it), kept as the credit's `last_at` */
+  at?: number;
 }
 
 /** Points per unit in the ranking: what a single copy is worth to the alliance, galaxy and spy reports first. */
@@ -73,7 +75,10 @@ export const WEEKLY: Partial<Record<CreditKind, number>> = { universe: 100 };
  * its count up to what the week still allows.
  */
 export function addCredits(db: DB, groupId: number, userId: number, day: string, credits: Credit[]) {
-  const put = db.prepare('INSERT OR IGNORE INTO sync_credits (group_id, user_id, day, kind, key) VALUES (?, ?, ?, ?, ?)');
+  // a unit credited again that day keeps its credit, only the time of its newest page moves on
+  const put = db.prepare(
+    'INSERT INTO sync_credits (group_id, user_id, day, kind, key, last_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET last_at = COALESCE(excluded.last_at, last_at)',
+  );
   const add = db.prepare(
     "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, ?, '', ?) ON CONFLICT DO UPDATE SET count = count + excluded.count",
   );
@@ -82,7 +87,7 @@ export function addCredits(db: DB, groupId: number, userId: number, day: string,
   for (const c of credits) {
     const max = WEEKLY[c.kind];
     if (max == null) {
-      put.run(groupId, userId, day, c.kind, c.key ?? '');
+      put.run(groupId, userId, day, c.kind, c.key ?? '', c.at ?? null);
       continue;
     }
     const n = Math.min(c.count ?? 1, max - (inWeek.get(groupId, userId, c.kind, from, day) as number));
