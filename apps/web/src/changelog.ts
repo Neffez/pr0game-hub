@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
-        de: 'Abzeichen Imperator: Wer das Imperium sehr oft synchronisiert, bekommt seinen Tag mit neuem Imperium jetzt wieder gutgeschrieben, ebenso die Ranglistenpunkte dafür. Ein Imperium zählt höchstens einmal pro Stunde, gerechnet ab dem letzten, das gezählt hat. Bisher musste seit dem zuletzt synchronisierten Imperium eine Stunde vergangen sein, bei häufigem Synchronisieren also nie. Das gilt genauso für Übersicht, Gebäude und Forschung.',
-        en: 'Imperator badge: if you sync your empire very often, your day with a new empire is credited again, as are its ranking points. An empire counts at most once an hour, from the last one that counted. Until now an hour had to pass since the last synced empire, which never happened when syncing often. The same applies to the overview, buildings and research.',
+        de: 'Abzeichen Imperator: Wer das Imperium sehr oft synchronisiert, bekommt seinen Tag mit neuem Imperium jetzt wieder gutgeschrieben, ebenso die Ranglistenpunkte dafür. Ein Imperium zählt höchstens einmal pro Stunde, gerechnet ab dem letzten, das gezählt hat. Bisher musste seit dem zuletzt synchronisierten Imperium eine Stunde vergangen sein, bei häufigem Synchronisieren also nie. Das gilt genauso für Übersicht, Gebäude und Forschung. Die verpassten Tage mit neuem Imperium werden nachgetragen.',
+        en: 'Imperator badge: if you sync your empire very often, your day with a new empire is credited again, as are its ranking points. An empire counts at most once an hour, from the last one that counted. Until now an hour had to pass since the last synced empire, which never happened when syncing often. The same applies to the overview, buildings and research. The missed days with a new empire are credited back.',
       },
       {
         kind: 'new',

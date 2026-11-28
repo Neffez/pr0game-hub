@@ -90,6 +90,27 @@ describe('data migrations', () => {
     db.close();
   });
 
+  it('credits the imperator badge back for every day with a counted empire sync', () => {
+    const db = openDb(join(dir, 'imperator.db'));
+    db.prepare("INSERT INTO universes (slug, name, settings) VALUES ('u1', 'U1', '{}')").run();
+    const uni = db.prepare("SELECT id FROM universes WHERE slug = 'u1'").pluck().get();
+    const group = Number(db.prepare("INSERT INTO groups (universe_id, name) VALUES (?, 'A')").run(uni).lastInsertRowid);
+    const user = Number(db.prepare("INSERT INTO users (username, password_hash) VALUES ('ares', 'x')").run().lastInsertRowid);
+    const put = db.prepare('INSERT INTO sync_credits (group_id, user_id, day, kind, key, count, last_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    // days with empire syncs (several a day); only the first one was credited, the 20th by an earlier page
+    for (const day of ['2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21']) put.run(group, user, day, 'sync', 'empire', 12, 1);
+    put.run(group, user, '2026-11-18', 'empire', '', 1, 7);
+    put.run(group, user, '2026-11-22', 'sync', 'overview', 3, 1);
+    db.exec(readFileSync(new URL('../migrations/105_imperator_backfill.sql', import.meta.url), 'utf8'));
+    expect(db.prepare("SELECT day, count, last_at FROM sync_credits WHERE kind = 'empire' ORDER BY day").all()).toEqual([
+      { day: '2026-11-18', count: 1, last_at: 7 },
+      { day: '2026-11-19', count: 1, last_at: null },
+      { day: '2026-11-20', count: 1, last_at: null },
+      { day: '2026-11-21', count: 1, last_at: null },
+    ]);
+    db.close();
+  });
+
   it('drops stored universe settings that are no setting, and keeps the rest', () => {
     const file = join(dir, 'settings.db');
     let db = openDb(file);
