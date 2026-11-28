@@ -7,7 +7,7 @@
  * the advice starts from the levels after the build queue, the scaling compares at the levels the pages showed.
  */
 
-import { buildingCost, BUILDINGS, requirementsOf, RESEARCH } from './buildings.js';
+import { buildingCost, BUILDINGS, requirementsOf, RESEARCH, type CatchUpRecords } from './buildings.js';
 import {
   calibrate, CRYSTAL_MINE, DEUTERIUM_SYNTHESIZER, ENERGY_TECH, FUSION_REACTOR, METAL_MINE, productionOf, SOLAR_PLANT, SOLAR_SATELLITE,
   type Production,
@@ -50,6 +50,8 @@ export interface AdvisorInput {
   rate?: ValueRate | null;
   /** catch-up bonus in percent (lowers building and research costs) */
   catchUp?: number;
+  /** record levels of the universe: less of the bonus near them (`catchUpAt`) */
+  records?: CatchUpRecords | null;
 }
 
 export type AdviceKind = 'building' | 'research' | 'satellites';
@@ -99,6 +101,7 @@ export const valueOf = (r: Record<number, number>, rate: ValueRate = DEFAULT_RAT
 export function upgradeAdvice(i: AdvisorInput): Advice[] {
   const rate = i.rate && i.rate.m > 0 && i.rate.k > 0 ? i.rate : DEFAULT_RATE;
   const catchUp = i.catchUp ?? 0;
+  const records = i.records ?? {};
   const out: Advice[] = [];
   const prod = (p: AdvisorPlanet, levels: Record<string, number>, research: Record<string, number>): Production =>
     productionOf({ levels, research, temp: p.temp, factors: p.factors ?? undefined, resourceSpeed: i.resourceSpeed, energySpeed: i.energySpeed });
@@ -133,7 +136,7 @@ export function upgradeAdvice(i: AdvisorInput): Advice[] {
     // several levels of one building (energy gap): every level's cost
     let cost: Record<number, number> = {};
     const from = s.kind === 'research' ? (i.research[s.element] ?? 0) : (levels[s.element] ?? 0);
-    for (let l = from + 1; l <= s.level; l++) cost = add(cost, buildingCost(s.element, l, catchUp));
+    for (let l = from + 1; l <= s.level; l++) cost = add(cost, buildingCost(s.element, l, catchUp, records[s.element]));
     return cost;
   };
   const withStep = (levels: Record<string, number>, s: AdviceStep) =>
@@ -206,7 +209,7 @@ export function upgradeAdvice(i: AdvisorInput): Advice[] {
     const research = { ...i.research, [id]: level };
     let gain: Record<number, number> = {};
     for (const b of base) gain = add(gain, delta(b, prod(b.p, b.p.levels, research)));
-    push(null, { kind: 'research', element: id, level }, [], buildingCost(id, level, catchUp), gain);
+    push(null, { kind: 'research', element: id, level }, [], buildingCost(id, level, catchUp, records[id]), gain);
   }
 
   return out.sort((a, b) => a.payback - b.payback);

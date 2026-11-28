@@ -101,12 +101,12 @@ const list = computed<BuildingInfo[]>(() => {
   if (!p || !d || tab.value === 'ships') return [];
   if (tab.value === 'research') {
     return researchOf(p.planet, {
-      research: d.research, queue: d.researchQueue, otherLabs: otherLabs.value, catchUp: d.catchUp, researchSpeed: d.researchSpeed,
+      research: d.research, queue: d.researchQueue, otherLabs: otherLabs.value, catchUp: d.catchUp, records: d.catchUpRecords, researchSpeed: d.researchSpeed,
       universityFactor: d.universityFactor, storageFactor: d.storageFactor, arrivals: p.arrivals, now: slow.value, shown: p.shownResearch ?? undefined,
     });
   }
   return buildingsOf(p.planet, {
-    research: d.research, catchUp: d.catchUp, buildingSpeed: d.buildingSpeed, storageFactor: d.storageFactor,
+    research: d.research, catchUp: d.catchUp, records: d.catchUpRecords, buildingSpeed: d.buildingSpeed, storageFactor: d.storageFactor,
     arrivals: p.arrivals, now: slow.value, shown: p.shown ?? undefined,
   });
 });

@@ -1,4 +1,4 @@
-import { levelAfter, type Arrival, type BuildPlanet } from '@pr0hub/core/buildings';
+import { levelAfter, type Arrival, type BuildPlanet, type CatchUpRecords } from '@pr0hub/core/buildings';
 import type { Pr0planImport } from './pr0plan.js';
 import { fixedOf, type Base, type BuildOrder, type Step, type TransportSettings } from './types.js';
 
@@ -29,6 +29,8 @@ export interface HubState {
   resourceSpeed: number | null;
   universityFactor: number;
   catchUp: number | null;
+  /** record levels of the universe: less of the catch-up bonus near them (`catchUpAt`); none known: the full bonus */
+  catchUpRecords?: CatchUpRecords | null;
   storageFactor: number;
   /**
    * own colonizations on their way (colony ships flying out to a free position): where, when they land and their

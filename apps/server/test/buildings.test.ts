@@ -353,6 +353,33 @@ describe('buildings page', () => {
     expect(state.catchUp).toBeCloseTo((50 / 9) * (10 * 0.9747 ** 50 - 1), 8);
   });
 
+  it('keeps the record levels of the universe from the records page and the costs of buildings pages', async () => {
+    const { noteRecordHints } = await import('../src/repo/catchUpRecords.js');
+    // the real buildings page (full bonus everywhere) only tells lower bounds: no record to reckon with
+    const bounds = db.prepare('SELECT element_id, min_level, max_level FROM catchup_records WHERE group_id = ? AND element_id = 1').get(group);
+    expect(bounds).toEqual({ element_id: 1, min_level: 29, max_level: null });
+    expect((await call('GET', '/u8/buildings', h.dave)).json().catchUpRecords[1]).toBeUndefined();
+
+    const html = readFileSync(new URL('../../../packages/parser/test/fixtures/records-template.html', import.meta.url), 'utf8');
+    expect((await call('POST', '/u8/ingest', h.carol, { html })).json()).toMatchObject({
+      pageType: 'records', counts: { records: { new: 1 } }, preview: [{ kind: 'records', elements: 4 }],
+    });
+    // the universe's records hold for every member; an element nobody has yet gets no bonus (record 0)
+    const state = (await call('GET', '/u8/buildings', h.dave)).json();
+    expect(state.catchUpRecords).toMatchObject({ 1: 32, 15: 5, 41: 0, 108: 21 });
+
+    const at = db.prepare('SELECT updated_at FROM catchup_records WHERE group_id = ? AND element_id = 1').pluck().get(group) as number;
+    // an older page tells nothing new; a newer upper bound narrows it
+    noteRecordHints(db, group, [{ id: 1, min: 30, max: 30 }], at - 3600);
+    noteRecordHints(db, group, [{ id: 15, min: null, max: 4 }], at + 60);
+    // a lower bound above the known record: it grew since, the full bonus until more is known
+    noteRecordHints(db, group, [{ id: 108, min: 24, max: null }], at + 60);
+    const records = (await call('GET', '/u8/buildings', h.dave)).json().catchUpRecords;
+    expect(records).toMatchObject({ 1: 32, 15: 4 });
+    expect(records[108]).toBeUndefined();
+    db.prepare('DELETE FROM catchup_records WHERE group_id = ?').run(group);
+  });
+
   it('takes research levels, queue and the lab lock from a research page and notifies research alerts', async () => {
     const html = readFileSync(new URL('../../../packages/parser/test/fixtures/research.html', import.meta.url), 'utf8');
     expect((await call('POST', '/u8/ingest', h.dave, { html })).json()).toMatchObject({ pageType: 'research', counts: { research: { new: 1 } } });

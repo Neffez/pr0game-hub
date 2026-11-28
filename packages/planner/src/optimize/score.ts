@@ -1,5 +1,5 @@
 import {
-  buildingCost, buildTime, labLevels, NANITE_FACTORY, RESEARCH_LAB, RESEARCH_NETWORK, researchTime, ROBOT_FACTORY, SHIPYARD, shipyardTime, TECHNO_DOME,
+  buildingCost, buildTime, labLevels, NANITE_FACTORY, RESEARCH_LAB, RESEARCH_NETWORK, researchTime, ROBOT_FACTORY, SHIPYARD, shipyardTime, TECHNO_DOME, type CatchUpRecords,
 } from '@pr0hub/core/buildings';
 import { productionOf, SOLAR_PLANT } from '@pr0hub/core/production';
 import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
@@ -33,6 +33,8 @@ export interface Model {
   calibration: Record<number, number>;
   resourceSpeed: number;
   catchUp: number;
+  /** record levels of the universe (`HubState.catchUpRecords`) */
+  records: CatchUpRecords;
   buildingSpeed: number;
   researchSpeed: number;
   shipyardSpeed: number;
@@ -48,7 +50,7 @@ export function modelOf(problem: Problem, state: SimState): Model {
   const hub = problem.hub;
   const buildingSpeed = hub.buildingSpeed ?? 2500;
   return {
-    problem, temp: p.temp, calibration: p.calibration, resourceSpeed: state.resourceSpeed, catchUp: hub.catchUp ?? 0, buildingSpeed,
+    problem, temp: p.temp, calibration: p.calibration, resourceSpeed: state.resourceSpeed, catchUp: hub.catchUp ?? 0, records: hub.catchUpRecords ?? {}, buildingSpeed,
     researchSpeed: hub.researchSpeed ?? 2500, shipyardSpeed: hub.shipyardSpeed ?? buildingSpeed,
     otherLabs: Object.entries(state.planets).filter(([k, x]) => k !== problem.planet && x.type === 'planet').map(([, x]) => x.levels[RESEARCH_LAB] ?? 0),
     cap: { ...p.cap }, storage: Object.fromEntries(RES.map((r) => [r, p.levels[STORAGE[r]] ?? 0])),
@@ -100,7 +102,7 @@ export function costOf(m: Model, v: View, id: number, count = 1): Record<number,
     const unit = buildingCost(id, 1);
     return { 901: (unit[901] ?? 0) * count, 902: (unit[902] ?? 0) * count, 903: (unit[903] ?? 0) * count };
   }
-  return buildingCost(id, levelIn(v, id) + 1, m.catchUp);
+  return buildingCost(id, levelIn(v, id) + 1, m.catchUp, m.records[id]);
 }
 
 /** Seconds to build the next level or `count` units at the planned levels. */
@@ -140,7 +142,7 @@ export function remainingCost(m: Model, v: View): Record<number, number> {
       continue;
     }
     for (let level = have + 1; level <= target; level++) {
-      const c = buildingCost(id, level, m.catchUp);
+      const c = buildingCost(id, level, m.catchUp, m.records[id]);
       for (const r of RES) out[r] += c[r] ?? 0;
     }
   }

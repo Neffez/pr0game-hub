@@ -719,7 +719,7 @@ const en: typeof de = {
     paste: {
       intro: { title: 'Paste a page', text: 'This is how data gets from the game into the hub: copy a page in the game and paste it here. Nothing runs automatically in the game.' },
       copy: { title: 'Copy and paste', text: 'Open the page in the game, press Ctrl+A and Ctrl+C and Ctrl+V here. The hub recognises the page by itself and shows a preview before saving. You can also choose a saved page as a file.' },
-      pages: { title: 'Which pages?', text: 'Statistics (players and alliances), messages (espionage, combat, expedition and recycler reports), galaxy, empire, marketplace, buildings, research, the overview with build queues and fleet movements, and player profiles (home planet and fight statistics for the rank badge: select the table in the popup).' },
+      pages: { title: 'Which pages?', text: 'Statistics (players and alliances), messages (espionage, combat, expedition and recycler reports), galaxy, empire, marketplace, buildings, research, records (for the catch-up bonus), the overview with build queues and fleet movements, and player profiles (home planet and fight statistics for the rank badge: select the table in the popup).' },
       source: { title: 'More exact with the source', text: 'For exact values (costs and build times of the buildings and research pages, exact market rate, remaining times to the second) open the page source with Ctrl+U, copy it and paste it.' },
       hints: { title: 'What next?', text: 'This list shows which of your pages are missing or old and what gets better in the hub with them – the most important first. It updates after every save.' },
       freshness: { title: 'Your freshness', text: 'How up to date your own pages are in the hub, 0 to 100: empire, overview, the galaxy around your planets, buildings pages, messages and research count by their weight and lose with age. Every sync raises it.' },
@@ -2080,7 +2080,7 @@ const en: typeof de = {
       too_short: 'Almost nothing pasted. Select the whole page in the game (Ctrl+A), copy it (Ctrl+C) and paste it here.',
       not_game: 'This does not look like a page of pr0game. Copy the page right in the game, not from a forum or chat.',
       language: 'The page is in {lang} – the hub only reads German and English. Change the language in the game settings and copy the page again.',
-      unsupported_page: 'This is the page "{page}" – the hub does not read it (yet). It reads overview, empire, galaxy, messages, statistics, buildings, research, fleets, marketplace, battle hall, battle reports and player profiles.',
+      unsupported_page: 'This is the page "{page}" – the hub does not read it (yet). It reads overview, empire, galaxy, messages, statistics, buildings, research, fleets, marketplace, battle hall, battle reports, player profiles and records.',
       parse_failed: 'This is the page "{page}", which the hub normally reads, but it found nothing in it. The game may have changed the page – send it to the admins as a sample.',
       unknown_game_page: 'A page of the game, but the hub cannot tell which. Saved as a file (Ctrl+S) or as page source it can usually be told; otherwise send it to the admins as a sample.',
     },
@@ -2198,6 +2198,7 @@ const en: typeof de = {
       playerMessage: 'Message from {from} to {to}: {subject} – {time}',
       marketplace: 'Marketplace – {offers} offers, rate {rate}',
       playerCard: 'Player profile {player} – home planet {planet} {coords}',
+      records: 'Records – {elements} buildings and research',
     },
   },
   stats: {
@@ -3122,6 +3123,7 @@ const en: typeof de = {
       battleHall: 'Battle hall',
       combatReport: 'Combat report',
       playerCard: 'Player profile',
+      records: 'Records',
     },
     fleetAttacks: 'Fleet movements',
     fleetOwnerCol: 'Seen as',

@@ -720,7 +720,7 @@ const de = {
     paste: {
       intro: { title: 'Seite einfügen', text: 'So kommen Daten aus dem Spiel in den Hub: Du kopierst eine Seite im Spiel und fügst sie hier ein. Es läuft nichts automatisch im Spiel.' },
       copy: { title: 'Kopieren und einfügen', text: 'Öffne die Seite im Spiel, drücke Strg+A und Strg+C und hier Strg+V. Der Hub erkennt selbst, welche Seite es ist, und zeigt vor dem Speichern eine Vorschau. Eine gespeicherte Seite kannst du auch als Datei wählen.' },
-      pages: { title: 'Welche Seiten?', text: 'Statistik (Spieler und Allianz), Nachrichten (Spionage-, Kampf-, Expeditions- und Recyclerberichte), Galaxie, Imperium, Marktplatz, Gebäude, Forschung, die Übersicht mit Bauschleifen und Flottenbewegungen, und Spielerinformationen (Heimatplanet und Kampfstatistik für das Rangabzeichen: im Popup die Tabelle markieren).' },
+      pages: { title: 'Welche Seiten?', text: 'Statistik (Spieler und Allianz), Nachrichten (Spionage-, Kampf-, Expeditions- und Recyclerberichte), Galaxie, Imperium, Marktplatz, Gebäude, Forschung, Rekorde (für den Catch-up-Bonus), die Übersicht mit Bauschleifen und Flottenbewegungen, und Spielerinformationen (Heimatplanet und Kampfstatistik für das Rangabzeichen: im Popup die Tabelle markieren).' },
       source: { title: 'Genauer mit Quelltext', text: 'Für genaue Werte (Kosten und Bauzeiten der Gebäude- und Forschungsseite, exakter Marktkurs, sekundengenaue Restzeiten) den Seitenquelltext mit Strg+U öffnen, kopieren und einfügen.' },
       hints: { title: 'Was als Nächstes?', text: 'Diese Liste zeigt, welche Seiten bei dir fehlen oder alt sind und was im Hub damit besser wird – das Wichtigste zuerst. Nach jedem Speichern aktualisiert sie sich.' },
       freshness: { title: 'Deine Frische', text: 'Wie aktuell deine eigenen Seiten im Hub sind, 0 bis 100: Imperium, Übersicht, Galaxie um deine Planeten, Gebäudeseiten, Nachrichten und Forschung zählen je nach Gewicht und verlieren mit dem Alter. Jeder Sync hebt den Wert.' },
@@ -2081,7 +2081,7 @@ const de = {
       too_short: 'Fast nichts eingefügt. Markiere im Spiel die ganze Seite (Strg+A), kopiere sie (Strg+C) und füge sie hier ein.',
       not_game: 'Das sieht nicht nach einer Seite von pr0game aus. Kopiere die Seite direkt im Spiel, nicht aus einem Forum oder Chat.',
       language: 'Die Seite ist auf {lang} – der Hub liest nur Deutsch und Englisch. Stelle die Sprache im Spiel unter Einstellungen um und kopiere die Seite noch einmal.',
-      unsupported_page: 'Das ist die Seite „{page}“ – die liest der Hub (noch) nicht. Lesbar sind Übersicht, Imperium, Galaxie, Nachrichten, Statistik, Gebäude, Forschung, Flotten, Marktplatz, Battle Hall, Kampfberichte und Spielerinformationen.',
+      unsupported_page: 'Das ist die Seite „{page}“ – die liest der Hub (noch) nicht. Lesbar sind Übersicht, Imperium, Galaxie, Nachrichten, Statistik, Gebäude, Forschung, Flotten, Marktplatz, Battle Hall, Kampfberichte, Spielerinformationen und Rekorde.',
       parse_failed: 'Das ist die Seite „{page}“, die der Hub eigentlich liest, aber er hat nichts darin gefunden. Vielleicht hat das Spiel die Seite geändert – schick sie den Admins als Probe.',
       unknown_game_page: 'Eine Seite des Spiels, aber der Hub erkennt nicht, welche. Als gespeicherte Datei (Strg+S) oder Quelltext lässt sie sich meist erkennen; sonst schick sie den Admins als Probe.',
     },
@@ -2200,6 +2200,7 @@ const de = {
       playerMessage: 'Nachricht von {from} an {to}: {subject} – {time}',
       marketplace: 'Marktplatz – {offers} Angebote, Kurs {rate}',
       playerCard: 'Spielerinfo {player} – Heimatplanet {planet} {coords}',
+      records: 'Rekorde – {elements} Gebäude und Forschungen',
     },
   },
   stats: {
@@ -3124,6 +3125,7 @@ const de = {
       battleHall: 'Ruhmeshalle',
       combatReport: 'Kampfbericht',
       playerCard: 'Spielerinfo',
+      records: 'Rekorde',
     },
     fleetAttacks: 'Flottenbewegungen',
     fleetOwnerCol: 'Erkannt als',

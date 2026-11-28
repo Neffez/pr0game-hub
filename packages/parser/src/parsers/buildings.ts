@@ -35,6 +35,9 @@ function infoId($: CheerioAPI, node: unknown): number | null {
 /** status of a building whose facility is in use */
 const BUSY = /^(Beschäftigt|Busy)$/i;
 
+/** the element's own catch-up bonus ("Bonus: 3.39 %", `sys_catchup_short`), shown when it differs from the general one */
+const ELEMENT_CATCH_UP = /^\s*Bonus:\s*(\d+(?:[.,]\d+)?)\s*%\s*$/i;
+
 /** "Abreißen" / "Demolish" after a queue entry */
 const DESTROY = /\s+(?:Abreißen|Demolish|Dismantle)\s*$/i;
 
@@ -64,7 +67,10 @@ function entries($: CheerioAPI, from: number, to: number): BuildingsEntry[] {
     });
     const ts = costCell.find('.statictime').first().attr('timestamp');
     const busy = costCell.children('span.colorNeutral').toArray().some((sp) => BUSY.test($(sp).text().trim()));
-    list.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null, ...(busy ? { busy } : {}) });
+    // "Bonus: 3.39 %" below the cost: the element's own catch-up bonus near a record level
+    const own = costCell.children('span').first().find('span').toArray().map((sp) => $(sp).text().match(ELEMENT_CATCH_UP)).find((m) => m);
+    const catchUp = own ? Number(own[1].replace(',', '.')) : null;
+    list.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null, ...(busy ? { busy } : {}), ...(catchUp != null ? { catchUp } : {}) });
   });
   return list;
 }

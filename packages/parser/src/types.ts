@@ -302,6 +302,11 @@ export interface BuildingsEntry {
   time: number | null;
   /** "Busy": research (TechnoDome, lab) or the shipyard (nanite factory, shipyard) is working */
   busy?: boolean;
+  /**
+   * the element's own catch-up bonus in percent ("Bonus: 3.39 %") when the page shows one: it differs from the
+   * general bonus near a record level, and the game shows it only when the element can be built now
+   */
+  catchUp?: number;
 }
 
 /** Game buildings page (page=buildings) of the selected planet/moon. */
@@ -494,6 +499,17 @@ export interface MarketRate {
   exact: boolean;
 }
 
+/**
+ * Game records page (page=records): the record level of each building and research in the universe as of the last
+ * statistics update; the catch-up bonus shrinks near it.
+ */
+export interface RecordsRecord {
+  kind: 'records';
+  pageTime: string | null;
+  /** element id (buildings, research) -> record level, 0 when nobody has it yet */
+  levels: Record<number, number>;
+}
+
 /** Marketplace page: the reference rate and the open resource offers. */
 export interface MarketplaceRecord {
   kind: 'marketplace';
@@ -596,9 +612,10 @@ export type HubRecord =
   | BattleHallRecord
   | CombatReportRecord
   | MarketplaceRecord
-  | PlayerCardRecord;
+  | PlayerCardRecord
+  | RecordsRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'shipyard' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'playerCard' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'shipyard' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'playerCard' | 'records' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

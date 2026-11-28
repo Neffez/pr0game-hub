@@ -19,6 +19,7 @@ import {
   type MarketplaceRecord,
   type MissileImpactRecord,
   type PlayerCardRecord,
+  type RecordsRecord,
   type OverviewRecord,
   type PlayerMessageRecord,
   type RecycleRecord,
@@ -27,6 +28,7 @@ import {
   type StatsRecord,
   type TransportRecord,
 } from '@pr0hub/core';
+import { catchUpFromCosts, recordHints, type CostPage } from '@pr0hub/core/buildings';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets, type CombatFrom } from './battleParticipants.js';
 import { now, type DB } from './db.js';
@@ -36,6 +38,7 @@ import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { blackHoleLosses } from './repo/expeditionLosses.js';
+import { noteRecordHints } from './repo/catchUpRecords.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players, scoreKey } from './repo/players.js';
 import { galaxyFingerprint } from './repo/syncCount.js';
@@ -159,6 +162,8 @@ export class Store {
         return this.marketplace(r);
       case 'playerCard':
         return this.playerCard(r);
+      case 'records':
+        return this.records(r);
     }
   }
 
@@ -971,13 +976,33 @@ export class Store {
   /** Buildings page of one planet/moon: only the newest per planet is ever read. */
   private buildings(r: BuildingsRecord) {
     this.planetPage('building_snapshots', r);
+    this.pageRecords(r.catchUp, { buildings: r.buildings, queue: r.queue }, r.pageTime);
     this.count('buildings', true);
   }
 
   /** Research page of one planet: only the newest per planet is ever read. */
   private research(r: ResearchRecord) {
     this.planetPage('research_snapshots', r);
+    this.pageRecords(r.catchUp, { buildings: r.research, queue: r.queue.map((q) => ({ ...q, destroy: false })) }, r.pageTime);
     this.count('research', true);
+  }
+
+  /**
+   * What the costs of a buildings or research page tell about the record levels of the universe (`recordHints`), with
+   * the exact bonus behind them while it fits the rounded one shown.
+   */
+  private pageRecords(shown: number | null, page: CostPage, pageTime: string | null) {
+    if (!shown) return;
+    const exact = catchUpFromCosts(page);
+    const fits = exact != null && Math.abs(exact - shown) < 0.006;
+    noteRecordHints(this.db, this.t.groupId, recordHints(page, fits ? exact : shown, fits), this.epoch(pageTime) ?? now());
+  }
+
+  /** Records page: the record level of every building and research of the universe. */
+  private records(r: RecordsRecord) {
+    const hints = Object.entries(r.levels).map(([id, level]) => ({ id: Number(id), min: level, max: level }));
+    noteRecordHints(this.db, this.t.groupId, hints, this.epoch(r.pageTime) ?? now());
+    this.count('records', true);
   }
 
   /** Shipyard or defense page of one planet/moon: only the newest of each list per planet is ever read. */

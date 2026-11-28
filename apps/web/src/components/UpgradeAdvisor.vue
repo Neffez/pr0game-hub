@@ -24,7 +24,7 @@ interface HubPlanet {
   factors?: Record<string, number> | null;
 }
 const props = defineProps<{
-  hub: { planets: HubPlanet[]; research: Record<string, number>; researchQueue: { id: number; level: number }[]; resourceSpeed: number | null; catchUp: number | null };
+  hub: { planets: HubPlanet[]; research: Record<string, number>; researchQueue: { id: number; level: number }[]; resourceSpeed: number | null; catchUp: number | null; catchUpRecords?: Record<string, number> };
   planetKey: string;
   mobile: boolean;
   /** only the best step of the planet, as one line (buildings tab) */
@@ -59,6 +59,7 @@ const advice = computed(() =>
     resourceSpeed: (props.hub.resourceSpeed || ctx.value!.universe.settings.resourceMultiplier || 2500) / 2500,
     rate: currentMarketRate(),
     catchUp: props.hub.catchUp ?? 0,
+    records: props.hub.catchUpRecords,
   }),
 );
 const list = computed(() => advice.value.filter((a) => !onlyPlanet.value || a.key === props.planetKey || a.key == null));

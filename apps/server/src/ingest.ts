@@ -468,6 +468,9 @@ export function aboutRecords(records: HubRecord[]): About[] {
       case 'playerCard':
         add(`${r.name} ${c(r.coords)}`);
         break;
+      case 'records':
+        add(`${Object.keys(r.levels).length} records`);
+        break;
     }
   }
   return [...kinds.values()];
@@ -524,5 +527,7 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, from: r.from.name, to: r.to.map((p) => p.name).join(', '), subject: r.subject, time: r.time };
     case 'playerCard':
       return { kind: r.kind, player: r.name, coords: c(r.coords), planet: r.planetName };
+    case 'records':
+      return { kind: r.kind, elements: Object.keys(r.levels).length };
   }
 }

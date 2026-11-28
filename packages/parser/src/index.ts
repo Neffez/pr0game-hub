@@ -12,6 +12,7 @@ import { isMarketplaceHtml, isMarketplaceText, parseMarketplaceHtml, parseMarket
 import { isCombatReportText, isCombatSimulation, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import { isPlayerCardHtml, isPlayerCardText, parsePlayerCardHtml, parsePlayerCardText } from './parsers/playerCard.js';
+import { isRecordsHtml, parseRecordsHtml } from './parsers/records.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
 import { takeUnknownUnits } from './tech.js';
 import { withUnits, type UnitCatalog } from './units.js';
@@ -122,6 +123,10 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   }
   if (page === 'battlehall' || isBattleHallHtml($)) {
     return { pageType: 'battleHall', records: [parseBattleHallHtml($)] };
+  }
+  if (page === 'records' || isRecordsHtml($)) {
+    const r = parseRecordsHtml($);
+    if (r) return { pageType: 'records', records: [r] };
   }
   if (page === 'marketplace' || isMarketplaceHtml($)) {
     return { pageType: 'marketplace', records: [parseMarketplaceHtml($)] };

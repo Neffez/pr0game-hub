@@ -11,7 +11,7 @@ describe('explainNoData (E-4)', () => {
     expect(explainNoData({ html: '<html lang="de"><body id="galaxy">', text: 'x' })).toEqual({ code: 'parse_failed', page: 'galaxy' });
     expect(explainNoData({ html: '<html lang="de"><body id="playerCard">', text: 'x' })).toEqual({ code: 'parse_failed', page: 'playercard' });
     expect(explainNoData({ html: '<html lang="fr"><body id="galaxy">', text: 'x' })).toEqual({ code: 'language', lang: 'fr', page: 'galaxy' });
-    expect(explainNoData({ html: '<div>x</div>', text: 'Schiffswerft', url: 'https://pr0game.com/uni8/game.php?page=records' })).toEqual({ code: 'unsupported_page', page: 'records' });
+    expect(explainNoData({ html: '<div>x</div>', text: 'Schiffswerft', url: 'https://pr0game.com/uni8/game.php?page=notes' })).toEqual({ code: 'unsupported_page', page: 'notes' });
   });
 
   it('guesses the page of copied text from a menu title shown twice', () => {

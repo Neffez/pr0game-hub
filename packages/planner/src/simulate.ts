@@ -225,6 +225,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const researchSpeed = hub.researchSpeed ?? 2500;
   const shipyardSpeed = hub.shipyardSpeed ?? buildingSpeed;
   const catchUp = hub.catchUp ?? 0;
+  const records = hub.catchUpRecords ?? {};
   const homePlanet = hub.planets.find((p) => p.type === 'planet' && p.coords.g > 0)?.planet ?? null;
   const newPlanetResources = planetStartResources(o.universe, homePlanet);
 
@@ -590,7 +591,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const levelCost = (id: number, level: number) => {
     const key = id * 1000 + level;
     let c = costs.get(key);
-    if (!c) costs.set(key, (c = buildingCost(id, level, catchUp)));
+    if (!c) costs.set(key, (c = buildingCost(id, level, catchUp, records[id])));
     return c;
   };
   const stepCost = (p: Planet, s: Step): Record<number, number> => {

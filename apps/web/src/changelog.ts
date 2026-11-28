@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-28',
+    items: [
+      {
+        kind: 'new',
+        de: 'Catch-up-Bonus nahe am Rekord: Das Spiel gibt weniger Bonus, je näher ein Gebäude oder eine Forschung der Rekordstufe im Universum kommt. Kosten und Bauzeiten im Hub (Gebäude, Forschung, Bauliste, Auto-Plan, Ausbauberater) rechnen das jetzt mit. Die Rekorde kennt der Hub aus der Rekorde-Seite, die du jetzt synchronisieren kannst, und aus den Kosten deiner Gebäude- und Forschungsseiten.',
+        en: 'Catch-up bonus near the record: the game gives less bonus the closer a building or research gets to the record level of the universe. Costs and build times in the hub (buildings, research, build order, auto plan, upgrade advisor) now take this into account. The hub knows the records from the records page, which you can now sync, and from the costs on your buildings and research pages.',
+      },
+    ],
+  },
+  {
     date: '2026-11-27',
     items: [
       {

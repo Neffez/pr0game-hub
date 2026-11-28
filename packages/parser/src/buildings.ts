@@ -70,13 +70,31 @@ export const buildingsFor = (type: PlanetType): number[] =>
     .map(([id]) => Number(id));
 
 /**
- * Cost of a building or research level (`getElementPrice`): base × factor^(level-1), metal/crystal/deuterium reduced
- * by the catch-up bonus (percent).
+ * Record levels of the universe for the catch-up bonus: element id -> the level `getCatchUpFactorForElement` compares
+ * with (the game's records, rebuilt with each statistics update). An element missing here has no known record and
+ * gets the full bonus.
  */
-export function buildingCost(id: number, level: number, catchUp = 0): Record<number, number> {
+export type CatchUpRecords = Record<string, number>;
+
+/**
+ * Catch-up bonus (percent) of one level like the game's `getCatchUpFactorForElement`: the full bonus while the record
+ * is at least 3 levels above the level built, two thirds at 2 levels, one third at 1 level, none at or above the
+ * record. Without a known record the full bonus.
+ */
+export function catchUpAt(catchUp: number, level: number, record: number | null | undefined): number {
+  if (!catchUp || record == null) return catchUp;
+  const diff = record - level;
+  return diff <= 0 ? 0 : diff === 1 ? catchUp / 3 : diff === 2 ? (catchUp * 2) / 3 : catchUp;
+}
+
+/**
+ * Cost of a building or research level (`getElementPrice`): base × factor^(level-1), metal/crystal/deuterium reduced
+ * by the catch-up bonus (percent), less of it near the element's record level (`catchUpAt`).
+ */
+export function buildingCost(id: number, level: number, catchUp = 0, record?: number | null): Record<number, number> {
   const c = costOf(id);
   if (!c) return {};
-  const scale = (c[3] !== 1 && c[3] !== 0 ? Math.pow(c[3], level - 1) : 1) * (1 - catchUp / 100);
+  const scale = (c[3] !== 1 && c[3] !== 0 ? Math.pow(c[3], level - 1) : 1) * (1 - catchUpAt(catchUp, level, record) / 100);
   const cost: Record<number, number> = {};
   RESOURCES.forEach((r, i) => {
     if (c[i]) cost[r] = c[i] * scale;
@@ -95,30 +113,101 @@ export function catchUpBonus(ownWeighted: number, leaderWeighted: number, maxBon
   return (maxBonus / 9) * (raw - 1);
 }
 
-/**
- * The exact catch-up bonus (percent) behind the costs a buildings page shows: the page only prints it rounded to two
- * decimals, the costs are rounded to whole units. Each cost narrows the factor to [(x − ½) / base, (x + ½) / base];
- * the middle of what all costs allow. Null without costs or when they don't fit one factor.
- */
-export function catchUpFromCosts(page: {
-  buildings: { id: number; level: number; cost: Record<number, number> }[];
+/** A buildings or research page as far as its costs tell about the catch-up bonus. */
+export interface CostPage {
+  /** `catchUp`: the element's own bonus in percent when the page shows one (it differs from the general one) */
+  buildings: { id: number; level: number; cost: Record<number, number>; catchUp?: number }[];
   queue: { id: number; level: number; destroy: boolean }[];
-}): number | null {
-  let lo = 0;
-  let hi = Infinity;
+}
+
+/**
+ * The factor range each element's cost allows, [(x − ½) / base, (x + ½) / base] over its resources (costs are rounded
+ * to whole units), with the level `next` the cost is for. Elements without a cost, or one that fits no factor, are
+ * left out.
+ */
+function costFactors(page: CostPage): { id: number; next: number; lo: number; hi: number; shown: number | null }[] {
+  const out: { id: number; next: number; lo: number; hi: number; shown: number | null }[] = [];
   for (const b of page.buildings) {
     const queued = [...page.queue].reverse().find((q) => q.id === b.id);
-    const base = buildingCost(b.id, (queued ? levelAfter(queued) : b.level) + 1);
+    const next = (queued ? levelAfter(queued) : b.level) + 1;
+    const base = buildingCost(b.id, next);
+    let lo = 0;
+    let hi = Infinity;
     for (const r of RESOURCES) {
       const x = b.cost[r];
       if (!x || !base[r]) continue;
       lo = Math.max(lo, (x - 0.5) / base[r]);
       hi = Math.min(hi, (x + 0.5) / base[r]);
     }
+    if (Number.isFinite(hi) && lo <= hi) out.push({ id: b.id, next, lo, hi, shown: b.catchUp ?? null });
   }
-  if (!Number.isFinite(hi) || lo > hi) return null;
+  return out;
+}
+
+/**
+ * The exact catch-up bonus (percent) behind the costs a buildings page shows: the page only prints it rounded to two
+ * decimals, the costs are rounded to whole units. Each cost narrows the factor to [(x − ½) / base, (x + ½) / base];
+ * the middle of what the costs allow. Elements near a record level carry less of the bonus (`catchUpAt`, a higher
+ * factor): those the page marks with their own bonus are left out, and of the rest only those that fit the lowest
+ * factor count. Null without costs or when they don't fit one factor.
+ */
+export function catchUpFromCosts(page: CostPage): number | null {
+  const list = costFactors(page).filter((f) => f.shown == null);
+  if (!list.length) return null;
+  const top = Math.min(...list.map((f) => f.hi));
+  const fit = list.filter((f) => f.lo <= top);
+  const lo = Math.max(...fit.map((f) => f.lo));
+  const hi = Math.min(...fit.map((f) => f.hi));
+  if (lo > hi) return null;
   return (1 - (lo + hi) / 2) * 100;
 }
+
+/** What a page tells about the record level of one element: exact (`min` = `max`), at most `max` or at least `min`. */
+export interface RecordHint {
+  id: number;
+  min: number | null;
+  max: number | null;
+}
+
+/**
+ * What a buildings or research page tells about the record level of each element: the share of the general bonus
+ * `catchUp` (percent) that the cost of its next level `n` carries (`catchUpAt`). One third: the record is n + 1; two
+ * thirds: n + 2; none: at most n; the full bonus: at least n + 3. The page shows an element's own bonus only when it
+ * differs and the element can be built now; when shown, it must agree. `exact`: `catchUp` is the exact bonus
+ * (`catchUpFromCosts`), else the rounded one of the page. Elements whose cost fits no share or several are left out,
+ * as is everything without a bonus.
+ */
+export function recordHints(page: CostPage, catchUp: number | null, exact = false): RecordHint[] {
+  if (!catchUp || catchUp <= 0) return [];
+  // uncertainty of the bonus (as a factor): exact from the costs, else rounded to two decimals of a percent
+  const u = exact ? 1e-6 : 0.00005;
+  const out: RecordHint[] = [];
+  for (const f of costFactors(page)) {
+    const shares = [1, 2 / 3, 1 / 3, 0].filter((k) => {
+      const factor = 1 - (catchUp / 100) * k;
+      if (factor < f.lo - u * k || factor > f.hi + u * k) return false;
+      // the shown bonus is rounded to two decimals as well
+      return f.shown == null || (k < 1 && Math.abs(catchUp * k - f.shown) <= 0.0051 + u * 100 * k);
+    });
+    if (shares.length !== 1) continue;
+    const k = shares[0];
+    if (k === 1) out.push({ id: f.id, min: f.next + 3, max: null });
+    else if (k === 0) out.push({ id: f.id, min: null, max: f.next });
+    else {
+      const record = f.next + (k > 0.5 ? 2 : 1);
+      out.push({ id: f.id, min: record, max: record });
+    }
+  }
+  return out;
+}
+
+/**
+ * The record level to reckon with from what is known about it (`min`/`max` of `RecordHint`s and the records page):
+ * the upper bound while no lower bound is above it (the records only grow, a lower bound above it shows it is out of
+ * date); null without an upper bound (full bonus).
+ */
+export const recordLevel = (r: { min: number | null; max: number | null }): number | null =>
+  r.max != null && (r.min == null || r.min <= r.max) ? r.max : null;
 
 /** Build time in seconds (`getBuildingTime`): (metal + crystal) / (speed × (1 + robot factory)) × 0.5^nanite factory hours. */
 export function buildTime(cost: Record<number, number>, robot: number, nanite: number, speed: number): number {
@@ -303,6 +392,8 @@ export interface BuildOptions {
   research: Record<string, number>;
   /** catch-up bonus in percent */
   catchUp?: number | null;
+  /** record levels of the universe: less of the bonus near them (`catchUpAt`) */
+  records?: CatchUpRecords | null;
   /** universe building speed, null when unknown */
   buildingSpeed?: number | null;
   /** storage factor of the universe (when the planet has no `storage`) */
@@ -330,7 +421,7 @@ export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
     const queued = [...p.queue].reverse().find((q) => q.id === id);
     const next = (queued ? levelAfter(queued) : level) + 1;
     const shown = o.shown?.[id]?.next === next ? o.shown[id] : undefined;
-    const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0);
+    const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0, o.records?.[id]);
     // the page shows the time with today's factories: it only holds while none of them is in the queue
     const time = !factoriesQueued && shown?.time != null ? shown.time : o.buildingSpeed ? buildTime(cost, robot, nanite, o.buildingSpeed) : null;
     const by = LOCKED_BY[id];
@@ -388,6 +479,8 @@ export interface ResearchOptions {
   /** lab levels of the account's other planets (intergalactic research network) */
   otherLabs: number[];
   catchUp?: number | null;
+  /** record levels of the universe: less of the bonus near them (`catchUpAt`) */
+  records?: CatchUpRecords | null;
   /** universe research speed, null when unknown */
   researchSpeed?: number | null;
   /** university factor of the universe in percent per TechnoDome level (game default 8) */
@@ -414,7 +507,7 @@ export function researchOf(p: BuildPlanet, o: ResearchOptions): BuildingInfo[] {
     const queued = [...o.queue].reverse().find((q) => q.id === id);
     const next = (queued ? queued.level : level) + 1;
     const shown = o.shown?.[key]?.next === next ? o.shown[key] : undefined;
-    const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0);
+    const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0, o.records?.[id]);
     const labs = labLevels(id, lab, o.otherLabs, o.research[RESEARCH_NETWORK] ?? 0);
     const time =
       shown?.time != null ? shown.time : o.researchSpeed ? researchTime(cost, labs, o.researchSpeed, p.values[TECHNO_DOME] ?? 0, o.universityFactor) : null;

@@ -2,6 +2,23 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-28
+
+- Catch-up bonus near record levels: the game now gives less of the bonus for a building or research close to its
+  record level in the universe (`getCatchUpFactorForElement`: the full bonus 3 or more levels below the record, two
+  thirds 2 levels below, one third 1 level below, none at or above it; no bonus for an element nobody has built).
+  The hub follows it:
+  - Costs and times of later levels (buildings and research page, build order timeline, auto plan, upgrade advisor)
+    take the record level into account (`buildingCost` / `catchUpAt` with the record).
+  - The records page (`page=records`, HTML) is read now: the record level of every building and research.
+  - Buildings and research pages tell the record too: the share of the bonus in each cost gives the record (exact 1
+    or 2 levels above the next level, at most the next level without bonus, at least 3 above with the full bonus);
+    the element's own bonus the page shows ("Bonus: x %") is parsed and must agree (`recordHints`).
+  - The bounds are kept per universe (migration `104_catchup_records`, `repo/catchUpRecords.ts`): an upper bound
+    holds until a lower bound above it shows the record grew. The buildings state answers them as `catchUpRecords`.
+  - The exact general bonus from the costs of a page (`catchUpFromCosts`) leaves out elements with a reduced bonus,
+    so their costs no longer spoil it.
+
 ## 2026-11-27
 
 - Raid planner: a plan made by hand without any fleet with a start now takes over the running own attack (or ACS) on

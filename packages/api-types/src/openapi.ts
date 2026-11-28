@@ -2701,7 +2701,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Stores a pasted game page. `forUser` may point to another member only for messages and combat reports, not for empire, overview or fleets. Player profiles (`page=playerCard`, the in-game popup) store the home planet and the fight statistics (for the rank badge's units). `dryRun` returns the preview without storing. When nothing was recognized (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`), `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or `unknown_game_page`. */
+        /** @description Stores a pasted game page. `forUser` may point to another member only for messages and combat reports, not for empire, overview or fleets. Player profiles (`page=playerCard`, the in-game popup) store the home planet and the fight statistics (for the rank badge's units). The records page (`page=records`) stores the record levels of the universe for the catch-up bonus, as do the costs of buildings and research pages. `dryRun` returns the preview without storing. When nothing was recognized (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`), `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or `unknown_game_page`. */
         post: operations["ingestPage"];
         delete?: never;
         options?: never;
@@ -4249,6 +4249,10 @@ export type components = {
                 /** @description Unix seconds of that page or statistics update */
                 time: number;
             } | null;
+            /** @description Record levels of the universe (building or research id -> level) as far as known, from the records page and the costs of buildings and research pages. The game gives less of the catch-up bonus near them: two thirds 2 levels below the record, one third 1 level below, none at or above it. Elements left out get the full bonus. */
+            catchUpRecords: {
+                [key: string]: number;
+            };
             buildingSpeed: number | null;
             /** @description Universe setting `shipyardSpeed` (2500 = 1x), else the building speed; null when unknown */
             shipyardSpeed: number | null;

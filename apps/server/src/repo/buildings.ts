@@ -2,7 +2,7 @@ import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord, Shi
 import {
   buildingsOf, capacityOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY,
   RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, resourceReadyAt, ROBOT_FACTORY, shipsOf, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
-  type ShipInfo,
+  type CatchUpRecords, type ShipInfo,
 } from '@pr0hub/core/buildings';
 import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { UnitCatalog } from '@pr0hub/core/units';
@@ -12,6 +12,7 @@ import { events } from '../events.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
+import { catchUpRecords } from './catchUpRecords.js';
 import { memberPlayer } from './members.js';
 import { CATCH_UP_WEIGHTS, catchUpLeader, latestScores } from './stats.js';
 
@@ -61,6 +62,8 @@ export interface BuildingsState {
   catchUp: number | null;
   /** where the bonus comes from and as of when */
   catchUpFrom: { source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null;
+  /** record levels of the universe as far as known (`catchUpRecords`): less of the bonus near them */
+  catchUpRecords: CatchUpRecords;
   /** universe building speed: derived from a buildings page, else the universe setting; null when unknown */
   buildingSpeed: number | null;
   /** universe shipyard speed: the universe setting, else the building speed; null when unknown */
@@ -327,6 +330,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     universityFactor,
     catchUp: catchUp?.value ?? null,
     catchUpFrom: catchUp ? { source: catchUp.source, time: catchUp.time } : null,
+    catchUpRecords: catchUpRecords(db, ctx.groupId),
     buildingSpeed,
     shipyardSpeed: settings.shipyardSpeed || buildingSpeed,
     resourceSpeed: settings.resourceMultiplier || null,
@@ -549,7 +553,7 @@ function derivedSpeed(pages: BuildingsRecord[]): number | null {
 /** The buildings of a planet with their next level at `now`. */
 export function planetBuildings(state: BuildingsState, bp: BuildingPlanet, now: number): BuildingInfo[] {
   return buildingsOf(bp.planet, {
-    research: state.research, catchUp: state.catchUp, buildingSpeed: state.buildingSpeed, storageFactor: state.storageFactor,
+    research: state.research, catchUp: state.catchUp, records: state.catchUpRecords, buildingSpeed: state.buildingSpeed, storageFactor: state.storageFactor,
     arrivals: bp.arrivals, now, shown: bp.shown ?? undefined,
   });
 }
@@ -560,7 +564,7 @@ export function planetResearch(state: BuildingsState, bp: BuildingPlanet, now: n
   return researchOf(bp.planet, {
     research: state.research, queue: state.researchQueue,
     otherLabs: state.planets.filter((p) => p !== bp && p.type === 'planet').map((p) => p.planet.values[RESEARCH_LAB] ?? 0),
-    catchUp: state.catchUp, researchSpeed: state.researchSpeed, universityFactor: state.universityFactor, storageFactor: state.storageFactor,
+    catchUp: state.catchUp, records: state.catchUpRecords, researchSpeed: state.researchSpeed, universityFactor: state.universityFactor, storageFactor: state.storageFactor,
     arrivals: bp.arrivals, now, shown: bp.shownResearch ?? undefined,
   });
 }

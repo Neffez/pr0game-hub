@@ -29,7 +29,7 @@ export interface Explanation {
 /** Game pages the hub reads (`page=` ids), see `parsePage`. */
 export const SUPPORTED_PAGES = new Set([
   'overview', 'empire', 'imperium', 'galaxy', 'messages', 'statistics', 'buildings', 'research', 'shipyard', 'marketplace', 'battlehall', 'raport',
-  'fleettable', 'phalanx', 'playercard',
+  'fleettable', 'phalanx', 'playercard', 'records',
 ]);
 
 /**
@@ -43,6 +43,7 @@ const UNSUPPORTED: { page: string; titles: string[] }[] = [
   { page: 'techtree', titles: ['Technologie', 'Technologies'] },
   { page: 'alliance', titles: ['Allianz', 'Alliance'] },
   { page: 'buddylist', titles: ['Buddylist', 'Friends'] },
+  // read from its HTML only (a plain text copy is not read)
   { page: 'records', titles: ['Rekorde', 'Records'] },
   { page: 'notes', titles: ['Notizen', 'Notes'] },
   { page: 'settings', titles: ['Einstellungen', 'Options'] },
